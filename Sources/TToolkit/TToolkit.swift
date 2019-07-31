@@ -45,6 +45,12 @@ public extension Date {
 	}
 }
 
+public func dprint(_ input:String) {
+	#if DEBUG
+	print(input)
+	#endif
+}
+
 public struct StringStopwatch {
 	private var _startDate = Date()
 	public init() {}
