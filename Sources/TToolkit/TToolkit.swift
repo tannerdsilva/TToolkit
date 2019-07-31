@@ -22,8 +22,8 @@ struct ANSIModifiers {
     static var strikethrough = [9, 29]
 }
 
-extension String {
-	static func random(length:Int = 32) -> String {
+public extension String {
+	public static func random(length:Int = 32) -> String {
 		let base = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 		let baseLength = base.count
 		var randomString = ""
@@ -34,13 +34,13 @@ extension String {
 		return randomString
 	}
 	
-	func bashSafe() -> String {
+	public func bashSafe() -> String {
 		return self.replacingOccurrences(of:"'", with:"\"")
 	}
 }
 
-extension Date {
-	var isoString: String {
+public extension Date {
+	public var isoString: String {
 		return ISO8601DateFormatter().string(from:self)
 	}
 }
@@ -58,7 +58,7 @@ public struct StringStopwatch {
 	}
 }
 
-func promptLoop(with promptingString:String, terminator:String) -> [String] {
+public func promptLoop(with promptingString:String, terminator:String) -> [String] {
 	var promptString:String? = nil
 	var arrayToReturn = [String]()
 	repeat { 
@@ -68,7 +68,7 @@ func promptLoop(with promptingString:String, terminator:String) -> [String] {
 	return arrayToReturn
 }
 
-func prompt(with promptingString:String) -> String {
+public func prompt(with promptingString:String) -> String {
 	var inputVariable:String? = nil
 	var i = 0
 	repeat {
@@ -83,7 +83,7 @@ func prompt(with promptingString:String) -> String {
 	return inputVariable!
 }
 
-func prompt(with promptingString:String, validChoices:[String], displayValidChoices:Bool = false) -> String {
+public func prompt(with promptingString:String, validChoices:[String], displayValidChoices:Bool = false) -> String {
 	if (displayValidChoices == true) {
 		for (_, curChoice) in validChoices.enumerated() {
 			print(Colors.Magenta(" ->\t\(curChoice)"))
