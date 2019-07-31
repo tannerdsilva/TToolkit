@@ -45,12 +45,12 @@ extension Date {
 	}
 }
 
-struct StringStopwatch {
-	var _startDate = Date()
-	mutating func reset() {
+public struct StringStopwatch {
+	private var _startDate = Date()
+	public mutating func reset() {
 		_startDate = Date()
 	}
-	func click(_ decimals:UInt = 1) -> String {
+	public func click(_ decimals:UInt = 1) -> String {
 		let elapsed = Date().timeIntervalSince(_startDate)
 		let formatString = "%." + String(decimals) + "f"
 		return String(format:formatString, elapsed)
