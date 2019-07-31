@@ -47,6 +47,7 @@ extension Date {
 
 public struct StringStopwatch {
 	private var _startDate = Date()
+	public init() {}
 	public mutating func reset() {
 		_startDate = Date()
 	}
