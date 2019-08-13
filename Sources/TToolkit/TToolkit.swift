@@ -27,7 +27,7 @@ public extension String {
 		let base = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 		let baseLength = base.count
 		var randomString = ""
-		for _ in 0..<baseLength {
+		for _ in 0..<length {
 			let randomIndex = Int.random(in:0..<baseLength)
 			randomString.append(base[base.index(base.startIndex, offsetBy:randomIndex)])
 		}
