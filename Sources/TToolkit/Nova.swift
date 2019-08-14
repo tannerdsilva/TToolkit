@@ -91,7 +91,7 @@ public class Nova {
 		}
 	}
 	
-	init(webroot:URL, insecurePorts:[Int] = [80], securePorts:[Int] = [], authority:AuthorityCerts? = nil, redirectInsecure:Bool = true) throws {
+	public init(webroot:URL, insecurePorts:[Int] = [80], securePorts:[Int] = [], authority:AuthorityCerts? = nil, redirectInsecure:Bool = true) throws {
 		redirectInsecureTraffic = redirectInsecure
 		secureRedirect.shouldRedirect = redirectInsecure
 		
