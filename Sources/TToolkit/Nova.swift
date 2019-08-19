@@ -2,6 +2,7 @@ import Foundation
 import KituraNet
 import Kitura
 import SSLService
+import KituraCORS
 
 public typealias AuthorityCerts = URL
 extension AuthorityCerts {
@@ -94,13 +95,17 @@ public class Nova {
 		}
 	}
 	
-	public init(webroot:URL, insecurePorts:[Int] = [80], securePorts:[Int] = [], authority:AuthorityCerts? = nil, redirectInsecure:Bool = true) throws {
+	public init(webroot:URL, insecurePorts:[Int] = [80], securePorts:[Int] = [], authority:AuthorityCerts? = nil, redirectInsecure:Bool = true, fullCors:Bool = true) throws {
 		redirectInsecureTraffic = redirectInsecure
 		secureRedirect.shouldRedirect = redirectInsecure
-		
+
 		//build the router stack
 		let staticServer = StaticFileServer(path:webroot.path)
 		router.all(middleware:secureRedirect)
+		if (fullCors == true) {
+			let kituraCors = CORS()
+			router.all(middleware:kituraCors)
+		}
 		router.all(middleware:logger)
 		router.all(middleware:staticServer)
 		
