@@ -52,7 +52,6 @@ public class Nova {
 	public let router = Router(mergeParameters:false, enableWelcomePage:false)
 	private var secureRedirect = InsecureRedirector()
 	private var logger = TrafficLogger()
-	private var servers = [HTTPServer]()
 	
 	private var secureServers = [Int:HTTPServer]()
 	private var insecureServers = [Int:HTTPServer]()
@@ -119,7 +118,7 @@ public class Nova {
 				let newServer = HTTPServer()
 				newServer.delegate = router
 				try newServer.listen(on:curPort)
-				servers.append(newServer)
+				insecureServers[curPort] = newServer
 			} catch let error {
 				print(Colors.Red(" [FAILED]: Unable to bind to port \(curPort)"))
 				throw error
@@ -144,7 +143,7 @@ public class Nova {
 				newServer.delegate = router
 				newServer.sslConfig = authorityTest.asSSLConfig()
 				try newServer.listen(on:curPort)
-				servers.append(newServer)
+				secureServers[curPort] = newServer
 			} catch let error {
 				print(Colors.Red(" [FAILED] : Unable to bind to port \(curPort)"))
 				throw error
