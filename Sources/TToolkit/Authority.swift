@@ -239,7 +239,7 @@ public class Authority {
 		if (password == nil) {
 			return false
 		}
-		let testRun = context.run(bash:"echo '' | { echo '\(password)'; cat -; } | sudo -S whoami &> /dev/null")
+		let testRun = context.run(bash:"echo '' | { echo '\(password!)'; cat -; } | sudo -S whoami &> /dev/null")
 		if (logoutAfterTest == true) {
 			context.run(bash:"sudo -k") //logout again if necessary
 		}
