@@ -71,6 +71,7 @@ public class Nova {
 			for (n, curPort) in insecureServers.keys.enumerated() {
 				if (newValue == true) {
 					try? insecureServers[curPort]!.listen(on:curPort)
+					dprint(Colors.Green("[NOVA]\tStarting server on port \(curPort)"))
 				} else if (newValue == false) {
 					insecureServers[curPort]!.stop()
 					dprint(Colors.Red("[NOVA]\tStopping server on port \(curPort)"))
@@ -80,6 +81,7 @@ public class Nova {
 			for (n, curPort) in secureServers.keys.enumerated() {
 				if (newValue == true) {
 					try? secureServers[curPort]!.listen(on:curPort)
+					dprint(Colors.Green("[NOVA]\tStarting server on port \(curPort)"))
 				} else if (newValue == false) {
 					secureServers[curPort]!.stop()
 					dprint(Colors.Red("[NOVA]\tStopping server on port \(curPort)"))
