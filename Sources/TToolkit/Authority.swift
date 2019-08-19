@@ -140,7 +140,14 @@ public class Authority {
 			try chownCerts()
 			return true
 		} else if (runResult.stdout =~ "Certificate not yet due for renewal; no action taken.") {
-			dprint(Colors.dim("[AUTHORITY]\tNo certificates are due for renewal. Nothing as done."))
+			if (FileManager.default.fileExists(atPath:fullchain_cons.path) == false || FileManager.default.fileExists(atPath:fullchain_cons.path) == false) {
+				try copyCerts()
+				try chownCerts()
+				dprint(Colors.Green("[AUTHORITY]\tNo certificates are due for renewal. However, the keys could not be found in the consumption directory. They have now been installed."))
+				return true
+			} else {
+				dprint(Colors.dim("[AUTHORITY]\tNo certificates are due for renewal. Nothing as done."))
+			}
 		}
 		return false
 	}
