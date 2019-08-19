@@ -22,6 +22,9 @@ public class Authority {
 		do {
 			//try getting certs. will there be an authentication error thrown?
 			try refreshCertificates(domain:domain, at:directory, webroot:webroot ?? serveRoot)
+			if (tempServer != nil) {
+				tempServer!.isListening = false
+			}
 		} catch let error {
 			switch (error) {
 			case RefreshError.sudoAuthenticationError:
@@ -32,6 +35,9 @@ public class Authority {
 				//try acquiring again now that the user has authenticated with sudo and the adjustments have been made
 				do {
 					try refreshCertificates(domain:domain, at:directory, webroot:webroot ?? serveRoot)
+					if (tempServer != nil) {
+						tempServer!.isListening = false
+					}
 				} catch let secondError {
 					if (tempServer != nil) {
 						tempServer!.isListening = false
