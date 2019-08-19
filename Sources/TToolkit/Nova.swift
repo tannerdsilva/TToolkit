@@ -95,7 +95,7 @@ public class Nova {
 		}
 	}
 	
-	public init(webroot:URL, insecurePorts:[Int] = [80], securePorts:[Int] = [], authority:AuthorityCerts? = nil, redirectInsecure:Bool = true, fullCors:Bool = true) throws {
+	public init(webroot:URL, insecurePorts:[Int] = [80], securePorts:[Int] = [], authority:AuthorityCerts? = nil, redirectInsecure:Bool = true, fullCors:Bool = false) throws {
 		redirectInsecureTraffic = redirectInsecure
 		secureRedirect.shouldRedirect = redirectInsecure
 
@@ -103,7 +103,7 @@ public class Nova {
 		let staticServer = StaticFileServer(path:webroot.path)
 		router.all(middleware:secureRedirect)
 		if (fullCors == true) {
-			let kituraCors = CORS()
+			let kituraCors = CORS(options:Options())
 			router.all(middleware:kituraCors)
 		}
 		router.all(middleware:logger)
