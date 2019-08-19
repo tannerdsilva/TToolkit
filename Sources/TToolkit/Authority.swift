@@ -9,7 +9,7 @@ public class Authority {
 	}
 
 	//the "one call" solution
-	public class func certificates(domain:String, forConsumptionIn directory:URL, webroot:URL? = nil, email:String) throws {
+	public class func certificates(domain:String, forConsumptionIn directory:URL, webroot:URL? = nil, email:String, forceCertificateCopy:Bool = false) throws {
 		var tempServer:Nova? = nil
 		let serveRoot = FileManager.default.temporaryDirectory.appendingPathComponent(String.random(length:10), isDirectory:true)
 		if (webroot == nil) {
@@ -54,7 +54,7 @@ public class Authority {
 	
 	//MARK: SUPPORTING FUNCTIONS
 	//private refresh function
-	private class func refreshCertificates(domain:String, at consumptionDirectory:URL, webroot:URL, email:String? = nil) throws -> Bool {
+	private class func refreshCertificates(domain:String, at consumptionDirectory:URL, webroot:URL, email:String? = nil, forceCopy:Bool = false) throws -> Bool {
 		let cp = URL(fileURLWithPath:run(bash:"which cp").stdout)
 		let certbot = URL(fileURLWithPath:run(bash:"which certbot").stdout)
 		let thisUser = run(bash:"whoami").stdout
@@ -65,6 +65,10 @@ public class Authority {
 		let fullchain_live = domainLive.appendingPathComponent("fullchain.pem", isDirectory:false)
 		let privkey_live = domainLive.appendingPathComponent("privkey.pem", isDirectory:false)
 
+		guard validateSudoPermissions(domain:domain, forConsumptionIn:consumptionDirectory) == true else {
+			throw RefreshError.sudoAuthenticationError
+		}
+		
 		//copies certificates from the letsencrypt live directory to the destination directory
 		func copyCerts() throws {		
 			let fullchainResult = run(bash:"sudo -n \(cp.path) '\(fullchain_live.path)' '\(consumptionDirectory.path)'")
@@ -73,21 +77,13 @@ public class Authority {
 			guard fullchainResult.succeeded == true else {
 				print(Colors.Red(fullchainResult.stdout))
 				print(Colors.Red("[AUTHORITY]\tThere was an error trying to copy the fullchain.pem file from the live directory to the consumption directory"))
-				if (validateSudoPermissions(domain:domain, forConsumptionIn:consumptionDirectory) == true) {
-					throw RefreshError.certbotError
-				} else {
-					throw RefreshError.sudoAuthenticationError
-				}
+				throw RefreshError.certbotError
 			}
 		
 			guard privkeyResult.succeeded == true else {
 				print(Colors.Red(privkeyResult.stdout))
 				print(Colors.Red("[AUTHORITY]\tThere was an error trying to copy the privkey.pem file from the live directory to the consumption directory"))
-				if (validateSudoPermissions(domain:domain, forConsumptionIn:consumptionDirectory) == true) {
-					throw RefreshError.certbotError
-				} else {
-					throw RefreshError.sudoAuthenticationError
-				}
+				throw RefreshError.certbotError
 			}
 		}
 		
@@ -99,21 +95,13 @@ public class Authority {
 			guard fullchainOwnResult.succeeded == true else {
 				print(Colors.Red(fullchainOwnResult.stdout))
 				print(Colors.Red("There was an error trying to own the fullchain.pem file for user \(thisUser)"))
-				if (validateSudoPermissions(domain:domain, forConsumptionIn:consumptionDirectory) == true) {
-					throw RefreshError.certbotError
-				} else {
-					throw RefreshError.sudoAuthenticationError
-				}
+				throw RefreshError.certbotError
 			}
 		
 			guard privkeyOwnResult.succeeded == true else {
 				print(Colors.Red(fullchainOwnResult.stdout))
 				print(Colors.Red("There was an error trying to own the privkey.pem file for user \(thisUser)"))
-				if (validateSudoPermissions(domain:domain, forConsumptionIn:consumptionDirectory) == true) {
-					throw RefreshError.certbotError
-				} else {
-					throw RefreshError.sudoAuthenticationError
-				}
+				throw RefreshError.certbotError
 			}
 		}
 
@@ -125,13 +113,9 @@ public class Authority {
 		let runResult = run(bash:runCommand)
 		guard runResult.succeeded == true else {
 			dprint(Colors.Red("[AUTHORITY]\tunable to update certificates. sudo authentication error."))
-			if (validateSudoPermissions(domain:domain, forConsumptionIn:consumptionDirectory) == true) {
-				dprint(runResult.stdout)
-				dprint(Colors.Red(runResult.stderror))
-				throw RefreshError.certbotError
-			} else {
-				throw RefreshError.sudoAuthenticationError
-			}
+			dprint(runResult.stdout)
+			dprint(Colors.Red(runResult.stderror))
+			throw RefreshError.certbotError
 		}
 		
 		if runResult.stdout =~ "Congratulations! Your certificate and chain have been saved" {
@@ -153,7 +137,7 @@ public class Authority {
 	}
 	
 	//installs the necessary permissions into sudoers to allow for easier utilization in the future
-	private class func permitSSLInstall(domain:String, toConsumptionDirectory destURL:URL, consumingUser:String = run(bash:"whoami").stdout, acquireNow:Bool = true) throws {
+	private class func permitSSLInstall(domain:String, toConsumptionDirectory destURL:URL, consumingUser:String = run(bash:"whoami").stdout) throws {
 		enum InstallError:Swift.Error {
 			case authenticationError
 			case stringDataError
