@@ -69,19 +69,20 @@ public class Nova {
 	public var isListening:Bool {
 		set {
 			for (n, curPort) in insecureServers.keys.enumerated() {
-				if (newValue == true && insecureServers[curPort]!.state != .started) {
+				if (newValue == true) {
 					try? insecureServers[curPort]!.listen(on:curPort)
-				} else if (newValue == false && insecureServers[curPort]!.state == .started) {
+				} else if (newValue == false) {
 					insecureServers[curPort]!.stop()
 					dprint(Colors.Red("[NOVA]\tStopping server on port \(curPort)"))
 				}
 			}
 			
 			for (n, curPort) in secureServers.keys.enumerated() {
-				if (newValue == true && secureServers[curPort]!.state != .started) {
+				if (newValue == true) {
 					try? secureServers[curPort]!.listen(on:curPort)
-				} else if (newValue == false && secureServers[curPort]!.state == .started) {
+				} else if (newValue == false) {
 					secureServers[curPort]!.stop()
+					dprint(Colors.Red("[NOVA]\tStopping server on port \(curPort)"))
 				}
 			}
 
