@@ -73,6 +73,7 @@ public class Nova {
 					try? insecureServers[curPort]!.listen(on:curPort)
 				} else if (newValue == false && insecureServers[curPort]!.state == .started) {
 					insecureServers[curPort]!.stop()
+					dprint(Colors.Red("[NOVA]\tStopping server on port \(curPort)"))
 				}
 			}
 			
