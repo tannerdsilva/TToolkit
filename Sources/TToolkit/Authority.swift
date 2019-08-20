@@ -22,7 +22,7 @@ public class Authority {
 		
 		do {
 			//try getting certs. will there be an authentication error thrown?
-			try refreshCertificates(domain:domain, at:directory, webroot:webroot ?? serveRoot)
+			try refreshCertificates(domain:domain, at:directory, webroot:webroot ?? serveRoot, email:email)
 			if (tempServer != nil) {
 				tempServer!.isListening = false
 			}
@@ -35,7 +35,7 @@ public class Authority {
 			
 				//try acquiring again now that the user has authenticated with sudo and the adjustments have been made
 				do {
-					try refreshCertificates(domain:domain, at:directory, webroot:webroot ?? serveRoot)
+					try refreshCertificates(domain:domain, at:directory, webroot:webroot ?? serveRoot, email:email)
 					if (tempServer != nil) {
 						tempServer!.isListening = false
 					}
@@ -55,7 +55,7 @@ public class Authority {
 	
 	//MARK: SUPPORTING FUNCTIONS
 	//private refresh function
-	private class func refreshCertificates(domain:String, at consumptionDirectory:URL, webroot:URL, email:String? = nil, forceCopy:Bool = false) throws -> Bool {
+	private class func refreshCertificates(domain:String, at consumptionDirectory:URL, webroot:URL, email:String) throws -> Bool {
 		let cp = URL(fileURLWithPath:run(bash:"which cp").stdout)
 		let certbot = URL(fileURLWithPath:run(bash:"which certbot").stdout)
 		let thisUser = run(bash:"whoami").stdout
@@ -107,10 +107,8 @@ public class Authority {
 		}
 
 	
-		var runCommand = "sudo -n \(certbot.path) certonly --webroot -n -v -d \(domain) --agree-tos -w \(webroot.path)"
-		if (email != nil) {
-			runCommand += " --email \(email!)"
-		}
+		var runCommand = "sudo -n \(certbot.path) certonly --webroot -n -v -d \(domain) --agree-tos -w \(webroot.path) --email \(email)"
+		
 		let runResult = run(bash:runCommand)
 		guard runResult.succeeded == true else {
 			dprint(Colors.Red("[AUTHORITY]\tunable to update certificates. sudo authentication error."))
