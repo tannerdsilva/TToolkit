@@ -175,7 +175,7 @@ public class Authority {
 		let chown = URL(fileURLWithPath:installContext.run(bash:"which chown").stdout)
 		
 		let allowedCommands = [	
-			"\(certbot.path) certonly --agree-tos--webroot -n -v -d \(domain) --agree-tos -w *",
+			"\(certbot.path) certonly --webroot -n -v -d \(domain) --agree-tos -w *",
 			"\(cp.path) /etc/letsencrypt/live/\(domain)/fullchain.pem \(destURL.path)",
 			"\(cp.path) /etc/letsencrypt/live/\(domain)/privkey.pem \(destURL.path)",
 			"\(chown.path) \(consumingUser)\\:\(consumingUser) \(destURL.appendingPathComponent("fullchain.pem", isDirectory:false).path)",
