@@ -66,10 +66,6 @@ public class Authority {
 		let fullchain_live = domainLive.appendingPathComponent("fullchain.pem", isDirectory:false)
 		let privkey_live = domainLive.appendingPathComponent("privkey.pem", isDirectory:false)
 
-		guard certbot.path.length > 1 else {
-			print(Colors.Red("Please install certbot and try again."))
-			throw RefreshError.certbotNotInstalled
-		}
 		guard validateSudoPermissions(domain:domain, forConsumptionIn:consumptionDirectory) == true else {
 			throw RefreshError.sudoAuthenticationError
 		}
@@ -149,6 +145,7 @@ public class Authority {
 			case invalidSudoSyntax
 			case permissionProblem
 		}
+		
 
 		//elevate to root status (get the sudoers credentials for the actively running user)
 		let currentUser = run(bash:"whoami").stdout
@@ -179,6 +176,11 @@ public class Authority {
 		let cp = URL(fileURLWithPath:installContext.run(bash:"which cp").stdout)
 		let chown = URL(fileURLWithPath:installContext.run(bash:"which chown").stdout)
 		
+		guard certbot.path.length > 1 else {
+			print(Colors.Red("Please install certbot and try again."))
+			throw RefreshError.certbotNotInstalled
+		}
+
 		let allowedCommands = [	
 			"\(certbot.path) certonly --webroot -n -v -d \(domain) -w *",
 			"\(cp.path) /etc/letsencrypt/live/\(domain)/fullchain.pem \(destURL.path)",
