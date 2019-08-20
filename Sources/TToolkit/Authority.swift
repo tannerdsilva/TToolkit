@@ -109,7 +109,7 @@ public class Authority {
 	
 		var runCommand = "sudo -n \(certbot.path) certonly --webroot -n -v -d \(domain) --agree-tos -w \(webroot.path)"
 		if (email != nil) {
-			runCommand += " --email \(email)"
+			runCommand += " --email \(email!)"
 		}
 		let runResult = run(bash:runCommand)
 		guard runResult.succeeded == true else {
