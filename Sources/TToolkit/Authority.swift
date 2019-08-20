@@ -6,6 +6,7 @@ public class Authority {
 	public enum RefreshError:Swift.Error {
 		case sudoAuthenticationError
 		case certbotError
+		case certbotNotInstalled
 	}
 
 	//the "one call" solution
@@ -65,6 +66,10 @@ public class Authority {
 		let fullchain_live = domainLive.appendingPathComponent("fullchain.pem", isDirectory:false)
 		let privkey_live = domainLive.appendingPathComponent("privkey.pem", isDirectory:false)
 
+		guard certbot.path.length > 1 else {
+			print(Colors.Red("Please install certbot and try again."))
+			throw RefreshError.certbotNotInstalled
+		}
 		guard validateSudoPermissions(domain:domain, forConsumptionIn:consumptionDirectory) == true else {
 			throw RefreshError.sudoAuthenticationError
 		}
