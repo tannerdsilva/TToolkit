@@ -107,7 +107,7 @@ public class Authority {
 		}
 
 	
-		var runCommand = "sudo -n \(certbot.path) certonly --webroot -n -v -d \(domain) -w \(webroot.path)"
+		var runCommand = "sudo -n \(certbot.path) certonly --webroot -n -v -d \(domain) --agree-tos -w \(webroot.path)"
 		if (email != nil) {
 			runCommand += " -m \(email)"
 		}
@@ -176,13 +176,8 @@ public class Authority {
 		let cp = URL(fileURLWithPath:installContext.run(bash:"which cp").stdout)
 		let chown = URL(fileURLWithPath:installContext.run(bash:"which chown").stdout)
 		
-		guard certbot.path.length > 1 else {
-			print(Colors.Red("Please install certbot and try again."))
-			throw RefreshError.certbotNotInstalled
-		}
-
 		let allowedCommands = [	
-			"\(certbot.path) certonly --webroot -n -v -d \(domain) -w *",
+			"\(certbot.path) certonly --agree-tos--webroot -n -v -d \(domain) --agree-tos -w *",
 			"\(cp.path) /etc/letsencrypt/live/\(domain)/fullchain.pem \(destURL.path)",
 			"\(cp.path) /etc/letsencrypt/live/\(domain)/privkey.pem \(destURL.path)",
 			"\(chown.path) \(consumingUser)\\:\(consumingUser) \(destURL.appendingPathComponent("fullchain.pem", isDirectory:false).path)",
@@ -230,7 +225,7 @@ public class Authority {
 		var owns = 0
 		var cps = 0
 		for (_, curListItem) in allowedList.enumerated() {
-			if (curListItem =~ "NOPASSWD: \(certbot.path) certonly --webroot -n -v -d \(domain) -w *") {
+			if (curListItem =~ "NOPASSWD: \(certbot.path) certonly --webroot -n -v -d \(domain) --agree-tos -w *") {
 				certbotPassed = true
 			} else if (curListItem =~ "NOPASSWD: \(cp.path) .*\(domain)/.*\(directory.path)") {
 				cps += 1
