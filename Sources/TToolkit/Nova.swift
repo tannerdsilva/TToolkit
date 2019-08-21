@@ -45,7 +45,7 @@ public class Nova {
 		public var shouldLog:Bool = true
 		
 		func handle(request:RouterRequest, response:RouterResponse, next:@escaping () -> Void) throws {
-			print("[\(request.method.description.uppercased())] - \(request.originalURL)")
+			print(Colors.dim("[\(request.method.description.uppercased())] - \(request.originalURL)"))
 			next()
 		}
 	}
