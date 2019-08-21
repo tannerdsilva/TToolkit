@@ -45,7 +45,12 @@ public class Nova {
 		public var shouldLog:Bool = true
 		
 		func handle(request:RouterRequest, response:RouterResponse, next:@escaping () -> Void) throws {
-			print(Colors.dim("[\(request.method.description.uppercased())] - \(request.originalURL)"))
+			print(Colors.dim("[\(request.method.description.uppercased())] - \(request.urlURL.domain) - \(request.urlURL.path)"), terminator:"")
+			if (request.queryParameters.count > 0) {
+				print(Colors.dim(" - [\(request.queryParameters.count) query parameters included]"))
+			} else {
+				print("\n", terminator:"")_
+			}
 			next()
 		}
 	}
