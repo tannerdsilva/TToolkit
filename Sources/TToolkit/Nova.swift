@@ -49,7 +49,7 @@ public class Nova {
 			if (request.queryParameters.count > 0) {
 				print(Colors.dim(" - [\(request.queryParameters.count) query parameters included]"))
 			} else {
-				print("\n", terminator:"")_
+				print("\n", terminator:"")
 			}
 			next()
 		}
