@@ -88,50 +88,6 @@ public class Authority {
 		}
 	}
 
-	//the "one call" solution
-//	public class func certificates(domain:String, forConsumptionIn directory:URL, webroot:URL, email:String, forceCertificateCopy:Bool = false) throws {
-//		var tempServer:Nova? = nil
-//		let serveRoot = FileManager.default.temporaryDirectory.appendingPathComponent(String.random(length:10), isDirectory:true)
-//		if (webroot == nil) {
-//			if (FileManager.default.fileExists(atPath:serveRoot.path) == false) {
-//				try FileManager.default.createDirectory(at:serveRoot, withIntermediateDirectories:false)
-//			}
-//			tempServer = try Nova(webroot:serveRoot, redirectInsecure:false)
-//		}
-//		
-//		do {
-//			//try getting certs. will there be an authentication error thrown?
-//			try refreshCertificates(domain:domain, at:directory, webroot:webroot ?? serveRoot, email:email)
-//			if (tempServer != nil) {
-//				tempServer!.isListening = false
-//			}
-//		} catch let error {
-//			switch (error) {
-//			case RefreshError.sudoAuthenticationError:
-//				print(Colors.bold(Colors.Red("[AUTHORITY]\tUnable to load certificates for \(domain) to \(directory.path). Please authenticate with SUDO to allow this to be done without a password in the future.")))
-//				//prompt the user for their sudo password so that we can adjust sudoers.d to permit the acquisition of these certificates
-//				try permitSSLInstall(domain:domain, toConsumptionDirectory:directory)
-//			
-//				//try acquiring again now that the user has authenticated with sudo and the adjustments have been made
-//				do {
-//					try refreshCertificates(domain:domain, at:directory, webroot:webroot ?? serveRoot, email:email)
-//					if (tempServer != nil) {
-//						tempServer!.isListening = false
-//					}
-//				} catch let secondError {
-//					if (tempServer != nil) {
-//						tempServer!.isListening = false
-//					}
-//					try? FileManager.default.removeItem(at:serveRoot)
-//					throw secondError
-//				}
-//			default:
-//			throw error
-//			}
-//		}
-//		
-//	}
-	
 	//MARK: SUPPORTING FUNCTIONS
 	//private refresh function
 	private class func refreshCertificate(domain:String, at consumptionDirectory:URL, webroot:URL, email:String) throws -> Bool {
