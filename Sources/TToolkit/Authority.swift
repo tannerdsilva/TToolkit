@@ -1,16 +1,45 @@
 import SwiftShell
 import Regex
 import Foundation
+import SSLService
 
-public class Authority {
-	public enum RefreshError:Swift.Error {
+public struct AuthorityCertificates {
+	public let domains:[String]
+	public let consumptionDirectory:URL
+	public var defaultDomain:String?
+	
+	
+	public init(domains:[String], consumptionDirectory:URL, email:String, webroot:URL? = nil) throws {
+		try Authority.certificates(domains:domains, forConsumptionIn:consumptionDirectory, webroot:webroot, email:email)
+		self.domains = domains
+		self.consumptionDirectory = consumptionDirectory
+	}
+	
+	public func configuration() -> SSLService.Configuration {
+		func fromName(_ inputName:String?) -> SSLService.Configuration {
+			let domainDirectory = consumptionDirectory.appendingPathComponent(defaultDomain ?? "", isDirectory:true)
+			let fullchain = domainDirectory.appendingPathComponent("fullchain.pem", isDirectory:false)
+			let privkey = domainDirectory.appendingPathComponent("privkey.pem", isDirectory:false)
+			return SSLService.Configuration(withCACertificateDirectory:consumptionDirectory.path, usingCertificateFile: fullchain.path, withKeyFile:privkey.path, usingSelfSignedCerts:false, cipherSuite:"ALL")
+		}
+		
+		if (defaultDomain != nil && domains.contains(defaultDomain!) == true) {
+			return fromName(defaultDomain)
+		} else {
+			return fromName(domains.randomElement())
+		}
+	}
+}
+
+private class Authority {
+	private enum RefreshError:Swift.Error {
 		case sudoAuthenticationError
 		case certbotError
 		case certbotNotInstalled
 		case unableToAuthenticate
 	}
 	
-	public class func certificates(domains:[String], forConsumptionIn caDir:URL, webroot:URL? = nil, email:String) throws {
+	fileprivate class func certificates(domains:[String], forConsumptionIn caDir:URL, webroot:URL? = nil, email:String) throws {
 		//validate that sudo will allow these commands to be executed
 		do {
 			for (_, curDomain) in domains.enumerated() {

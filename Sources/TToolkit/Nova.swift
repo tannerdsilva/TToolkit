@@ -4,22 +4,6 @@ import Kitura
 import SSLService
 import KituraCORS
 
-public typealias AuthorityCerts = URL
-extension AuthorityCerts {
-	var fullchain:URL {
-		return self.appendingPathComponent("fullchain.pem", isDirectory:false)
-	}
-	var privkey:URL {
-		return self.appendingPathComponent("privkey.pem", isDirectory:false)
-	}
-	var baseDirectory:URL {
-		return self
-	}
-	public func asSSLConfig(selfSigned:Bool = false) -> SSLService.Configuration {
-		return SSLService.Configuration(withCACertificateDirectory:self.path, usingCertificateFile:nil, withKeyFile:nil, usingSelfSignedCerts:selfSigned, cipherSuite:"ALL")
-	}
-}
-
 public class Nova {
 	enum NovaError:Swift.Error {
 		case noAuthorityCertificatesSpecified
@@ -73,7 +57,7 @@ public class Nova {
 	
 	public var isListening:Bool {
 		set {
-			for (n, curPort) in insecureServers.keys.enumerated() {
+			for (_, curPort) in insecureServers.keys.enumerated() {
 				if (newValue == true) {
 					try? insecureServers[curPort]!.listen(on:curPort)
 					dprint(Colors.Green("[NOVA]\tStarting server on port \(curPort)"))
@@ -83,7 +67,7 @@ public class Nova {
 				}
 			}
 			
-			for (n, curPort) in secureServers.keys.enumerated() {
+			for (_, curPort) in secureServers.keys.enumerated() {
 				if (newValue == true) {
 					try? secureServers[curPort]!.listen(on:curPort)
 					dprint(Colors.Green("[NOVA]\tStarting server on port \(curPort)"))
@@ -125,7 +109,7 @@ public class Nova {
 	
 	public init() {}
 
-	public init(webroot:URL, insecurePorts:[Int] = [80], securePorts:[Int] = [], authority:AuthorityCerts? = nil, redirectInsecure:Bool = true, fullCors:Bool = false) throws {
+	public init(webroot:URL, insecurePorts:[Int] = [80], securePorts:[Int] = [], authority:AuthorityCertificates? = nil, redirectInsecure:Bool = true, fullCors:Bool = false) throws {
 		redirectInsecureTraffic = redirectInsecure
 		secureRedirect.shouldRedirect = redirectInsecure
 
@@ -139,14 +123,12 @@ public class Nova {
 		router.all(middleware:logger)
 		router.all(middleware:staticServer)
 		
-		print(Colors.Cyan("[NOVA]\t\(webroot.path)"), terminator:"")
-		
 		//bootstrap insecure servers
 		for (i, curPort) in insecurePorts.enumerated() {
 			if (i > 0) {
 				print(Colors.Yellow(", "), terminator:"")
 			} else if (i == 0) {
-				print(Colors.Yellow("\n\tInsecure ports: "), terminator:"")
+				print(Colors.Yellow("\n[NOVA]\tInsecure ports: "), terminator:"")
 			}
 			print(Colors.Yellow("\(curPort)"), terminator:"")
 			do {
@@ -170,14 +152,14 @@ public class Nova {
 			if (i > 0) {
 				print(Colors.Yellow(", "), terminator:"")
 			} else if (i == 0) {
-				print(Colors.Yellow("\n\tSecure ports: "), terminator:"")
+				print(Colors.Yellow("\n[NOVA]\tSecure ports: "), terminator:"")
 			}
 			
 			print(Colors.Yellow("\(curPort)"), terminator:"")
 			do {
 				let newServer = HTTPServer()
 				newServer.delegate = router
-				newServer.sslConfig = authorityTest.asSSLConfig()
+				newServer.sslConfig = authorityTest.configuration()
 				try newServer.listen(on:curPort)
 				secureServers[curPort] = newServer
 			} catch let error {
@@ -188,7 +170,7 @@ public class Nova {
 		
 		shouldRunEpoch = true
 		
-		print(Colors.Green("\n[NOVA]\t[OK]"))
+		print(Colors.Green("\n[NOVA][OK]\t\(webroot.path)"))
 	}
 	
 	public func epoch() {}
