@@ -10,7 +10,7 @@ public class Authority {
 		case unableToAuthenticate
 	}
 	
-	private class func certificates(domains:[String], forConsumptionIn caDir:URL, webroot:URL? = nil, email:String) throws {
+	public class func certificates(domains:[String], forConsumptionIn caDir:URL, webroot:URL? = nil, email:String) throws {
 		//validate that sudo will allow these commands to be executed
 		do {
 			for (_, curDomain) in domains.enumerated() {
