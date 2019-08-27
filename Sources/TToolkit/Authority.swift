@@ -25,14 +25,14 @@ public struct AuthorityCertificates {
 	}
 }
 
-public class Authority {
+private class Authority {
 	public enum RefreshError:Swift.Error {
 		case sudoAuthenticationError
 		case certbotError
 		case certbotNotInstalled
 	}
 	
-	public class func certificates(primaryDomain:String, secondaryDomains:[String] = [], consumptionDirectory:URL, email:String, webroot:URL? = nil) throws {
+	fileprivate class func certificates(primaryDomain:String, secondaryDomains:[String] = [], consumptionDirectory:URL, email:String, webroot:URL? = nil) throws {
 		var tempServer:Nova? = nil
 		let serveRoot = FileManager.default.temporaryDirectory.appendingPathComponent(String.random(length:15), isDirectory:true)
 		if (webroot == nil) {
