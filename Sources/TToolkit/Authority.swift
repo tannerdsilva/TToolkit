@@ -64,13 +64,16 @@ public class Authority {
 		let serveRoot = FileManager.default.temporaryDirectory.appendingPathComponent(String.random(length:10), isDirectory:true)
 		if (webroot == nil) {
 			if (FileManager.default.fileExists(atPath:serveRoot.path) == false) {
-				try FileManager.default.createDirectory(at:serveRoot, withIntermediateDirectories:false)
+				try FileManager.default.createDirectory(at:serveRoot, withIntermediateDirectories:true)
 			}
 			tempServer = try Nova(webroot:serveRoot, redirectInsecure:false)
 		}
 
 		for (_, curDomain) in domains.enumerated() {
 			let consumptionDirectory = caDir.appendingPathComponent(curDomain, isDirectory:true)
+			if (FileManager.default.fileExists(atPath:consumptionDirectory.path) == false) {
+				try FileManager.default.createDirectory(at:consumptionDirectory, withIntermediateDirectories:true)
+			}
 			try refreshCertificate(domain:curDomain, at:consumptionDirectory, webroot:webroot ?? serveRoot, email:email)
 		}
 		
