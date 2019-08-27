@@ -100,6 +100,29 @@ public class Nova {
 		}
 	}
 	
+	private var _epochTimer:Timer? = nil
+	private var _epoching:Bool = false
+	public var shouldRunEpoch:Bool {
+		set {
+			if (newValue == true && _epoching == false) {
+				_epochTimer = Timer.scheduledTimer(withTimeInterval:2000, repeats:true, block: { [weak self] timer in
+					guard let self = self, self._epoching == true else {
+						timer.invalidate()
+						return
+					}
+			
+					self.epoch()
+				})
+			} else if (newValue == false && _epoching == true) {
+				_epochTimer?.invalidate()
+			}
+			_epoching = newValue
+		}
+		get {
+			return _epoching
+		}
+	}
+	
 	public init() {}
 
 	public init(webroot:URL, insecurePorts:[Int] = [80], securePorts:[Int] = [], authority:AuthorityCerts? = nil, redirectInsecure:Bool = true, fullCors:Bool = false) throws {
@@ -163,6 +186,10 @@ public class Nova {
 			}
 		}
 		
+		shouldRunEpoch = true
+		
 		print(Colors.Green("\n[NOVA]\t[OK]"))
 	}
+	
+	public func epoch() {}
 }
