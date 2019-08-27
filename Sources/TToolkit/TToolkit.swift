@@ -23,7 +23,7 @@ struct ANSIModifiers {
 }
 
 public extension String {
-	public static func random(length:Int = 32) -> String {
+	static func random(length:Int = 32) -> String {
 		let base = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 		let baseLength = base.count
 		var randomString = ""

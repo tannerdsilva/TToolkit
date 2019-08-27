@@ -16,7 +16,7 @@ extension AuthorityCerts {
 		return self
 	}
 	public func asSSLConfig(selfSigned:Bool = false) -> SSLService.Configuration {
-		return SSLService.Configuration(withCACertificateDirectory:self.path, usingCertificateFile:self.fullchain.path, withKeyFile:self.privkey.path, usingSelfSignedCerts:selfSigned, cipherSuite:"ALL")
+		return SSLService.Configuration(withCACertificateDirectory:self.path, usingCertificateFile:nil, withKeyFile:nil, usingSelfSignedCerts:selfSigned, cipherSuite:"ALL")
 	}
 }
 
@@ -149,6 +149,7 @@ public class Nova {
 			} else if (i == 0) {
 				print(Colors.Yellow("\n\tSecure ports: "), terminator:"")
 			}
+			
 			print(Colors.Yellow("\(curPort)"), terminator:"")
 			do {
 				let newServer = HTTPServer()
