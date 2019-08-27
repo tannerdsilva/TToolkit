@@ -3,6 +3,7 @@ import KituraNet
 import Kitura
 import SSLService
 import KituraCORS
+import SSLService
 
 public class Nova {
 	enum NovaError:Swift.Error {
@@ -109,7 +110,7 @@ public class Nova {
 	
 	public init() {}
 
-	public init(webroot:URL, insecurePorts:[Int] = [80], securePorts:[Int] = [], authority:AuthorityCertificates? = nil, redirectInsecure:Bool = true, fullCors:Bool = false) throws {
+	public init(webroot:URL, insecurePorts:[Int] = [80], securePorts:[Int] = [], authority:SSLService.Configuration? = nil, redirectInsecure:Bool = true, fullCors:Bool = false) throws {
 		redirectInsecureTraffic = redirectInsecure
 		secureRedirect.shouldRedirect = redirectInsecure
 
@@ -159,7 +160,7 @@ public class Nova {
 			do {
 				let newServer = HTTPServer()
 				newServer.delegate = router
-				newServer.sslConfig = authorityTest.configuration()
+				newServer.sslConfig = authorityTest
 				try newServer.listen(on:curPort)
 				secureServers[curPort] = newServer
 			} catch let error {
