@@ -21,7 +21,7 @@ public struct AuthorityCertificates {
 		let domainDirectory = consumptionDirectory.appendingPathComponent(primaryDomain, isDirectory:true)
 		let fullchain = domainDirectory.appendingPathComponent("fullchain.pem", isDirectory:false)
 		let privkey = domainDirectory.appendingPathComponent("privkey.pem", isDirectory:false)
-		return SSLService.Configuration(withchainFilePath:fullchain.path, usingSelfSignedCerts:false, cipherSuite:"ALL")
+		return SSLService.Configuration(withChainFilePath:fullchain.path, withPassword:nil, usingSelfSignedCerts:false, clientAllowsSelfSignedCertificates:false, cipherSuite:"ALL")
 	}
 }
 

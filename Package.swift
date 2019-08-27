@@ -16,7 +16,7 @@ let package = Package(
         // .package(url: /* package url */, from: "1.0.0"),
 		.package(url: "https://github.com/kareman/SwiftShell.git", .upToNextMinor(from:"5.0.0")),
 		.package(url: "https://github.com/IBM-Swift/kitura.git", .upToNextMinor(from:"2.7.1")),
-		.package(url: "https://github.com/IBM-Swift/BlueSSLService.git", .upToNextMinor(from:"1.0.48")),
+		.package(url: "https://github.com/IBM-Swift/BlueSSLService.git", .upToNextMinor(from:"1.0.49")),
 		.package(url: "https://github.com/crossroadlabs/Regex.git", .upToNextMinor(from:"1.2.0")),
 		.package(url: "https://github.com/IBM-Swift/kitura-net.git", .upToNextMinor(from:"2.3.0")),
 		.package(url: "https://github.com/IBM-Swift/Kitura-CORS.git", .upToNextMinor(from:"2.1.1"))
