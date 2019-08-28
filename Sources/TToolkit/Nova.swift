@@ -60,7 +60,7 @@ public class Nova {
 		set {
 			for (_, curPort) in insecureServers.keys.enumerated() {
 				if (newValue == true) {
-					try? insecureServers[curPort]!.listen(on:curPort)
+					try? insecureServers[curPort]!.listen(on:curPort, address:address)
 					dprint(Colors.Green("[NOVA]\tStarting server on port \(curPort)"))
 				} else if (newValue == false) {
 					insecureServers[curPort]!.stop()
@@ -70,7 +70,7 @@ public class Nova {
 			
 			for (_, curPort) in secureServers.keys.enumerated() {
 				if (newValue == true) {
-					try? secureServers[curPort]!.listen(on:curPort)
+					try? secureServers[curPort]!.listen(on:curPort, address:address)
 					dprint(Colors.Green("[NOVA]\tStarting server on port \(curPort)"))
 				} else if (newValue == false) {
 					secureServers[curPort]!.stop()
@@ -82,6 +82,22 @@ public class Nova {
 		get {
 			let anyoneListening = secureServers.values.map { return $0.state == .started }
 			return anyoneListening.contains(true)
+		}
+	}
+	
+	private var _address:String? = nil
+	public var address:String? { 
+		set {
+			if _address != newValue {
+				_address = newValue
+				if (self.isListening == true) {
+					self.isListening = false
+					self.isListening = true
+				}
+			}
+		}
+		get {
+			return _address
 		}
 	}
 	
@@ -110,7 +126,7 @@ public class Nova {
 	
 	public init() {}
 
-	public init(webroot:URL, insecurePorts:[Int] = [80], securePorts:[Int] = [], authority:SSLService.Configuration? = nil, redirectInsecure:Bool = true, fullCors:Bool = false) throws {
+	public init(webroot:URL, insecurePorts:[Int] = [80], securePorts:[Int] = [], authority:SSLService.Configuration? = nil, redirectInsecure:Bool = true, fullCors:Bool = false, address:String? = nil) throws {
 		redirectInsecureTraffic = redirectInsecure
 		secureRedirect.shouldRedirect = redirectInsecure
 
@@ -135,7 +151,7 @@ public class Nova {
 			do {
 				let newServer = HTTPServer()
 				newServer.delegate = router
-				try newServer.listen(on:curPort)
+				try newServer.listen(on:curPort, address:address)
 				insecureServers[curPort] = newServer
 			} catch let error {
 				print(Colors.Red(" [FAILED]: Unable to bind to port \(curPort)"))
@@ -161,7 +177,7 @@ public class Nova {
 				let newServer = HTTPServer()
 				newServer.delegate = router
 				newServer.sslConfig = authorityTest
-				try newServer.listen(on:curPort)
+				try newServer.listen(on:curPort, address:address)
 				secureServers[curPort] = newServer
 			} catch let error {
 				print(Colors.Red(" [FAILED] : Unable to bind to port \(curPort)"))
@@ -169,6 +185,7 @@ public class Nova {
 			}
 		}
 		
+		_address = address
 		shouldRunEpoch = true
 		
 		print(Colors.Green("\n[NOVA][OK]\t\(webroot.path)"))
