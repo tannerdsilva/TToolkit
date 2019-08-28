@@ -20,7 +20,7 @@ public class Nova {
 				try response.redirect(secureURL)
 				try response.end()
 			} else if (shouldRedirect == false) {
-				print(Colors.Red("[NOVA]\tInsecure HTTP traffic will not be redirected to HTTPS")) 
+				print(Colors.Red(Colors.bold("[!i!]")), terminator:"")
 			}
 			next()
 		}
@@ -30,11 +30,11 @@ public class Nova {
 		public var shouldLog:Bool = true
 		
 		func handle(request:RouterRequest, response:RouterResponse, next:@escaping () -> Void) throws {
-			print(Colors.dim("[\(request.method.description.uppercased())] - \(request.domain) - \(request.urlURL.path)"), terminator:"")
+			print(Colors.magenta("[\(request.remoteAddress)]"), terminator:"")
+			print(Colors.bold("[\(request.domain.uppercased())]"), terminator:"")
+			print(Colors.dim("[\(request.method.description.uppercased())]"), terminator:"")
 			if (request.queryParameters.count > 0) {
-				print(Colors.dim(" - [\(request.queryParameters.count) query parameters included]"))
-			} else {
-				print("\n", terminator:"")
+				print(Colors.dim("[\(request.queryParameters.count)]"), terminator:"")
 			}
 			next()
 		}
