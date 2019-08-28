@@ -19,7 +19,7 @@ public class Nova {
 				let secureURL = request.originalURL.replacingOccurrences(of:"http://", with:"https://")
 				try response.redirect(secureURL)
 				try response.end()
-			} else if (shouldRedirect == false) {
+			} else if (shouldRedirect == false && request.remoteAddress != "127.0.0.1") {
 				print(Colors.Red(Colors.bold("[!i!]")), terminator:"")
 			}
 			next()
@@ -30,7 +30,12 @@ public class Nova {
 		public var shouldLog:Bool = true
 		
 		func handle(request:RouterRequest, response:RouterResponse, next:@escaping () -> Void) throws {
-			print(Colors.magenta("[ \(request.headers["X-Real-IP"]) ]"), terminator:"")
+			if	let proxiedIp = request.headers["X-Real-IP"],
+				proxiedIp.count > 0 && request.remoteAddress == "127.0.0.1" {
+				print(Colors.magenta("[ \(request.headers["X-Real-IP"]!) ]"), terminator:"")
+			} else {
+				print(Colors.Magenta("[ \(request.remoteAddress) ]"), terminator:"")
+			}
 			print(Colors.bold("[ \(request.domain.uppercased()) ]"), terminator:"")
 			print(Colors.dim("[\(request.method.description.uppercased())]"), terminator:"")
 			if (request.queryParameters.count > 0) {
@@ -44,6 +49,8 @@ public class Nova {
 	public let router = Router(mergeParameters:false, enableWelcomePage:false)
 	private var secureRedirect = InsecureRedirector()
 	private var logger = TrafficLogger()
+	
+	private let webroot:URL
 	
 	private var secureServers = [Int:HTTPServer]()
 	private var insecureServers = [Int:HTTPServer]()
@@ -125,9 +132,8 @@ public class Nova {
 		}
 	}
 	
-	public init() {}
-
 	public init(webroot:URL, insecurePorts:[Int] = [80], securePorts:[Int] = [], authority:SSLService.Configuration? = nil, redirectInsecure:Bool = true, fullCors:Bool = false, address:String? = nil) throws {
+		self.webroot = webroot
 		redirectInsecureTraffic = redirectInsecure
 		secureRedirect.shouldRedirect = redirectInsecure
 
