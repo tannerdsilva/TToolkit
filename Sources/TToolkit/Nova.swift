@@ -30,12 +30,13 @@ public class Nova {
 		public var shouldLog:Bool = true
 		
 		func handle(request:RouterRequest, response:RouterResponse, next:@escaping () -> Void) throws {
-			print(Colors.magenta("[\(request.remoteAddress)]"), terminator:"")
-			print(Colors.bold("[\(request.domain.uppercased())]"), terminator:"")
+			print(Colors.magenta("[ \(request.remoteAddress) ]"), terminator:"")
+			print(Colors.bold("[ \(request.domain.uppercased()) ]"), terminator:"")
 			print(Colors.dim("[\(request.method.description.uppercased())]"), terminator:"")
 			if (request.queryParameters.count > 0) {
 				print(Colors.dim("[\(request.queryParameters.count)]"), terminator:"")
 			}
+			print("\t", terminator:"")
 			next()
 		}
 	}
