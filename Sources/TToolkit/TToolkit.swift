@@ -39,6 +39,7 @@ public extension String {
 	}
 }
 
+@available(macOS 10.12, *)
 public extension Date {
 	public var isoString: String {
 		return ISO8601DateFormatter().string(from:self)
