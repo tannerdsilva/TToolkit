@@ -35,7 +35,7 @@ public extension String {
 	}
 	
 	public func bashSafe() -> String {
-		return self.replacingOccurrences(of:"'", with:"\"")
+		return self.replacingOccurrences(of:"'", with:"\'")
 	}
 }
 
@@ -143,52 +143,52 @@ public class Colors {
     }
 
     // MARK: Normal text colors
-    public static var black = apply(style:getColor(color:ANSIColorCode.black, mod: normalText))
-    public static var red = apply(style:getColor(color:ANSIColorCode.red, mod: normalText))
-    public static var green = apply(style:getColor(color:ANSIColorCode.green, mod: normalText))
-    public static var yellow = apply(style:getColor(color:ANSIColorCode.yellow, mod: normalText))
-    public static var blue = apply(style:getColor(color:ANSIColorCode.blue, mod: normalText))
-    public static var magenta = apply(style:getColor(color:ANSIColorCode.magenta, mod: normalText))
-    public static var cyan = apply(style:getColor(color:ANSIColorCode.cyan, mod: normalText))
-    public static var white = apply(style:getColor(color:ANSIColorCode.white, mod: normalText))
+    public static let black = apply(style:getColor(color:ANSIColorCode.black, mod: normalText))
+    public static let red = apply(style:getColor(color:ANSIColorCode.red, mod: normalText))
+    public static let green = apply(style:getColor(color:ANSIColorCode.green, mod: normalText))
+    public static let yellow = apply(style:getColor(color:ANSIColorCode.yellow, mod: normalText))
+    public static let blue = apply(style:getColor(color:ANSIColorCode.blue, mod: normalText))
+    public static let magenta = apply(style:getColor(color:ANSIColorCode.magenta, mod: normalText))
+    public static let cyan = apply(style:getColor(color:ANSIColorCode.cyan, mod: normalText))
+    public static let white = apply(style:getColor(color:ANSIColorCode.white, mod: normalText))
 
     // MARK: Bright text colors
-    public static var Black = apply(style:getColor(color:ANSIColorCode.black, mod: brightText))
-    public static var Red = apply(style:getColor(color:ANSIColorCode.red, mod: brightText))
-    public static var Green = apply(style:getColor(color:ANSIColorCode.green, mod: brightText))
-    public static var Yellow = apply(style:getColor(color:ANSIColorCode.yellow, mod: brightText))
-    public static var Blue = apply(style:getColor(color:ANSIColorCode.blue, mod: brightText))
-    public static var Magenta = apply(style:getColor(color:ANSIColorCode.magenta, mod: brightText))
-    public static var Cyan = apply(style:getColor(color:ANSIColorCode.cyan, mod: brightText))
-    public static var White = apply(style:getColor(color:ANSIColorCode.white, mod: brightText))
+    public static let Black = apply(style:getColor(color:ANSIColorCode.black, mod: brightText))
+    public static let Red = apply(style:getColor(color:ANSIColorCode.red, mod: brightText))
+    public static let Green = apply(style:getColor(color:ANSIColorCode.green, mod: brightText))
+    public static let Yellow = apply(style:getColor(color:ANSIColorCode.yellow, mod: brightText))
+    public static let Blue = apply(style:getColor(color:ANSIColorCode.blue, mod: brightText))
+    public static let Magenta = apply(style:getColor(color:ANSIColorCode.magenta, mod: brightText))
+    public static let Cyan = apply(style:getColor(color:ANSIColorCode.cyan, mod: brightText))
+    public static let White = apply(style:getColor(color:ANSIColorCode.white, mod: brightText))
 
     // MARK: Normal background colors
-    public static var bgBlack = apply(style:getColor(color:ANSIColorCode.black, mod: bg))
-    public static var bgRed = apply(style:getColor(color:ANSIColorCode.red, mod: bg))
-    public static var bgGreen = apply(style:getColor(color:ANSIColorCode.green, mod: bg))
-    public static var bgYellow = apply(style:getColor(color:ANSIColorCode.yellow, mod: bg))
-    public static var bgBlue = apply(style:getColor(color:ANSIColorCode.blue, mod: bg))
-    public static var bgMagenta = apply(style:getColor(color:ANSIColorCode.magenta, mod: bg))
-    public static var bgCyan = apply(style:getColor(color:ANSIColorCode.cyan, mod: bg))
-    public static var bgWhite = apply(style:getColor(color:ANSIColorCode.white, mod: bg))
+    public static let bgBlack = apply(style:getColor(color:ANSIColorCode.black, mod: bg))
+    public static let bgRed = apply(style:getColor(color:ANSIColorCode.red, mod: bg))
+    public static let bgGreen = apply(style:getColor(color:ANSIColorCode.green, mod: bg))
+    public static let bgYellow = apply(style:getColor(color:ANSIColorCode.yellow, mod: bg))
+    public static let bgBlue = apply(style:getColor(color:ANSIColorCode.blue, mod: bg))
+    public static let bgMagenta = apply(style:getColor(color:ANSIColorCode.magenta, mod: bg))
+    public static let bgCyan = apply(style:getColor(color:ANSIColorCode.cyan, mod: bg))
+    public static let bgWhite = apply(style:getColor(color:ANSIColorCode.white, mod: bg))
 
     // MARK: Bright background colors
-    public static var BgBlack = apply(style:getColor(color:ANSIColorCode.black, mod: brightBg))
-    public static var BgRed = apply(style:getColor(color:ANSIColorCode.red, mod: brightBg))
-    public static var BgGreen = apply(style:getColor(color:ANSIColorCode.green, mod: brightBg))
-    public static var BgYellow = apply(style:getColor(color:ANSIColorCode.yellow, mod: brightBg))
-    public static var BgBlue = apply(style:getColor(color:ANSIColorCode.blue, mod: brightBg))
-    public static var BgMagenta = apply(style:getColor(color:ANSIColorCode.magenta, mod: brightBg))
-    public static var BgCyan = apply(style:getColor(color:ANSIColorCode.cyan, mod: brightBg))
-    public static var BgWhite = apply(style:getColor(color:ANSIColorCode.white, mod: brightBg))
+    public static let BgBlack = apply(style:getColor(color:ANSIColorCode.black, mod: brightBg))
+    public static let BgRed = apply(style:getColor(color:ANSIColorCode.red, mod: brightBg))
+    public static let BgGreen = apply(style:getColor(color:ANSIColorCode.green, mod: brightBg))
+    public static let BgYellow = apply(style:getColor(color:ANSIColorCode.yellow, mod: brightBg))
+    public static let BgBlue = apply(style:getColor(color:ANSIColorCode.blue, mod: brightBg))
+    public static let BgMagenta = apply(style:getColor(color:ANSIColorCode.magenta, mod: brightBg))
+    public static let BgCyan = apply(style:getColor(color:ANSIColorCode.cyan, mod: brightBg))
+    public static let BgWhite = apply(style:getColor(color:ANSIColorCode.white, mod: brightBg))
 
     // MARK: Text modifiers
-    public static var bold = apply(style:ANSIModifiers.bold)
-    public static var blink = apply(style:ANSIModifiers.blink)
-    public static var dim = apply(style:ANSIModifiers.dim)
-    public static var italic = apply(style:ANSIModifiers.italic)
-    public static var underline = apply(style:ANSIModifiers.underline)
-    public static var inverse = apply(style:ANSIModifiers.inverse)
-    public static var hidden = apply(style:ANSIModifiers.hidden)
-    public static var strikethrough = apply(style:ANSIModifiers.strikethrough)
+    public static let bold = apply(style:ANSIModifiers.bold)
+    public static let blink = apply(style:ANSIModifiers.blink)
+    public static let dim = apply(style:ANSIModifiers.dim)
+    public static let italic = apply(style:ANSIModifiers.italic)
+    public static let underline = apply(style:ANSIModifiers.underline)
+    public static let inverse = apply(style:ANSIModifiers.inverse)
+    public static let hidden = apply(style:ANSIModifiers.hidden)
+    public static let strikethrough = apply(style:ANSIModifiers.strikethrough)
 }
