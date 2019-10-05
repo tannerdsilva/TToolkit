@@ -23,16 +23,21 @@ extension Mail.User: Codable {
 //URLs for for documenting the state of the emailer on disk
 fileprivate let baseURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".emailer", isDirectory:true)
 fileprivate let configURL = baseURL.appendingPathComponent("config.json", isDirectory:false)
-fileprivate let notifyURL = baseURL.appendingPathComponent("notify.json", isDirectory:false)
-fileprivate let failedDirURL = baseURL.appendingPathComponent("failed", isDirectory:false)
 
 public struct Emailer {
+    //subjects sent by Emailer always contain the following subject:
+    //[EVENT] - Context
+    public var context: String = "Emailer"
+    public var longContext: String = "Swift emailer from TToolkit"
+    
 	public enum EmailError: Error {
 		case invalidConfigData
 		case unableToSend
 		case unableToWrite
+        case templateConfigWritten
+        case noRecipientsFound
 	}
-	
+    
 	public enum CodingKeys: String, CodingKey {
 		case host = "host"
 		case email = "email"
@@ -42,7 +47,6 @@ public struct Emailer {
 		case pw = "pw"
 	}
 
-		
 	public let sem = DispatchSemaphore(value:1)
 	public let host:String
 	public let email:String
@@ -52,30 +56,47 @@ public struct Emailer {
 	public let smtp:SMTP
 	public let me:Mail.User
 	public let admin:Mail.User
-		
+    
+    //initializes the
 	public static func installConfiguration() throws {
 		//this template data...
 		let templateConfigObject = [	CodingKeys.host: "smtp.office365.com",
-										CodingKeys.email: "bot@emailDomain.com",
-										CodingKeys.pw: "put your password here",
+										CodingKeys.email: "bot@domain.com",
+										CodingKeys.pw: "put bots password here",
 										CodingKeys.name: "Botty the Bot",
-										CodingKeys.admin: ["name": "Human Admin", "email": "human@emailDomain.com"]
+										CodingKeys.admin: ["name": "Human Admin", "email": "admin@domain.com"]
 		] as [CodingKeys:Any]
 		
-		//...gets written to the configURL
+        try? FileManager.default.createDirectory(at: baseURL, withIntermediateDirectories: true, attributes: nil)
 		let data = try JSONSerialization.data(withJSONObject:templateConfigObject)
-		try data.write(to:configURL)
-		print(Colors.Green("Successfully write default Emailer configuration to \(configURL.path)" ))
-		print(Colors.bold(Colors.Yellow("PLEASE EDIT THIS FILE WITH THE APROPRIATE EMAIL INFORMATION")))
+        if FileManager.default.fileExists(atPath: configURL.path) == false {
+            try data.write(to:configURL)
+            print(Colors.Green("Successfully write default Emailer configuration to \(configURL.path)" ))
+            print(Colors.bold(Colors.Yellow("PLEASE EDIT THIS FILE WITH THE APROPRIATE EMAIL INFORMATION")))
+        } else {
+            print(Colors.yellow("Did not write template email configuration...there is already a configuration file."))
+        }
+		
 	}
 	
-	public init(with configuration:URL) throws {
-		let fileData = try Data(contentsOf:configURL)
-		
-		guard let configurationObject = try JSONSerialization.jsonObject(with:fileData) as? [String:Any] else {
-			throw EmailError.invalidConfigData
-		}
-		
+	public init() throws {
+        var configurationObject:[String:Any]
+        do {
+            let fileData = try Data(contentsOf:configURL)
+            guard let configObjTest = try JSONSerialization.jsonObject(with:fileData) as? [String:Any] else {
+                throw EmailError.invalidConfigData
+            }
+            configurationObject = configObjTest
+        } catch let error {
+            switch error {
+            case EmailError.invalidConfigData:
+                throw error
+            default:
+                try Emailer.installConfiguration()
+                throw EmailError.templateConfigWritten
+            }
+        }
+        
 		let decoder = JSONDecoder()
 		guard	let hostTest = configurationObject[CodingKeys.host.rawValue] as? String,
 				let emailTest = configurationObject[CodingKeys.email.rawValue] as? String,
@@ -96,6 +117,61 @@ public struct Emailer {
 		me = Mail.User(name:nameTest, email:emailTest)
 		admin = parsedAdminTest
 	}
+    
+    private func loadRecipients(named groupName:String, includeAdmin:Bool) throws -> [Mail.User] {
+        let decoder = JSONDecoder()
+        let groupDataURL = baseURL.appendingPathComponent(groupName, isDirectory: false)
+        guard FileManager.default.fileExists(atPath: groupDataURL.path) == true else {
+            throw EmailError.noRecipientsFound
+        }
+        
+        let groupData = try Data(contentsOf:groupDataURL)
+        var users = try decoder.decode([Mail.User].self, from: groupData)
+        if (includeAdmin) {
+            users.append(admin)
+        }
+        return users
+    }
+    
+    public func subjectLine(for event:String) -> String {
+        return "[" + event.uppercased() + "]" + " - " + context
+    }
+    
+    func notify(recipients groupName:String, of event:String, data:[String:String], notifyAdmin:Bool = false) throws {
+        let usersToNotify = try loadRecipients(named: groupName, includeAdmin: notifyAdmin)
+        
+        let subject = subjectLine(for: event)
+        
+        var bodyString = "==============================\n"
+        bodyString += "\(event.uppercased()) @ \(longContext.lowercased())\n"
+        bodyString += "UTC :: \(Date())\n"
+        bodyString += "==============================\n\n"
+        for (_, curPair) in data.enumerated() {
+            bodyString += curPair.key.lowercased()
+            bodyString += "\t-> \""
+            bodyString += curPair.value
+            bodyString += "\"\n"
+        }
+        
+        let mail = Mail(from:me, to:usersToNotify, subject:subject, text:bodyString)
+        
+        let waitGroup = DispatchGroup()
+        waitGroup.enter()
+        var sendError:Error? = nil
+        smtp.send(mail) { error in
+            if (error != nil) {
+                sendError = error
+                print(Colors.Red("Error sending email to \(groupName): \(String(describing:error))"))
+            } else {
+                dprint(Colors.Green("Email sent."))
+            }
+            waitGroup.leave()
+        }
+        waitGroup.wait()
+        if let hadError = sendError {
+            throw hadError
+        }
+    }
 }
 
 //public struct Emailer: Codable {
