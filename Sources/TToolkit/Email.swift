@@ -60,12 +60,12 @@ public struct Emailer {
     //initializes the
     public static func installConfiguration() throws {
         //this template data...
-        let templateConfigObject = [    CodingKeys.host: "smtp.office365.com",
-                                        CodingKeys.email: "bot@domain.com",
-                                        CodingKeys.pw: "put bots password here",
-                                        CodingKeys.name: "Botty the Bot",
-                                        CodingKeys.admin: ["name": "Human Admin", "email": "admin@domain.com"]
-            ] as [CodingKeys:Any]
+        let templateConfigObject = [    CodingKeys.host.stringValue: "smtp.office365.com",
+                                        CodingKeys.email.stringValue: "bot@domain.com",
+                                        CodingKeys.pw.stringValue: "put bots password here",
+                                        CodingKeys.name.stringValue: "Botty the Bot",
+                                        CodingKeys.admin.stringValue: ["name": "Human Admin", "email": "admin@domain.com"]
+            ] as [String:Any]
         
         try? FileManager.default.createDirectory(at: baseURL, withIntermediateDirectories: true, attributes: nil)
         let data = try JSONSerialization.data(withJSONObject:templateConfigObject)
