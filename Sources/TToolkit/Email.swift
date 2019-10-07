@@ -97,13 +97,40 @@ public struct Emailer {
             }
         }
         
-        guard    let hostTest = configurationObject[CodingKeys.host.stringValue] as? String,
-            let emailTest = configurationObject[CodingKeys.email.stringValue] as? String,
-            let pwTest = configurationObject[CodingKeys.password.stringValue] as? String,
-            let nameTest = configurationObject[CodingKeys.name.stringValue] as? String,
-            let adminObjectTest = configurationObject[CodingKeys.admin.stringValue] as? [String:String],
-            let adminName = adminObjectTest["name"] as? String,
-            let adminEmail = adminObjectTest["email"] as? String else {
+        
+        //validate all the shit exists on disk
+        guard let hostTest = configurationObject[CodingKeys.host.stringValue] as? String else {
+            print(Colors.Red("[EMAILER]\tError initializing...there was no host coding key found"))
+            throw EmailError.invalidConfigData
+        }
+        
+        guard let emailTest = configurationObject[CodingKeys.email.stringValue] as? String else {
+            print(Colors.Red("[EMAILER]\tError initializing...there was no email coding key found"))
+            throw EmailError.invalidConfigData
+        }
+        
+        guard let pwTest = configurationObject[CodingKeys.password.stringValue] as? String else {
+            print(Colors.Red("[EMAILER]\tError initializing...there was no password coding key found"))
+            throw EmailError.invalidConfigData
+        }
+        
+        guard let nameTest = configurationObject[CodingKeys.name.stringValue] as? String else {
+            print(Colors.Red("[EMAILER]\tError initializing...there was no name coding key found"))
+            throw EmailError.invalidConfigData
+        }
+        
+        guard let adminObjectTest = configurationObject[CodingKeys.admin.stringValue] as? [String:String] else {
+            print(Colors.Red("[EMAILER]\tError initializing...there was no admin coding key found"))
+            throw EmailError.invalidConfigData
+        }
+        
+        guard let adminName = adminObjectTest["name"] else {
+            print(Colors.Red("[EMAILER]\tError initializing...there was no admin name coding key found"))
+            throw EmailError.invalidConfigData
+        }
+        
+        guard let adminEmail = adminObjectTest["email"] else {
+            print(Colors.Red("[EMAILER]\tError initializing...there was no admin email coding key found"))
             throw EmailError.invalidConfigData
         }
         
