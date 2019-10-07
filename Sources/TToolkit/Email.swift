@@ -4,7 +4,7 @@ import SwiftSMTP
 //extension for Mail.User for codability support
 extension Mail.User: Codable {
     public enum CodingKeys: String, CodingKey {
-        case name = "host"
+        case name = "name"
         case email = "email"
     }
     public init(from decoder:Decoder) throws {
