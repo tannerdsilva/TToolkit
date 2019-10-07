@@ -98,11 +98,11 @@ public struct Emailer {
         }
         
         let decoder = JSONDecoder()
-        guard    let hostTest = configurationObject[CodingKeys.host.rawValue] as? String,
-            let emailTest = configurationObject[CodingKeys.email.rawValue] as? String,
-            let pwTest = configurationObject[CodingKeys.password.rawValue] as? String,
-            let nameTest = configurationObject[CodingKeys.name.rawValue] as? String,
-            let adminStringTest = configurationObject[CodingKeys.admin.rawValue] as? String,
+        guard    let hostTest = configurationObject[CodingKeys.host.stringValue] as? String,
+            let emailTest = configurationObject[CodingKeys.email.stringValue] as? String,
+            let pwTest = configurationObject[CodingKeys.password.stringValue] as? String,
+            let nameTest = configurationObject[CodingKeys.name.stringValue] as? String,
+            let adminStringTest = configurationObject[CodingKeys.admin.stringValue] as? String,
             let adminDataTest = adminStringTest.data(using:.utf8),
             let parsedAdminTest = try? decoder.decode(Mail.User.self, from:adminDataTest) else {
                 throw EmailError.invalidConfigData
