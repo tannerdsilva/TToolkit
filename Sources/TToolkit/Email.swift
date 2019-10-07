@@ -97,15 +97,14 @@ public struct Emailer {
             }
         }
         
-        let decoder = JSONDecoder()
         guard    let hostTest = configurationObject[CodingKeys.host.stringValue] as? String,
             let emailTest = configurationObject[CodingKeys.email.stringValue] as? String,
             let pwTest = configurationObject[CodingKeys.password.stringValue] as? String,
             let nameTest = configurationObject[CodingKeys.name.stringValue] as? String,
-            let adminStringTest = configurationObject[CodingKeys.admin.stringValue] as? String,
-            let adminDataTest = adminStringTest.data(using:.utf8),
-            let parsedAdminTest = try? decoder.decode(Mail.User.self, from:adminDataTest) else {
-                throw EmailError.invalidConfigData
+            let adminObjectTest = configurationObject[CodingKeys.admin.stringValue] as? [String:String],
+            let adminName = adminObjectTest["name"] as? String,
+            let adminEmail = adminObjectTest["email"] as? String else {
+            throw EmailError.invalidConfigData
         }
         
         host = hostTest
@@ -115,7 +114,7 @@ public struct Emailer {
         
         smtp = SMTP(hostname:hostTest, email:emailTest, password:pwTest)
         me = Mail.User(name:nameTest, email:emailTest)
-        admin = parsedAdminTest
+        admin = Mail.User(name:adminName, email:adminEmail)
     }
     
     private func loadRecipients(named groupName:String, includeAdmin:Bool) throws -> [Mail.User] {
