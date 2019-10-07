@@ -68,7 +68,7 @@ public struct Emailer {
             ] as [String:Any]
         
         try? FileManager.default.createDirectory(at: baseURL, withIntermediateDirectories: true, attributes: nil)
-        let data = try JSONSerialization.data(withJSONObject:templateConfigObject)
+        let data = try JSONSerialization.data(withJSONObject:templateConfigObject, options:[.prettyPrinted])
         if FileManager.default.fileExists(atPath: configURL.path) == false {
             try data.write(to:configURL)
             print(Colors.Green("Successfully write default Emailer configuration to \(configURL.path)" ))
