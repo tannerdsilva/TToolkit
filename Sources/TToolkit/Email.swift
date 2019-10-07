@@ -41,7 +41,6 @@ public struct Emailer {
     public enum CodingKeys: String, CodingKey {
         case host = "host"
         case email = "email"
-        case password = "password"
         case name = "name"
         case admin = "admin"
         case pw = "pw"
@@ -109,7 +108,7 @@ public struct Emailer {
             throw EmailError.invalidConfigData
         }
         
-        guard let pwTest = configurationObject[CodingKeys.password.stringValue] as? String else {
+        guard let pwTest = configurationObject[CodingKeys.pw.stringValue] as? String else {
             print(Colors.Red("[EMAILER]\tError initializing...there was no password coding key found"))
             throw EmailError.invalidConfigData
         }
