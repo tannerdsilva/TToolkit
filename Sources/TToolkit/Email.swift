@@ -165,16 +165,16 @@ public struct Emailer {
         return "[" + event.uppercased() + "]" + " - " + context
     }
     
-    public func notify(recipients groupName:String, of event:String, data:[String:String], notifyAdmin:Bool = false) throws {
+    public func notify(recipients groupName:String, of event:String, data:[String:String], notifyAdmin:Bool = false, attachments:[Attachment] = []) throws {
         let usersToNotify = try loadRecipients(named: groupName, includeAdmin: notifyAdmin)
-        try notify(recipients: usersToNotify, of: event, data: data)
+        try notify(recipients: usersToNotify, of: event, data: data, attachments: attachments)
     }
     
-    public func notify(recipients usersToNotify:[Mail.User], of event:String, data:[String:String]) throws {
-        let subject = subjectLine(for: event)
+    public func notify(recipients usersToNotify:[Mail.User], of event:String, data:[String:String], attachments:[Attachment] = [], subject:String? = nil) throws {
+        let subjectToSend = subject ?? subjectLine(for: event)
         
         var bodyString = "==============================\n"
-        bodyString += "\(event.uppercased()) @ \(longContext.lowercased())\n"
+        bodyString += "\(event.uppercased()) @ \(longContext)\n"
         bodyString += "UTC :: \(Date())\n"
         bodyString += "==============================\n\n"
         for (_, curPair) in data.enumerated() {
@@ -184,7 +184,7 @@ public struct Emailer {
             bodyString += "\"\n"
         }
         
-        let mail = Mail(from:me, to:usersToNotify, subject:subject, text:bodyString)
+        let mail = Mail(from:me, to:usersToNotify, subject:subjectToSend, text:bodyString, attachments: attachments)
         
         let waitGroup = DispatchGroup()
         waitGroup.enter()
