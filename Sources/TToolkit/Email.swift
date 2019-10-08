@@ -144,6 +144,9 @@ public struct Emailer {
     }
     
     private func loadRecipients(named groupName:String, includeAdmin:Bool) throws -> [Mail.User] {
+        if groupName == "" && includeAdmin == true {
+            return [admin]
+        }
         let decoder = JSONDecoder()
         let groupDataURL = baseURL.appendingPathComponent(groupName, isDirectory: false)
         guard FileManager.default.fileExists(atPath: groupDataURL.path) == true else {
