@@ -1,5 +1,11 @@
 import Foundation
 import SwiftSMTP
+import SwiftSoup
+
+struct RenderedTemplate {
+    let htmlString:String
+    let attachments:[Attachment]
+}
 
 //extension for Mail.User for codability support
 extension Mail.User: Codable {
@@ -24,6 +30,8 @@ extension Mail.User: Codable {
 fileprivate let baseURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".emailer", isDirectory:true)
 fileprivate let configURL = baseURL.appendingPathComponent("config.json", isDirectory:false)
 
+public typealias HTMLRenderer = (Document) -> String
+
 public struct Emailer {
     //subjects sent by Emailer always contain the following subject:
     //[EVENT] - Context
@@ -36,6 +44,7 @@ public struct Emailer {
         case unableToWrite
         case templateConfigWritten
         case noRecipientsFound
+        case unableToReadTemplateData
     }
     
     public enum CodingKeys: String, CodingKey {
@@ -56,7 +65,6 @@ public struct Emailer {
     public let me:Mail.User
     public let admin:Mail.User
     
-    //initializes the
     public static func installConfiguration() throws {
         //this template data...
         let templateConfigObject = [    CodingKeys.host.stringValue: "smtp.office365.com",
@@ -165,9 +173,34 @@ public struct Emailer {
         return "[" + event.uppercased() + "]" + " - " + context
     }
     
-    public func notify(recipients groupName:String, of event:String, data:[String:String], notifyAdmin:Bool = false, attachments:[Attachment] = []) throws {
+    public func loadTemplate(named:String, renderer:HTMLRenderer) throws -> (html:String, attachments:[Attachment]) {
+        let html = try Data(contentsOf:baseURL.appendingPathComponent(named + ".html"))
+        guard let dataString = String(data:html, encoding:.utf8) else {
+            throw EmailError.invalidConfigData
+        }
+        let htmlDocument = try SwiftSoup.parse(dataString)
+        let manipulatedHTML = renderer(htmlDocument)
+        let enumeratePath = baseURL.appendingPathComponent(named, isDirectory: true)
+        var attachmentsToBuild = [Attachment]()
+        for (_, curFile) in try FileManager.default.contentsOfDirectory(atPath: enumeratePath.path).enumerated() {
+            do {
+                let thisFile = enumeratePath.appendingPathComponent(curFile, isDirectory: false)
+                let thisFileData = try Data(contentsOf:thisFile)
+                let thisAttachment = Attachment(data:thisFileData, mime:thisFile.mimeType(), name:thisFile.lastPathComponent, inline:true)
+                attachmentsToBuild.append(thisAttachment)
+            } catch _ {}
+        }
+        return (html:manipulatedHTML, attachments:attachmentsToBuild)
+    }
+    
+    public func sendTemplate(named:String, withSubject:String, to recipients:[Mail.User]) throws {
+        
+    }
+    
+    
+    public func notify(recipients groupName:String, of event:String, data:[String:String], notifyAdmin:Bool = false, attachments:[Attachment] = [], subject:String? = nil) throws {
         let usersToNotify = try loadRecipients(named: groupName, includeAdmin: notifyAdmin)
-        try notify(recipients: usersToNotify, of: event, data: data, attachments: attachments)
+        try notify(recipients: usersToNotify, of: event, data: data, attachments: attachments, subject:subject)
     }
     
     public func notify(recipients usersToNotify:[Mail.User], of event:String, data:[String:String], attachments:[Attachment] = [], subject:String? = nil) throws {
