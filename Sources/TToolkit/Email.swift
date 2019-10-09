@@ -30,7 +30,7 @@ extension Mail.User: Codable {
 fileprivate let baseURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".emailer", isDirectory:true)
 fileprivate let configURL = baseURL.appendingPathComponent("config.json", isDirectory:false)
 
-public typealias HTMLRenderer = (Document) -> String
+public typealias HTMLRenderer = (Document) throws -> String
 
 public struct Emailer {
     //subjects sent by Emailer always contain the following subject:
@@ -179,7 +179,7 @@ public struct Emailer {
             throw EmailError.invalidConfigData
         }
         let htmlDocument = try SwiftSoup.parse(dataString)
-        let manipulatedHTML = renderer(htmlDocument)
+        let manipulatedHTML = try renderer(htmlDocument)
         let enumeratePath = baseURL.appendingPathComponent(named, isDirectory: true)
         var attachmentsToBuild = [Attachment]()
         for (_, curFile) in try FileManager.default.contentsOfDirectory(atPath: enumeratePath.path).enumerated() {
