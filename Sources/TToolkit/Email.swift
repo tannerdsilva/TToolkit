@@ -174,10 +174,12 @@ public struct Emailer {
     }
     
     public func loadTemplate(named:String, renderer:HTMLRenderer) throws -> (html:String, attachments:[Attachment]) {
-        let html = try Data(contentsOf:baseURL.appendingPathComponent(named + ".html"))
+        let fileName = named + ".html"
+        let html = try Data(contentsOf:baseURL.appendingPathComponent(fileName, isDirectory:false))
         guard let dataString = String(data:html, encoding:.utf8) else {
             throw EmailError.invalidConfigData
         }
+        dprint("Successfully loaded template data")
         let htmlDocument = try SwiftSoup.parse(dataString)
         let manipulatedHTML = try renderer(htmlDocument)
         let enumeratePath = baseURL.appendingPathComponent(named, isDirectory: true)
