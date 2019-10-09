@@ -198,6 +198,7 @@ public struct Emailer {
         //make the main html attachment
         let html = Attachment(htmlContent: renderedTemplate.html, relatedAttachments: renderedTemplate.attachments)
         let mail = Mail(from:me, to:recipients, subject:thisSubject, attachments:[html])
+        try send(mail:mail)
     }
     
     private func send(mail:Mail) throws {
