@@ -2,8 +2,8 @@ import Foundation
 import SwiftSMTP
 import SwiftSoup
 
-struct RenderedTemplate {
-    let htmlString:String
+public struct RenderedTemplate {
+    let html:String
     let attachments:[Attachment]
 }
 
@@ -173,13 +173,12 @@ public struct Emailer {
         return "[" + event.uppercased() + "]" + " - " + context
     }
     
-    public func loadTemplate(named:String, renderer:HTMLRenderer) throws -> (html:String, attachments:[Attachment]) {
+    public func loadTemplate(named:String, renderer:HTMLRenderer) throws -> RenderedTemplate {
         let fileName = named + ".html"
         let html = try Data(contentsOf:baseURL.appendingPathComponent(fileName, isDirectory:false))
         guard let dataString = String(data:html, encoding:.utf8) else {
             throw EmailError.invalidConfigData
         }
-        dprint("Successfully loaded template data")
         let htmlDocument = try SwiftSoup.parse(dataString)
         let manipulatedHTML = try renderer(htmlDocument)
         let enumeratePath = baseURL.appendingPathComponent(named, isDirectory: true)
@@ -192,11 +191,32 @@ public struct Emailer {
                 attachmentsToBuild.append(thisAttachment)
             } catch _ {}
         }
-        return (html:manipulatedHTML, attachments:attachmentsToBuild)
+        return RenderedTemplate(html:manipulatedHTML, attachments:attachmentsToBuild)
     }
     
-    public func sendTemplate(named:String, withSubject:String, to recipients:[Mail.User]) throws {
-        
+    public func sendTemplate(_ renderedTemplate:RenderedTemplate, with thisSubject:String, to recipients:[Mail.User]) throws {
+        //make the main html attachment
+        let html = Attachment(htmlContent: renderedTemplate.html, relatedAttachments: renderedTemplate.attachments)
+        let mail = Mail(from:me, to:recipients, subject:thisSubject, attachments:[html])
+    }
+    
+    private func send(mail:Mail) throws {
+        var waitGroup = DispatchGroup()
+        waitGroup.enter()
+        var sendError:Error? = nil
+        smtp.send(mail) { error in
+            if (error != nil) {
+                sendError = error
+                print(Colors.Red("Error sending email to \(mail.to.count) recipients: \(String(describing:error))"))
+            } else {
+                dprint(Colors.Green("Email sent."))
+            }
+            waitGroup.leave()
+        }
+        waitGroup.wait()
+        if let hadError = sendError {
+            throw hadError
+        }
     }
     
     
@@ -221,22 +241,7 @@ public struct Emailer {
         
         let mail = Mail(from:me, to:usersToNotify, subject:subjectToSend, text:bodyString, attachments: attachments)
         
-        let waitGroup = DispatchGroup()
-        waitGroup.enter()
-        var sendError:Error? = nil
-        smtp.send(mail) { error in
-            if (error != nil) {
-                sendError = error
-                print(Colors.Red("Error sending email to \(usersToNotify.count) recipients: \(String(describing:error))"))
-            } else {
-                dprint(Colors.Green("Email sent."))
-            }
-            waitGroup.leave()
-        }
-        waitGroup.wait()
-        if let hadError = sendError {
-            throw hadError
-        }
+        try send(mail:mail)
     }
     
     public func sendTest() throws {
