@@ -183,13 +183,16 @@ public struct Emailer {
         let manipulatedHTML = try renderer(htmlDocument)
         let enumeratePath = baseURL.appendingPathComponent(named, isDirectory: true)
         var attachmentsToBuild = [Attachment]()
-        for (_, curFile) in try FileManager.default.contentsOfDirectory(atPath: enumeratePath.path).enumerated() {
-            do {
-                let thisFile = enumeratePath.appendingPathComponent(curFile, isDirectory: false)
-                let thisFileData = try Data(contentsOf:thisFile)
-                let thisAttachment = Attachment(data:thisFileData, mime:thisFile.mimeType(), name:thisFile.lastPathComponent, inline:true)
-                attachmentsToBuild.append(thisAttachment)
-            } catch _ {}
+        if FileManager.default.fileExists(atPath: enumeratePath.path) == true {
+            for (_, curFile) in try FileManager.default.contentsOfDirectory(atPath: enumeratePath.path).enumerated() {
+                do {
+                    let thisFile = enumeratePath.appendingPathComponent(curFile, isDirectory: false)
+                    let thisFileData = try Data(contentsOf:thisFile)
+                    let thisAttachment = Attachment(data:thisFileData, mime:thisFile.mimeType(), name:thisFile.lastPathComponent, inline:true)
+                    attachmentsToBuild.append(thisAttachment)
+                } catch _ {}
+            }
+
         }
         return RenderedTemplate(html:manipulatedHTML, attachments:attachmentsToBuild)
     }
