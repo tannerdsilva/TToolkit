@@ -197,7 +197,7 @@ public struct Emailer {
         return RenderedTemplate(html:manipulatedHTML, attachments:attachmentsToBuild)
     }
     
-    public func sendTemplate(_ renderedTemplate:RenderedTemplate, with thisSubject:String, to recipients:[Mail.User]) throws {
+    public func sendTemplate(_ renderedTemplate:RenderedTemplate, subject thisSubject:String, to recipients:[Mail.User]) throws {
         //make the main html attachment
         let html = Attachment(htmlContent: renderedTemplate.html, relatedAttachments: renderedTemplate.attachments)
         let mail = Mail(from:me, to:recipients, subject:thisSubject, attachments:[html])
@@ -205,7 +205,7 @@ public struct Emailer {
     }
     
     private func send(mail:Mail) throws {
-        var waitGroup = DispatchGroup()
+        let waitGroup = DispatchGroup()
         waitGroup.enter()
         var sendError:Error? = nil
         smtp.send(mail) { error in
