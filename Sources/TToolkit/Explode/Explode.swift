@@ -9,7 +9,7 @@ import Foundation
 
 extension Collection {
     //explode a collection - allows the user to handle the merging of data themselves
-    func explode<T>(lanes:Int = 5, using thisFunction:@escaping (Int, Element) throws -> T?, merge mergeFunction:@escaping (Int, T) throws -> Void) {
+    public func explode<T>(lanes:Int = 5, using thisFunction:@escaping (Int, Element) throws -> T?, merge mergeFunction:@escaping (Int, T) throws -> Void) {
         let semaphore = DispatchSemaphore(value:lanes)
         let mergeQueue = DispatchQueue(label:"com.ttoolkit.explode-merge")
         let computeThread = DispatchQueue(label:"com.ttoolkit.explode-compute", attributes:[DispatchQueue.Attributes.concurrent])
@@ -38,7 +38,7 @@ extension Collection {
     }
     
     //explode a collection - returns a set of hashable objects
-    func explode<T>(lanes:Int = 5, using thisFunction:@escaping (Int, Element) throws -> T?) -> Set<T> where T:Hashable {
+    public func explode<T>(lanes:Int = 5, using thisFunction:@escaping (Int, Element) throws -> T?) -> Set<T> where T:Hashable {
         let semaphore = DispatchSemaphore(value:lanes)
         let mergeQueue = DispatchQueue(label:"com.ttoolkit.explode-merge")
         let computeThread = DispatchQueue(label:"com.ttoolkit.explode-compute", attributes:[DispatchQueue.Attributes.concurrent])
@@ -73,7 +73,7 @@ extension Collection {
     }
     
     //explode a collection - returns a dictionary
-    func explode<T, U>(lanes:Int = 5, using thisFunction:@escaping (Int, Element) throws -> (key:T, value:U?)) -> [T:U] where T:Hashable {
+    public func explode<T, U>(lanes:Int = 5, using thisFunction:@escaping (Int, Element) throws -> (key:T, value:U?)) -> [T:U] where T:Hashable {
         let semaphore = DispatchSemaphore(value:lanes)
         let mergeQueue = DispatchQueue(label:"com.ttoolkit.explode-merge")
         let computeThread = DispatchQueue(label:"com.ttoolkit.explode-compute", attributes:[DispatchQueue.Attributes.concurrent])
