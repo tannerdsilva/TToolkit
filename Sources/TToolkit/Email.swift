@@ -3,8 +3,8 @@ import SwiftSMTP
 import SwiftSoup
 
 public struct RenderedTemplate {
-    let html:String
-    let attachments:[Attachment]
+    public let html:String
+    public let attachments:[Attachment]
 }
 
 //extension for Mail.User for codability support
