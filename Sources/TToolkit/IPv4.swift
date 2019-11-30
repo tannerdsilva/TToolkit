@@ -1,11 +1,13 @@
-struct CDIRV4 {
-	let address:AddressV4
-	let subnetNumber:UInt8
+import Foundation
+
+public struct CDIRV4 {
+	public let address:AddressV4
+	public let subnetNumber:UInt8
 	
-	let bytes:UInt32
-	let subnetMask:UInt32
+	public let bytes:UInt32
+	public let subnetMask:UInt32
 	
-	init(_ cdirString:String) throws {
+	public init(_ cdirString:String) throws {
 		enum ParseError:Error {
 			case invalidFormat
 		}
@@ -30,21 +32,21 @@ struct CDIRV4 {
 		subnetMask = (UInt32.max << (32 - subnet))
 	}
 	
-	func asString() -> String {
+	public func asString() -> String {
 		return address.asString() + "/" + String(subnetNumber)
 	}
 }
 
-struct AddressV4:Comparable {
+public struct AddressV4:Comparable {
 	enum InitError:Error {
 		case invalidAddressString
 	}
 	
-	let partOne:UInt8
-	let partTwo:UInt8
-	let partThree:UInt8
-	let partFour:UInt8
-	init(_ addressString:String) throws {
+	public let partOne:UInt8
+	public let partTwo:UInt8
+	public let partThree:UInt8
+	public let partFour:UInt8
+	public init(_ addressString:String) throws {
 		let components = addressString.split(separator:".")
 		guard components.count == 4 else {
 			print("\(addressString) is not a valid IPv4 address")
@@ -77,7 +79,7 @@ struct AddressV4:Comparable {
 		partFour = p4
 	}
 	
-	func addressInteger() -> UInt32 {
+	public func addressInteger() -> UInt32 {
 		var addressBuffer:UInt32 = UInt32(partOne)
 		addressBuffer = (addressBuffer << 8) | UInt32(partTwo)
 		addressBuffer = (addressBuffer << 8) | UInt32(partThree)
@@ -85,7 +87,7 @@ struct AddressV4:Comparable {
 		return addressBuffer
 	}
 	
-	func isWithin(cdir:CDIRV4) -> Bool {
+	public func isWithin(cdir:CDIRV4) -> Bool {
 		if ((cdir.bytes & cdir.subnetMask) == (self.addressInteger() & cdir.subnetMask)) { 
 			return true
 		} else {
@@ -93,12 +95,12 @@ struct AddressV4:Comparable {
 		}
 	}
 	
-	func asString() -> String {
+	public func asString() -> String {
 		let newString = String(partOne) + "." + String(partTwo) + "." + String(partThree) + "." + String(partFour)
 		return newString
 	}
 	
-	static func < (lhs:AddressV4, rhs:AddressV4) -> Bool {
+	public static func < (lhs:AddressV4, rhs:AddressV4) -> Bool {
 		if (lhs.partOne < rhs.partOne) {
 			return true
 		} else if (lhs.partOne > rhs.partTwo) {
@@ -124,7 +126,7 @@ struct AddressV4:Comparable {
 		}
 	}
 	
-	static func <= (lhs:AddressV4, rhs:AddressV4) -> Bool {
+	public static func <= (lhs:AddressV4, rhs:AddressV4) -> Bool {
 		if (lhs.partOne <= rhs.partOne) {
 			return true
 		} else if (lhs.partOne > rhs.partTwo) {
@@ -150,7 +152,7 @@ struct AddressV4:Comparable {
 		}
 	}
 	
-	static func >= (lhs:AddressV4, rhs:AddressV4) -> Bool {
+	public static func >= (lhs:AddressV4, rhs:AddressV4) -> Bool {
 		if (lhs.partOne >= rhs.partOne) {
 			return true
 		} else if (lhs.partOne < rhs.partTwo) {
@@ -176,7 +178,7 @@ struct AddressV4:Comparable {
 		}
 	}
 	
-	static func > (lhs:AddressV4, rhs:AddressV4) -> Bool {
+	public static func > (lhs:AddressV4, rhs:AddressV4) -> Bool {
 		if (lhs.partOne > rhs.partOne) {
 			return true
 		} else if (lhs.partOne < rhs.partTwo) {
@@ -202,7 +204,7 @@ struct AddressV4:Comparable {
 		}
 	}
 	
-	static func == (lhs:AddressV4, rhs:AddressV4) -> Bool {
+	public static func == (lhs:AddressV4, rhs:AddressV4) -> Bool {
 		return (lhs.partOne == rhs.partOne) && (lhs.partTwo == rhs.partTwo) && (lhs.partThree == rhs.partThree) && (lhs.partFour == rhs.partFour)
 	}
 }
