@@ -132,7 +132,7 @@ public struct Journal {
     }
     public let precision:TimePrecision
     
-    init(logDirectory:URL, precision requestedPrecision:TimePrecision) {
+    public init(logDirectory:URL, precision requestedPrecision:TimePrecision) {
         directory = logDirectory
         precision = requestedPrecision
     }
