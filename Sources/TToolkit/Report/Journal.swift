@@ -92,7 +92,6 @@ extension Date: TimePath {
     }
 }
 
-
 private enum DateEncodingError:Error {
     case malformedData
     case noFileFound

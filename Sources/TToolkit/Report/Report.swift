@@ -4,9 +4,9 @@ fileprivate let encoder = JSONEncoder()
 fileprivate let decoder = JSONDecoder()
 
 //MARK: Report
-public typealias Reportable = Codable & Hashable
-public struct Report<T:Collection> where T.Element:Reportable {
-    public typealias UnitType = T.Element
+//public typealias Reportable = Codable & Hashable
+public struct Report<T> where T:Codable {
+    public typealias UnitType = T
     
     public let journal:Journal
     public let name:String
