@@ -10,15 +10,12 @@ struct Report<T:Collection> where T.Element:Reportable {
     
     public let journal:Journal
     public let name:String
-    public var filename:String {
-    	get {
-    		return name + ".json"
-    	}
-    }
+    private let filename:String
     
     init(journal:Journal, name:String) {
         self.journal = journal
         self.name = name
+        self.filename = name + ".json"
     }
     
     func advanceHeadAndWrite(_ inputObjects:UnitType) throws {
@@ -27,7 +24,7 @@ struct Report<T:Collection> where T.Element:Reportable {
     }
     
     func loadSnapshot(_ date:Date) throws -> UnitType {
-		let readURL = try journal.directoryOnOrBefore(date:date).appendingPathComponent(name, isDirectory:false)
+		let readURL = try journal.directoryOnOrBefore(date:date).appendingPathComponent(filename, isDirectory:false)
 		let readData = try Data(contentsOf:readURL)
 		return try decoder.decode(UnitType.self, from:readData)
     }
