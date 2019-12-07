@@ -1,6 +1,5 @@
 import Foundation
 import SwiftSMTP
-import SwiftSoup
 
 public struct RenderedTemplate {
     public let html:String
@@ -30,7 +29,7 @@ extension Mail.User: Codable {
 fileprivate let baseURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".emailer", isDirectory:true)
 fileprivate let configURL = baseURL.appendingPathComponent("config.json", isDirectory:false)
 
-public typealias HTMLRenderer = (Document) throws -> String
+public typealias HTMLRenderer = (String) throws -> String
 
 public struct Emailer {
     //subjects sent by Emailer always contain the following subject:
@@ -179,8 +178,7 @@ public struct Emailer {
         guard let dataString = String(data:html, encoding:.utf8) else {
             throw EmailError.invalidConfigData
         }
-        let htmlDocument = try SwiftSoup.parse(dataString)
-        let manipulatedHTML = try renderer(htmlDocument)
+        let manipulatedHTML = try renderer(dataString)
         let enumeratePath = baseURL.appendingPathComponent(named, isDirectory: true)
         var attachmentsToBuild = [Attachment]()
         if FileManager.default.fileExists(atPath: enumeratePath.path) == true {

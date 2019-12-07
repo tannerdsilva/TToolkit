@@ -22,34 +22,18 @@ struct ANSIModifiers {
     static var strikethrough = [9, 29]
 }
 
-public extension String {
-	static func random(length:Int = 32) -> String {
-		let base = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-		let baseLength = base.count
-		var randomString = ""
-		for _ in 0..<length {
-			let randomIndex = Int.random(in:0..<baseLength)
-			randomString.append(base[base.index(base.startIndex, offsetBy:randomIndex)])
-		}
-		return randomString
-	}
-	
-	public func bashSafe() -> String {
-		return self.replacingOccurrences(of:"'", with:"\'")
-	}
-}
-
-@available(macOS 10.12, *)
-public extension Date {
-	public var isoString: String {
-		return ISO8601DateFormatter().string(from:self)
-	}
-}
-
 public func dprint(_ input:String) {
 	#if DEBUG
 	print(input)
 	#endif
+}
+
+private let jsonEncoder = JSONEncoder()
+extension Encodable { 
+	public func encodeJSON(to file:URL) throws {
+		let jsonData = try jsonEncoder.encode(self)
+		try jsonData.write(to:file)
+	}
 }
 
 public struct StringStopwatch {
