@@ -5,25 +5,25 @@ fileprivate let decoder = JSONDecoder()
 
 //MARK: Report
 public typealias Reportable = Codable & Hashable
-struct Report<T:Collection> where T.Element:Reportable {
+public struct Report<T:Collection> where T.Element:Reportable {
     typealias UnitType = T.Element
     
     public let journal:Journal
     public let name:String
     private let filename:String
     
-    init(journal:Journal, name:String) {
+    public init(journal:Journal, name:String) {
         self.journal = journal
         self.name = name
         self.filename = name + ".json"
     }
     
-    func advanceHeadAndWrite(_ inputObjects:UnitType) throws {
+    public func advanceHeadAndWrite(_ inputObjects:UnitType) throws {
         let writeURL = try journal.advanceHead(withDate: Date()).appendingPathComponent(filename, isDirectory:false)
         try inputObjects.encodeJSON(to: writeURL)
     }
     
-    func loadSnapshot(_ date:Date) throws -> UnitType {
+    public func loadSnapshot(_ date:Date) throws -> UnitType {
 		let readURL = try journal.directoryOnOrBefore(date:date).appendingPathComponent(filename, isDirectory:false)
 		let readData = try Data(contentsOf:readURL)
 		return try decoder.decode(UnitType.self, from:readData)
