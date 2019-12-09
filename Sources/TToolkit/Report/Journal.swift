@@ -122,9 +122,11 @@ public struct Journal {
     
     public let directory:URL
 	public let precision:TimePrecision
+	
     private static let latestTimeRepName:String = ".latest.timerep.json"
     private static let previousTimeRepName:String = ".previous.timerep.json"
     private static let creationTimestamp:String = ".creation-timestamp.iso"
+    
     private var latestDirectoryPath:URL {
         get {
             return directory.appendingPathComponent(Journal.latestTimeRepName, isDirectory:false)
