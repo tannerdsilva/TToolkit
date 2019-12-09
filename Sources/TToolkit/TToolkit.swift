@@ -1,7 +1,7 @@
 import Foundation
 
 // This code was sourced from Paulo Tanaka, and modified by Tanner Silva in 2019 for compatibility with the swift package manager on Linux.
-struct ANSIColorCode {
+fileprivate struct ANSIColorCode {
 	static let black = [0, 9]
     static let red = [1, 9]
     static let green = [2, 9]
@@ -11,7 +11,7 @@ struct ANSIColorCode {
     static let cyan = [6, 9]
     static let white = [7, 9]
 }
-struct ANSIModifiers {
+fileprivate struct ANSIModifiers {
     static var bold = [1, 22]
     static var blink = [5, 25]
     static var dim = [2, 22]
@@ -105,10 +105,10 @@ private func getColor(color: [Int], mod: Int) -> [Int] {
 }
 
 public class Colors {
-    static let normalText = 30
-    static let bg = 40
-    static let brightText = 90
-    static let brightBg = 100
+    fileprivate static let normalText = 30
+    fileprivate static let bg = 40
+    fileprivate static let brightText = 90
+    fileprivate static let brightBg = 100
 
     // MARK: 8-bit color functions
     public static func getTextColorer(color: Int) -> ((_:String) -> String) {

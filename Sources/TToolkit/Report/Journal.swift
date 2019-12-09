@@ -121,6 +121,7 @@ public struct Journal {
     }
     
     public let directory:URL
+	public let precision:TimePrecision
     private static let latestTimeRepName:String = ".latest.timerep.json"
     private static let previousTimeRepName:String = ".previous.timerep.json"
     private static let creationTimestamp:String = ".creation-timestamp.iso"
@@ -129,7 +130,6 @@ public struct Journal {
             return directory.appendingPathComponent(Journal.latestTimeRepName, isDirectory:false)
         }
     }
-    public let precision:TimePrecision
     
     public init(logDirectory:URL, precision requestedPrecision:TimePrecision) {
         directory = logDirectory
