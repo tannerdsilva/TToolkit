@@ -32,12 +32,12 @@ public struct CDIRV4 {
 		subnetMask = (UInt32.max << (32 - subnet))
 	}
 	
-	public func asString() -> String {
-		return address.asString() + "/" + String(subnetNumber)
+	public func stringRepresentation() -> String {
+		return address.stringRepresentation() + "/" + String(subnetNumber)
 	}
 }
 
-public struct AddressV4:Comparable {
+public struct AddressV4:Address, Comparable {
 	enum InitError:Error {
 		case invalidAddressString
 	}
@@ -95,7 +95,7 @@ public struct AddressV4:Comparable {
 		}
 	}
 	
-	public func asString() -> String {
+	public func stringRepresentation() -> String {
 		let newString = String(partOne) + "." + String(partTwo) + "." + String(partThree) + "." + String(partFour)
 		return newString
 	}

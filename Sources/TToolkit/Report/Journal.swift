@@ -126,7 +126,7 @@ public struct Journal {
     private static let creationTimestamp:String = ".creation-timestamp.iso"
     private var latestDirectoryPath:URL {
         get {
-            return directory.appendingPathComponent(Journal.latestTimeRepName)
+            return directory.appendingPathComponent(Journal.latestTimeRepName, isDirectory:false)
         }
     }
     public let precision:TimePrecision
@@ -202,6 +202,10 @@ public struct Journal {
     
     public func findLatestDirectoryInPast() throws -> URL {
         return try directoryOnOrBefore(date: TimeStruct(Date()))
+    }
+    
+    public func findHeadDirectory() throws -> URL {
+    	return try readLatest().theoreticalTimePath(precision:precision, for:directory)
     }
     
     public func file(named fileName:String, onOrBefore thisDate:Date) throws -> Data {
