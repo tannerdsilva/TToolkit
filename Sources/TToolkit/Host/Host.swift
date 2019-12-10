@@ -60,7 +60,7 @@ fileprivate class Local:Shell {
 //    var currentUser: String
 //    
 //    func run(_ command: Command) throws -> CommandResult {
-//        <#code#>
+//        
 //    }
 //    
 //	
@@ -76,7 +76,9 @@ fileprivate class Local:Shell {
 //	}
 //}
 
+
 struct Host {
-	
-	
+	static func local() -> Shell {
+		return Local()
+	}	
 }

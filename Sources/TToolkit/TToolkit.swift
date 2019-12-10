@@ -21,13 +21,11 @@ fileprivate struct ANSIModifiers {
     static var hidden = [8, 28]
     static var strikethrough = [9, 29]
 }
-
 public func dprint(_ input:String) {
 	#if DEBUG
 	print(input)
 	#endif
 }
-
 private let jsonEncoder = JSONEncoder()
 extension Encodable { 
 	public func encodeJSON(to file:URL) throws {
