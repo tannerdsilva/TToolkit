@@ -19,7 +19,7 @@ public struct Report<T> where T:Codable {
     }
     
     public func advanceHeadAndWrite(_ inputObjects:UnitType) throws {
-        let writeURL = try journal.advanceHead(withDate: Date()).appendingPathComponent(filename, isDirectory:false)
+        let writeURL = try journal.headDirectory(moveToDate: Date()).appendingPathComponent(filename, isDirectory:false)
         try inputObjects.encodeJSON(to: writeURL)
     }
     

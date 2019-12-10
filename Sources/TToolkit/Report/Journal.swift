@@ -187,16 +187,16 @@ public struct Journal {
         throw JournalerError.journalTailReached(dateToTarget.theoreticalTimePath(precision: precision, for:directory))
     }
     
-    public func advanceHead(withDate now:Date) throws -> URL {
-        let timeRep = TimeStruct(now)
-        let newDirectory = timeRep.theoreticalTimePath(precision:precision, for:directory)
+    private func advanceHead(withTimePath timeRep:TimePath) throws -> URL {
+        let pathAsStructure = TimeStruct(timeRep) //must be converted to a timestrcut so it can be coded and written to disk
+        let newDirectory = pathAsStructure.theoreticalTimePath(precision:precision, for:directory)
         if (FileManager.default.fileExists(atPath: newDirectory.path) == false) {
             try FileManager.default.createDirectory(at: newDirectory, withIntermediateDirectories: true, attributes: nil)
             if (FileManager.default.fileExists(atPath: latestDirectoryPath.path) == true) {
                 let previousTimeRep = try TimeStruct.fromWrittenState(url: latestDirectoryPath)
                 try previousTimeRep.writeTo(url: newDirectory.appendingPathComponent(Journal.previousTimeRepName))
             }
-            try timeRep.writeTo(url: latestDirectoryPath)
+            try pathAsStructure.writeTo(url: latestDirectoryPath)
             try write(date:Date(), to:newDirectory.appendingPathComponent(Journal.creationTimestamp))
         }
         return newDirectory
@@ -206,8 +206,18 @@ public struct Journal {
         return try directoryOnOrBefore(date: TimeStruct(Date()))
     }
     
-    public func findHeadDirectory() throws -> URL {
-    	return try readLatest().theoreticalTimePath(precision:precision, for:directory)
+    public func headDirectory(moveToDate thisDate:TimePath? = nil) throws -> URL {
+    	let headFromDisk = try readLatest()
+		if let dateValid = thisDate {
+			let dateAsTimestruct = TimeStruct(dateValid)
+			if (dateAsTimestruct > headFromDisk) {
+				return try advanceHead(withTimePath: dateAsTimestruct)
+			} else {
+				return headFromDisk.theoreticalTimePath(precision:precision, for:directory)
+			}
+		} else {
+			return headFromDisk.theoreticalTimePath(precision:precision, for:directory)
+		}
     }
     
     public func file(named fileName:String, onOrBefore thisDate:Date) throws -> Data {
