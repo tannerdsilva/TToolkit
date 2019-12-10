@@ -154,7 +154,7 @@ public struct Journal {
             if i > 0 {
                 dateToTarget = try TimeStruct.fromWrittenState(url: fileToCheck!)
             }
-            if (dateToTarget < date) {
+            if (dateToTarget <= date) {
                 return dateToTarget.theoreticalTimePath(precision: precision, for:directory)
             }
             fileToCheck = dateToTarget.theoreticalTimePath(precision: precision, for:directory).appendingPathComponent(Journal.previousTimeRepName)
@@ -172,7 +172,7 @@ public struct Journal {
             if i > 0 {
                 dateToTarget = try TimeStruct.fromWrittenState(url: fileToCheck!)
             }
-            if (dateToTarget < timeRep) {
+            if (dateToTarget <= timeRep) {
                 return
             }
             let targetedDirectory = dateToTarget.theoreticalTimePath(precision: precision, for: directory)

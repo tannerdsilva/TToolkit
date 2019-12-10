@@ -5,7 +5,7 @@ fileprivate let decoder = JSONDecoder()
 
 //MARK: Report
 //public typealias Reportable = Codable & Hashable
-public struct Report<T> where T:Codable {
+public struct Report<T> where T:Hashable, T:Codable {
     public typealias UnitType = T
     
     public let journal:Journal
@@ -28,6 +28,40 @@ public struct Report<T> where T:Codable {
 		let readData = try Data(contentsOf:readURL)
 		return try decoder.decode(UnitType.self, from:readData)
     }
+}
+
+extension Report where UnitType:Sequence, UnitType.Element:Hashable, UnitType.Element:Codable {
+	public func compareDates(_ d1:Date, _ d2:Date) throws -> ReportComparison<UnitType.Element> {
+		let data1 = Dictionary(grouping:try loadSnapshot(d1), by: { $0.hashValue }).compactMapValues({ $0.first })
+		let data2 = Dictionary(grouping:try loadSnapshot(d2), by: { $0.hashValue }).compactMapValues({ $0.first })
+		
+		let hashes1 = Set(data1.keys)
+		let hashes2 = Set(data2.keys)
+		
+		let common = hashes1.intersection(hashes2)
+		
+		let _exclusive = hashes1.symmetricDifference(hashes2)
+		
+		let exclusive1 = _exclusive.subtracting(hashes2)
+		let exclusive2 = _exclusive.subtracting(hashes1)
+		
+		
+		return ReportComparison<UnitType.Element>(data1:data1, data2:data2, hashes1:hashes1, hashes2:hashes2, common:common, exclusive1:exclusive1, exclusive2:exclusive2)
+	}
+}
+
+public struct ReportComparison<T> where T:Hashable, T:Codable {
+	public let data1:[Int:T]
+	public let data2:[Int:T]
+	
+	public let hashes1:Set<Int>
+	public let hashes2:Set<Int>
+	
+	public let common:Set<Int>
+	
+	public let exclusive1:Set<Int>
+	public let exclusive2:Set<Int>
+	
 }
 
 //MARK: Snapshot Object (used by Report)
