@@ -26,7 +26,7 @@ public extension String {
 	}
 	
 	//encode a string into a URL
-	public func urlEncodedString() -> String {
+	public func urlEncodedString() -> String? {
 		return self.addingPercentEncoding(withAllowedCharacters:.urlQueryAllowed)
 	}
 }

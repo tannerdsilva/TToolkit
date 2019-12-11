@@ -208,8 +208,8 @@ public struct Journal {
     
     public func headDirectory(moveToDate thisDate:TimePath? = nil) throws -> URL {
     	//check if there is a "latest timepath" file to read from
-    	if (FileManager.default.fileExists(atPath:latestDirectoryPath) == false) {
-    		try advanceHead(withTimePath:thisDate)
+    	if (FileManager.default.fileExists(atPath:latestDirectoryPath.path) == false) {
+    		return try advanceHead(withTimePath:thisDate ?? Date())
     	} else { 
 			let headFromDisk = try readLatest()
 			if let dateValid = thisDate {
