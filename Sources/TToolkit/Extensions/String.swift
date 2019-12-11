@@ -5,6 +5,7 @@ fileprivate enum StringError:Error {
 }
 
 public extension String {
+	//static function that creates a string of random length
 	public static func random(length:Int = 32) -> String {
 		let base = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 		let baseLength = base.count
@@ -15,11 +16,17 @@ public extension String {
 		}
 		return randomString
 	}
-	//safely returns a data structure
+	
+	//safely returns a data structure based on this strings contents
 	public func safeData(using thisEncoding:String.Encoding) throws -> Data {
 		guard let saveVariable = self.data(using:thisEncoding) else {
 			throw StringError.unableToConvertToData
 		}
 		return saveVariable
+	}
+	
+	//encode a string into a URL
+	public func urlEncodedString() -> String {
+		return self.addingPercentEncoding(withAllowedCharacters:.urlQueryAllowed)
 	}
 }

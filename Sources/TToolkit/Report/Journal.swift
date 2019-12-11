@@ -207,17 +207,23 @@ public struct Journal {
     }
     
     public func headDirectory(moveToDate thisDate:TimePath? = nil) throws -> URL {
-    	let headFromDisk = try readLatest()
-		if let dateValid = thisDate {
-			let dateAsTimestruct = TimeStruct(dateValid)
-			if (dateAsTimestruct > headFromDisk) {
-				return try advanceHead(withTimePath: dateAsTimestruct)
+    	//check if there is a "latest timepath" file to read from
+    	if (FileManager.default.fileExists(atPath:latestDirectoryPath) == false) {
+    		try advanceHead(withTimePath:thisDate)
+    	} else { 
+			let headFromDisk = try readLatest()
+			if let dateValid = thisDate {
+				let dateAsTimestruct = TimeStruct(dateValid)
+				if (dateAsTimestruct > headFromDisk) {
+					return try advanceHead(withTimePath: dateAsTimestruct)
+				} else {
+					return headFromDisk.theoreticalTimePath(precision:precision, for:directory)
+				}
 			} else {
 				return headFromDisk.theoreticalTimePath(precision:precision, for:directory)
 			}
-		} else {
-			return headFromDisk.theoreticalTimePath(precision:precision, for:directory)
-		}
+    	}
+    	
     }
     
     public func file(named fileName:String, onOrBefore thisDate:Date) throws -> Data {

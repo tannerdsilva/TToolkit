@@ -45,7 +45,6 @@ extension Report where UnitType:Sequence, UnitType.Element:Hashable, UnitType.El
 		let exclusive1 = _exclusive.subtracting(hashes2)
 		let exclusive2 = _exclusive.subtracting(hashes1)
 		
-		
 		return ReportComparison<UnitType.Element>(data1:data1, data2:data2, hashes1:hashes1, hashes2:hashes2, common:common, exclusive1:exclusive1, exclusive2:exclusive2)
 	}
 }
@@ -61,7 +60,6 @@ public struct ReportComparison<T> where T:Hashable, T:Codable {
 	
 	public let exclusive1:Set<Int>
 	public let exclusive2:Set<Int>
-	
 }
 
 //MARK: Snapshot Object (used by Report)
