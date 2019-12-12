@@ -15,7 +15,7 @@ extension String:Command {
 public struct CommandResult {
 	public let exitCode:Int
 	public let stdout:String
-	public let var stderr:String
+	public let stderr:String
 }
 
 public protocol Shell {
