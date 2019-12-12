@@ -101,8 +101,8 @@ enum ShellAuthentication {
 //}
 
 
-struct Host {
-	static func local() -> Shell {
+public struct Host {
+	public static func local() -> Shell {
 		return Local()
 	}	
 }
