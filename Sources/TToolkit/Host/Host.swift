@@ -13,9 +13,9 @@ extension String:Command {
 }
 
 public struct CommandResult {
-	var exitCode:Int
-	var stdout:String
-	var stderr:String
+	public let exitCode:Int
+	public let stdout:String
+	public let var stderr:String
 }
 
 public protocol Shell {
