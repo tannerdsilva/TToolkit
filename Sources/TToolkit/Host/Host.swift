@@ -67,16 +67,16 @@ enum ShellAuthentication {
 	case sshIdentity(URL)
 }
 
-fileprivate class Remote:Shell {
-	private var sshConnection:SSH
-	private var port:Int32
-	private var address:String
-	
-	
-	init(address:String, port:UInt32 = 22, username:String, authentication:ShellAuthentication) throws {
-		
-	}
-}
+//fileprivate class Remote:Shell {
+//	private var sshConnection:SSH
+//	private var port:Int32
+//	private var address:String
+//	
+//	
+//	init(address:String, port:UInt32 = 22, username:String, authentication:ShellAuthentication) throws {
+//		
+//	}
+//}
 
 //fileprivate class Remote:Shell {
 //    var workingDirectory: URL
