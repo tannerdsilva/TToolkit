@@ -18,11 +18,13 @@ public struct CommandResult {
 	var stderr:String
 }
 
-protocol Shell {
+public protocol Shell {
 	var workingDirectory:URL { get set }
 	var currentUser:String { get }
 	
 	func run(_ command:Command) throws -> CommandResult
+	func readFile(_ fileURL:URL) throws -> Data
+	func write(data:Data, to fileURL:URL) throws
 }
 
 fileprivate class Local:Shell {
@@ -51,6 +53,28 @@ fileprivate class Local:Shell {
 		let stderr = shellResult.stderror
 		
 		return CommandResult(exitCode:ec, stdout:stdout, stderr:stderr)
+	}
+	public func readFile(_ fileURL:URL) throws -> Data {
+		return try Data(contentsOf:fileURL)
+	}
+	public func write(data:Data, to fileURL:URL) throws {
+		try data.write(to:fileURL)
+	}
+}
+
+enum ShellAuthentication {
+	case password(String)
+	case sshIdentity(URL)
+}
+
+fileprivate class Remote:Shell {
+	private var sshConnection:SSH
+	private var port:Int32
+	private var address:String
+	
+	
+	init(address:String, port:UInt32 = 22, username:String, authentication:ShellAuthentication) throws {
+		
 	}
 }
 
