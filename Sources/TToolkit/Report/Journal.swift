@@ -5,9 +5,24 @@ public enum TimePrecision {
     case daily
     case monthly
     case annual
+    
+    var stack:[TimePrecision] {
+    	get {
+    		switch self {
+    			case .hourly:
+    				return [.annual, .monthly, .daily, .hourly]
+    			case .daily:
+    				return [.annual, .monthly, .daily]
+    			case .monthly:
+    				return [.annual, .monthly]
+    			case .annual:
+    				return [.annual]
+    		}
+    	}
+    }
 }
 
-private struct TimeStruct: TimePath, Codable, Hashable {
+internal struct TimeStruct: TimePath, Codable, Hashable {
     enum CodingKeys: CodingKey {
         case yearElement
         case monthName

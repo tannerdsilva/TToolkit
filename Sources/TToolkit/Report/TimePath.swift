@@ -9,6 +9,36 @@ public protocol TimePath {
     var preciseGMTISO:String { get }
 }
 
+internal struct TimePathIndex:Codable {
+	enum CodingKeys:CodingKey {
+		case rangeMinimum
+		case rangeMaximum
+	}
+	
+	var rangeMinimum:TimeStruct
+	var rangeMaximum:TimeStruct
+		
+	init(from decoder:Decoder) throws {
+		let values = try decoder.container(keyedBy:CodingKeys.self)
+		rangeMinimum = try values.decode(TimeStruct.self, forKey:.rangeMinimum)
+		rangeMaximum = try values.decode(TimeStruct.self, forKey:.rangeMaximum)
+	}
+	
+	func encode(to encoder:Encoder) throws {
+		var container = encoder.container(keyedBy:CodingKeys.self)
+		try container.encode(rangeMinimum, forKey:CodingKeys.rangeMinimum)
+		try container.encode(rangeMaximum, forKey:CodingKeys.rangeMaximum)
+	}
+	
+	mutating func updateRanges(for thisTime:TimeStruct) {
+		if (thisTime < rangeMinimum) {
+			rangeMinimum = thisTime
+		} else if (thisTime > rangeMaximum) {
+			rangeMaximum = thisTime
+		}
+	}
+}
+
 //Equating to Strings
 public extension TimePath {
 	var monthName:String {
@@ -47,16 +77,16 @@ public extension TimePath {
 	public func described(toPrecision precision:TimePrecision = .hourly) -> String {
         switch precision {
         case .hourly:
-            return "\(yearElement)-\(monthElement)-\(dayElement)-\(hourElement)"
+            return "\(yearElement)-\(monthElement). \(monthName)-\(dayElement)-\(hourElement)"
         case .daily:
-            return "\(yearElement)-\(monthElement)-\(dayElement)"
+            return "\(yearElement)-\(monthElement). \(monthName)-\(dayElement)"
         case .monthly:
-            return "\(yearElement)-\(monthElement)"
+            return "\(yearElement)-\(monthElement). \(monthName)"
         default:
             return "\(yearElement)"
         }
     }
-    
+        
 	internal func theoreticalTimePath(precision:TimePrecision, for baseDirectory:URL) -> URL {
         switch precision {
         case .hourly:
@@ -69,7 +99,10 @@ public extension TimePath {
             return baseDirectory.appendingPathComponent(String(yearElement), isDirectory:true)
         }
     }
-
+    
+    internal func updateIndicies() throws {
+    	
+    }
 }
 
 //Equatable Protocol
