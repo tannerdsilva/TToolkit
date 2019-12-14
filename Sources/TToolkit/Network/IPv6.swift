@@ -1,44 +1,21 @@
 import Foundation
 
-//public struct CDIRV4 {
-//	public let address:AddressV4
-//	public let subnetNumber:UInt8
-//	
-//	public let bytes:UInt32
-//	public let subnetMask:UInt32
-//	
-//	public init(_ cdirString:String) throws {
-//		enum ParseError:Error {
-//			case invalidFormat
-//		}
-//		let splitSubnet = cdirString.split(separator:"/", omittingEmptySubsequences:true).map { String($0) }
-//		guard splitSubnet.count == 2 else {
-//			print("Unexpected input \(cdirString) for CDIRV4 initializer")
-//			throw ParseError.invalidFormat
-//		}
-//		
-//		guard let subnet = UInt8(splitSubnet[1]) else {
-//			print("Unexpected input \(cdirString) for CDIRV4 initializer. Subnet cannot be converted into Int8 value")
-//			throw ParseError.invalidFormat
-//		}
-//		guard subnet <= 32 else {
-//			throw ParseError.invalidFormat
-//		}
-//		subnetNumber = subnet
-//		
-//		address = try AddressV4(splitSubnet[0])
-//		bytes = address.addressInteger()
-//		
-//		subnetMask = (UInt32.max << (32 - subnet))
-//	}
-//	
-//	public func asString() -> String {
-//		return address.asString() + "/" + String(subnetNumber)
-//	}
-//}
-
 fileprivate struct Segment {
-	init(_ input:String) {}
+	enum IPV6SegmentError:Error {
+		case invalidLength
+	}
+	
+	var integerRepresentation:Int64
+	var fullString:String
+	
+	init<T>(_ input:T) throws where T:Collection, T.Element == Character {
+		guard input.count <= 4 else {
+			throw IPV6SegmentError.invalidLength
+		}
+		
+		integerRepresentation = 0
+		fullString = ""
+	}
 }
 
 
@@ -67,7 +44,7 @@ private struct AddressV6:Comparable {
 					}
 				case ":":
 					if (lastItterationWasColon == false) {
-						let newSegment = Segment(curSegmentString)
+						let newSegment = try Segment(curSegmentString)
 						segments.append(newSegment)
 						curSegmentString = ""
 						lastItterationWasColon = true
