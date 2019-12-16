@@ -10,7 +10,7 @@ extension Encodable {
 	}
 }
 
-extension Decodable {
+extension JSONDecoder {
 	public static func decodeBinaryJSON<T>(file:URL, type:T.Type) throws -> T where T:Decodable {
 		let binaryData = try Data(contentsOf:file)
 		return try decoder.decode(T.self, from:binaryData)

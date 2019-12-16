@@ -65,11 +65,20 @@ public func prompt(with promptingString:String, validChoices:[String], displayVa
 	return inputVariable!
 }
 
-private func apply<T>(style: [T]) -> ((_:String) -> String) {
-	return { str in return "\u{001B}[\(style[0])m\(str)\u{001B}[\(style[1])m" }
+
+//MARK: JSON serialization
+public enum JSONSerializationError:Error {
+	case invalidObjectType
+}
+public func serializeJSON<T>(_:T.Type, file:URL) throws -> T {
+	let fileData = try Data(contentsOf:file)
+	guard let fileObject = try JSONSerialization.jsonObject(with:fileData) as? T else {
+		throw JSONSerializationError.invalidObjectType
+	}
+	return fileObject
 }
 
-private func getColor(color: [Int], mod: Int) -> [Int] {
-	let terminator = mod == 30 || mod == 90 ? 30 : 40
-	return [ color[0] + mod, color[1] + terminator ]
+public func serializeJSON(object:Any, file:URL) throws {
+	let jsonData = try JSONSerialization.data(withJSONObject:object)
+	try jsonData.write(to:file)
 }

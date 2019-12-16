@@ -9,39 +9,39 @@ public protocol TimePath {
     var preciseGMTISO:String { get }
 }
 
-internal struct TimePathIndex:Codable {
-	enum CodingKeys:CodingKey {
-		case rangeMinimum
-		case rangeMaximum
-	}
-	
-	var rangeMinimum:TimeStruct
-	var rangeMaximum:TimeStruct
-		
-	init(from decoder:Decoder) throws {
-		let values = try decoder.container(keyedBy:CodingKeys.self)
-		rangeMinimum = try values.decode(TimeStruct.self, forKey:.rangeMinimum)
-		rangeMaximum = try values.decode(TimeStruct.self, forKey:.rangeMaximum)
-	}
-	
-	func encode(to encoder:Encoder) throws {
-		var container = encoder.container(keyedBy:CodingKeys.self)
-		try container.encode(rangeMinimum, forKey:CodingKeys.rangeMinimum)
-		try container.encode(rangeMaximum, forKey:CodingKeys.rangeMaximum)
-	}
-	
-	mutating func updateRanges(for thisTime:TimeStruct) {
-		if (thisTime < rangeMinimum) {
-			rangeMinimum = thisTime
-		} else if (thisTime > rangeMaximum) {
-			rangeMaximum = thisTime
-		}
-	}
-}
+//internal struct TimePathIndex:Codable {
+//	enum CodingKeys:CodingKey {
+//		case rangeMinimum
+//		case rangeMaximum
+//	}
+//	
+//	var rangeMinimum:TimeStruct
+//	var rangeMaximum:TimeStruct
+//		
+//	init(from decoder:Decoder) throws {
+//		let values = try decoder.container(keyedBy:CodingKeys.self)
+//		rangeMinimum = try values.decode(TimeStruct.self, forKey:.rangeMinimum)
+//		rangeMaximum = try values.decode(TimeStruct.self, forKey:.rangeMaximum)
+//	}
+//	
+//	func encode(to encoder:Encoder) throws {
+//		var container = encoder.container(keyedBy:CodingKeys.self)
+//		try container.encode(rangeMinimum, forKey:CodingKeys.rangeMinimum)
+//		try container.encode(rangeMaximum, forKey:CodingKeys.rangeMaximum)
+//	}
+//	
+//	mutating func updateRanges(for thisTime:TimeStruct) {
+//		if (thisTime < rangeMinimum) {
+//			rangeMinimum = thisTime
+//		} else if (thisTime > rangeMaximum) {
+//			rangeMaximum = thisTime
+//		}
+//	}
+//}
 
 //Equating to Strings
 public extension TimePath {
-	var monthName:String {
+	public var monthName:String {
         get {
             switch monthElement {
             case 1:
@@ -100,8 +100,7 @@ public extension TimePath {
         }
     }
     
-    internal func updateIndicies() throws {
-    	
+    internal func updateIndicies(precision:TimePrecision, for baseDirectory:URL) throws {
     }
 }
 

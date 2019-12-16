@@ -28,7 +28,7 @@ internal struct TimeStruct: TimePath, Codable, Hashable {
         case monthName
         case monthElement
         case dayElement
-        case hourElement
+		case hourElement
         case preciseGMTISO
     }
     var yearElement:Int
@@ -71,11 +71,6 @@ internal struct TimeStruct: TimePath, Codable, Hashable {
          let dataToDecode = try Data(contentsOf:url)
          return try decoder.decode(TimeStruct.self, from:dataToDecode)
     }
-    public func writeTo(url:URL) throws {
-        let encoder = JSONEncoder()
-        let jsonData = try encoder.encode(self)
-        try jsonData.write(to:url)
-    }
     public func hash(into hasher:inout Hasher) {
         hasher.combine(yearElement)
         hasher.combine(monthElement)
@@ -111,7 +106,7 @@ private enum DateEncodingError:Error {
     case malformedData
     case noFileFound
 }
-private func write(date:Date, to thisURL:URL) throws {
+fileprivate func write(date:Date, to thisURL:URL) throws {
     let isoString = date.isoString
     guard let isoData = isoString.data(using:.utf8) else {
         throw DateEncodingError.malformedData
@@ -209,9 +204,9 @@ public struct Journal {
             try FileManager.default.createDirectory(at: newDirectory, withIntermediateDirectories: true, attributes: nil)
             if (FileManager.default.fileExists(atPath: latestDirectoryPath.path) == true) {
                 let previousTimeRep = try TimeStruct.fromWrittenState(url: latestDirectoryPath)
-                try previousTimeRep.writeTo(url: newDirectory.appendingPathComponent(Journal.previousTimeRepName))
+                try previousTimeRep.encodeBinaryJSON(file: newDirectory.appendingPathComponent(Journal.previousTimeRepName))
             }
-            try pathAsStructure.writeTo(url: latestDirectoryPath)
+            try pathAsStructure.encodeBinaryJSON(file: latestDirectoryPath)
             try write(date:Date(), to:newDirectory.appendingPathComponent(Journal.creationTimestamp))
         }
         return newDirectory
