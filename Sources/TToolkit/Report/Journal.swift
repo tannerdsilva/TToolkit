@@ -203,7 +203,7 @@ public struct Journal {
     }
     
     //Enumeration types for the journal
-    private typealias InternalJournalEnumerator = (URL, TimeStruct) throws -> JournalEnumerationResponse
+    fileprivate typealias InternalJournalEnumerator = (URL, TimeStruct) throws -> JournalEnumerationResponse
     public typealias JournalEnumerator = (URL, TimePath) throws -> JournalEnumerationResponse
     
     //two primary variables for this structure
@@ -220,14 +220,14 @@ public struct Journal {
         }
     }
     
-    public init(logDirectory:URL, precision requestedPrecision:TimePrecision) {
-        directory = logDirectory
+    public init(directory:URL, precision requestedPrecision:TimePrecision) {
+        self.directory = directory
         precision = requestedPrecision
     }
     
     //MARK: Private Functions
     //this function assumes the input TimeStruct has a theoretical timepath that exists given the journalers directory and precision
-    private func enumerateBackwards(from thisTime:TimeStruct, using enumeratorFunction:InternalJournalEnumerator) throws -> TimeStruct {
+    fileprivate func enumerateBackwards(from thisTime:TimeStruct, using enumeratorFunction:InternalJournalEnumerator) throws -> TimeStruct {
     	var dateToTarget:TimeStruct = thisTime
     	var fileToCheck:URL? = nil
     	var i:UInt = 0
@@ -264,8 +264,8 @@ public struct Journal {
 			}
 			try pathAsStructure.encodeBinaryJSON(file:latestDirectoryPath)
 			try write(date:nowDate, to:newDirectory.appendingPathComponent(Journal.creationTimestamp))
+			try pathAsStructure.updateIndicies(precision:precision, for:directory)
 		}
-		try pathAsStructure.updateIndicies(precision:precision, for:directory)
 		return pathAsStructure
     }
     
