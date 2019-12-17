@@ -19,14 +19,13 @@ public struct Report<T> where T:Hashable, T:Codable {
     }
     
     public func advanceHeadAndWrite(_ inputObjects:UnitType) throws {
-        let writeURL = try journal.headDirectory(moveToDate: Date()).appendingPathComponent(filename, isDirectory:false)
+        let writeURL = try journal.advanceHead().appendingPathComponent(filename, isDirectory:false)
         try inputObjects.encodeBinaryJSON(file: writeURL)
     }
     
     public func loadSnapshot(_ date:Date) throws -> UnitType {
-		let readURL = try journal.directoryOnOrBefore(date:date).appendingPathComponent(filename, isDirectory:false)
-		let readData = try Data(contentsOf:readURL)
-		return try decoder.decode(UnitType.self, from:readData)
+		let readURL = try journal.directoryOnOrBefore(date:date).directory.appendingPathComponent(filename, isDirectory:false)
+		return try JSONDecoder.decodeBinaryJSON(file:readURL, type:UnitType.self)
     }
 }
 

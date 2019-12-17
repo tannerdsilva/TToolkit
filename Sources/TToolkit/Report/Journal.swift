@@ -22,7 +22,7 @@ public enum TimePrecision {
     }
 }
 
-internal struct TimeStruct: TimePath, Codable, Hashable {
+internal struct TimeStruct: TimePath, Codable, Hashable, Comparable {
     enum CodingKeys: CodingKey {
         case yearElement
         case monthName
@@ -77,6 +77,74 @@ internal struct TimeStruct: TimePath, Codable, Hashable {
         hasher.combine(dayElement)
         hasher.combine(hourElement)
     }
+    
+	static public func < (lhs:TimeStruct, rhs:TimeStruct) -> Bool {
+        if (lhs.yearElement < rhs.yearElement) {
+            return true
+        } else if (lhs.yearElement > rhs.yearElement) {
+            return false
+        }
+        
+        if (lhs.monthElement < rhs.monthElement) {
+            return true
+        } else if (lhs.monthElement > rhs.monthElement) {
+            return false
+        }
+        
+        if (lhs.dayElement < rhs.dayElement) {
+        	return true
+        } else if (lhs.dayElement > rhs.dayElement) {
+        	return false
+        }
+        
+        if (lhs.hourElement < rhs.hourElement) {
+            return true
+        } else if (lhs.hourElement > rhs.hourElement) {
+            return false
+        } else {
+            return false
+        }
+    }
+
+    static public func <= (lhs:TimeStruct, rhs:TimeStruct) -> Bool {
+        return (lhs < rhs) || (lhs == rhs)
+    }
+    
+    static public func >= (lhs:TimeStruct, rhs:TimeStruct) -> Bool {
+        return (lhs > rhs) || (lhs == rhs)
+    }
+    
+    static public func > (lhs:TimeStruct, rhs:TimeStruct) -> Bool {
+        if (lhs.yearElement > rhs.yearElement) {
+            return true
+        } else if (lhs.yearElement < rhs.monthElement) {
+            return false
+        }
+        
+        if (lhs.monthElement > rhs.monthElement) {
+            return true
+        } else if (lhs.monthElement < rhs.monthElement) {
+            return false
+        }
+        
+        if (lhs.dayElement > rhs.dayElement) {
+        	return true
+        } else if (lhs.dayElement < rhs.dayElement) {
+        	return false
+        }
+        
+        if (lhs.hourElement > rhs.hourElement) {
+            return true
+        } else if (lhs.hourElement < rhs.hourElement) {
+            return false
+        } else {
+            return false
+        }
+    }
+    
+    static public func == (lhs:TimeStruct, rhs:TimeStruct) -> Bool {
+        return (lhs.yearElement == rhs.yearElement) && (lhs.monthElement == rhs.monthElement) && (lhs.hourElement == rhs.hourElement) && (lhs.dayElement == rhs.dayElement)
+    }
 }
 
 fileprivate let calendar = Calendar.current
@@ -106,7 +174,7 @@ private enum DateEncodingError:Error {
     case malformedData
     case noFileFound
 }
-fileprivate func write(date:Date, to thisURL:URL) throws {
+private func write(date:Date, to thisURL:URL) throws {
     let isoString = date.isoString
     guard let isoData = isoString.data(using:.utf8) else {
         throw DateEncodingError.malformedData
@@ -129,14 +197,23 @@ public struct Journal {
         case unableToFindLastAvailable
         case journalTailReached(URL)
     }
+    public enum JournalEnumerationResponse:UInt8 {
+    	case proceed
+    	case terminate
+    }
     
+    //Enumeration types for the journal
+    private typealias InternalJournalEnumerator = (URL, TimeStruct) throws -> JournalEnumerationResponse
+    public typealias JournalEnumerator = (URL, TimePath) throws -> JournalEnumerationResponse
+    
+    //two primary variables for this structure
     public let directory:URL
 	public let precision:TimePrecision
 	
+	//URL Related Variables
     private static let latestTimeRepName:String = ".latest.timerep.json"
     private static let previousTimeRepName:String = ".previous.timerep.json"
     private static let creationTimestamp:String = ".creation-timestamp.iso"
-    
     private var latestDirectoryPath:URL {
         get {
             return directory.appendingPathComponent(Journal.latestTimeRepName, isDirectory:false)
@@ -148,102 +225,86 @@ public struct Journal {
         precision = requestedPrecision
     }
     
+    //MARK: Private Functions
+    //this function assumes the input TimeStruct has a theoretical timepath that exists given the journalers directory and precision
+    private func enumerateBackwards(from thisTime:TimeStruct, using enumeratorFunction:InternalJournalEnumerator) throws -> TimeStruct {
+    	var dateToTarget:TimeStruct = thisTime
+    	var fileToCheck:URL? = nil
+    	var i:UInt = 0
+    	var response:JournalEnumerationResponse
+    	repeat {
+    		if (i > 0) {
+    			dateToTarget = try TimeStruct.fromWrittenState(url: fileToCheck!)
+    		}
+    		fileToCheck = try dateToTarget.theoreticalTimePath(precision:precision, for:directory).appendingPathComponent(Journal.previousTimeRepName)			
+    		response = try enumeratorFunction(fileToCheck!.deletingLastPathComponent(), dateToTarget)
+    		if (response == .terminate) { 
+    			return dateToTarget
+    		}
+    		i += 1
+    	} while (FileManager.default.fileExists(atPath:fileToCheck!.path) == true)
+    	throw JournalerError.journalTailReached(dateToTarget.theoreticalTimePath(precision:precision, for:directory))
+    }
+    
+    //loads the journal head from disk
     private func readLatest() throws -> TimeStruct {
         return try TimeStruct.fromWrittenState(url: directory.appendingPathComponent(Journal.latestTimeRepName))
     }
     
-    public func directoryOnOrBefore(date:Date) throws -> URL {
-        return try directoryOnOrBefore(date: TimeStruct(date))
-    }
-    
-    private func directoryOnOrBefore(date:TimeStruct) throws -> URL {
-        var dateToTarget:TimeStruct = try readLatest()
-        var fileToCheck:URL?
-        var i = 0
-        repeat {
-            if i > 0 {
-                dateToTarget = try TimeStruct.fromWrittenState(url: fileToCheck!)
-            }
-            if (dateToTarget <= date) {
-                return dateToTarget.theoreticalTimePath(precision: precision, for:directory)
-            }
-            fileToCheck = dateToTarget.theoreticalTimePath(precision: precision, for:directory).appendingPathComponent(Journal.previousTimeRepName)
-            i += 1
-        } while (FileManager.default.fileExists(atPath: fileToCheck!.path) == true)
-        throw JournalerError.journalTailReached(dateToTarget.theoreticalTimePath(precision: precision, for:directory))
-    }
-    
-    public func enumerateFromPresentTo(date:Date, using thisFunction:(URL, Date) throws -> Void) throws {
-        let timeRep = TimeStruct(date)
-        var dateToTarget:TimeStruct = try readLatest()
-        var fileToCheck:URL?
-        var i = 0
-        repeat {
-            if i > 0 {
-                dateToTarget = try TimeStruct.fromWrittenState(url: fileToCheck!)
-            }
-            if (dateToTarget <= timeRep) {
-                return
-            }
-            let targetedDirectory = dateToTarget.theoreticalTimePath(precision: precision, for: directory)
-            let createDateURL = targetedDirectory.appendingPathComponent(Journal.creationTimestamp, isDirectory: false)
-            let createDateData = try Data(contentsOf:createDateURL)
-            if let createDateString = String(data:createDateData, encoding:.utf8), let parsedISODate = Date.fromISOString(createDateString) {
-                try thisFunction(targetedDirectory, parsedISODate)
-            }
-            fileToCheck = targetedDirectory.appendingPathComponent(Journal.previousTimeRepName)
-            i += 1
-        } while (FileManager.default.fileExists(atPath: fileToCheck!.path) == true)
-        throw JournalerError.journalTailReached(dateToTarget.theoreticalTimePath(precision: precision, for:directory))
-    }
-    
-    private func advanceHead(withTimePath timeRep:TimePath) throws -> URL {
-        let pathAsStructure = TimeStruct(timeRep) //must be converted to a timestrcut so it can be coded and written to disk
-        let newDirectory = pathAsStructure.theoreticalTimePath(precision:precision, for:directory)
-        if (FileManager.default.fileExists(atPath: newDirectory.path) == false) {
-            try FileManager.default.createDirectory(at: newDirectory, withIntermediateDirectories: true, attributes: nil)
-            if (FileManager.default.fileExists(atPath: latestDirectoryPath.path) == true) {
-                let previousTimeRep = try TimeStruct.fromWrittenState(url: latestDirectoryPath)
-                try previousTimeRep.encodeBinaryJSON(file: newDirectory.appendingPathComponent(Journal.previousTimeRepName))
-            }
-            try pathAsStructure.encodeBinaryJSON(file: latestDirectoryPath)
-            try write(date:Date(), to:newDirectory.appendingPathComponent(Journal.creationTimestamp))
-        }
-        return newDirectory
-    }
-    
-    public func findLatestDirectoryInPast() throws -> URL {
-        return try directoryOnOrBefore(date: TimeStruct(Date()))
-    }
-    
-    public func headDirectory(moveToDate thisDate:TimePath? = nil) throws -> URL {
-    	//check if there is a "latest timepath" file to read from
-    	if (FileManager.default.fileExists(atPath:latestDirectoryPath.path) == false) {
-    		return try advanceHead(withTimePath:thisDate ?? Date())
-    	} else { 
-			let headFromDisk = try readLatest()
-			if let dateValid = thisDate {
-				let dateAsTimestruct = TimeStruct(dateValid)
-				if (dateAsTimestruct > headFromDisk) {
-					return try advanceHead(withTimePath: dateAsTimestruct)
-				} else {
-					return headFromDisk.theoreticalTimePath(precision:precision, for:directory)
-				}
-			} else {
-				return headFromDisk.theoreticalTimePath(precision:precision, for:directory)
+    //progresses the journal with a new directory representing current time
+    private func writeNewHead() throws -> TimeStruct {
+    	let nowDate = Date()
+		let pathAsStructure = TimeStruct(Date())
+		let newDirectory = pathAsStructure.theoreticalTimePath(precision:precision, for:directory)
+		if (FileManager.default.fileExists(atPath: newDirectory.path) == false) {
+			try FileManager.default.createDirectory(at:newDirectory, withIntermediateDirectories:true, attributes:nil)
+			if (FileManager.default.fileExists(atPath: latestDirectoryPath.path) == true) {
+				let previousTimeRep = try TimeStruct.fromWrittenState(url: latestDirectoryPath)
+				try previousTimeRep.encodeBinaryJSON(file:newDirectory.appendingPathComponent(Journal.previousTimeRepName))
 			}
-    	}
-    	
+			try pathAsStructure.encodeBinaryJSON(file:latestDirectoryPath)
+			try write(date:nowDate, to:newDirectory.appendingPathComponent(Journal.creationTimestamp))
+		}
+		try pathAsStructure.updateIndicies(precision:precision, for:directory)
+		return pathAsStructure
     }
     
-    public func file(named fileName:String, onOrBefore thisDate:Date) throws -> Data {
-        let timeRep = TimeStruct(thisDate)
-        let immediateTheoretical = timeRep.theoreticalTimePath(precision: precision, for: directory).appendingPathComponent(fileName, isDirectory:false)
-        if (FileManager.default.fileExists(atPath: immediateTheoretical.path) == true) {
-            return try Data(contentsOf: immediateTheoretical)
-        } else {
-            let directoryForDate = try directoryOnOrBefore(date: timeRep)
-            return try Data(contentsOf:directoryForDate.appendingPathComponent(fileName))
-        }
+    //MARK: Public Functions
+    //Searching for x amount of directories before the present head
+    public func timePath(backFromHead foldersBack:UInt = 0) throws -> (time:TimePath, directory:URL) {
+        var i = 0
+        let terminatedStruct = try enumerateBackwards(from:try readLatest(), using: { path, time -> JournalEnumerationResponse in
+        	if foldersBack <= i {
+        		i += 1
+        		return .terminate
+        	} else {
+        		i += 1
+        		return .proceed
+        	}
+        })
+        return (time:terminatedStruct, directory:terminatedStruct.theoreticalTimePath(precision:precision, for:directory))
+    }
+    
+	public func directoryOnOrBefore(date inputDate:TimePath) throws -> (time:TimePath, directory:URL) {
+    	let inputAsTimeStruct = TimeStruct(inputDate)
+    	let terminatedTimeStruct = try enumerateBackwards(from:try readLatest(), using: { path, thisTime -> JournalEnumerationResponse in
+    		if (thisTime <= inputAsTimeStruct) {
+    			return .terminate
+    		} else {
+    			return .proceed
+    		}
+    	})
+    	return (time:terminatedTimeStruct, directory:terminatedTimeStruct.theoreticalTimePath(precision:precision, for:directory))
+    }
+    
+    public func advanceHead() throws -> URL {
+    	let nowTimeStruct = try writeNewHead()
+    	return nowTimeStruct.theoreticalTimePath(precision:precision, for:directory)
+    }
+    
+    public func enumerateBackwards(using enumFunction:JournalEnumerator) throws -> URL {
+    	let latest = try readLatest()
+    	let terminatedTimeStruct = try enumerateBackwards(from:latest, using:enumFunction)
+    	return terminatedTimeStruct.theoreticalTimePath(precision:precision, for:directory)
     }
 }

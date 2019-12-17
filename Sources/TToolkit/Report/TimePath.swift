@@ -9,36 +9,35 @@ public protocol TimePath {
     var preciseGMTISO:String { get }
 }
 
+fileprivate let indexFilename = ".index-file"
+//
 //internal struct TimePathIndex:Codable {
 //	enum CodingKeys:CodingKey {
 //		case rangeMinimum
 //		case rangeMaximum
+//		case directoryContents
 //	}
-//	
+//
 //	var rangeMinimum:TimeStruct
 //	var rangeMaximum:TimeStruct
-//		
+//	
+//	var directoryContents:[String:[String]]
+//	
 //	init(from decoder:Decoder) throws {
 //		let values = try decoder.container(keyedBy:CodingKeys.self)
 //		rangeMinimum = try values.decode(TimeStruct.self, forKey:.rangeMinimum)
 //		rangeMaximum = try values.decode(TimeStruct.self, forKey:.rangeMaximum)
+//		directoryContents = try values.decode([String:[String]].self, forKey:.directoryContents)
 //	}
-//	
+//
 //	func encode(to encoder:Encoder) throws {
 //		var container = encoder.container(keyedBy:CodingKeys.self)
 //		try container.encode(rangeMinimum, forKey:CodingKeys.rangeMinimum)
 //		try container.encode(rangeMaximum, forKey:CodingKeys.rangeMaximum)
-//	}
-//	
-//	mutating func updateRanges(for thisTime:TimeStruct) {
-//		if (thisTime < rangeMinimum) {
-//			rangeMinimum = thisTime
-//		} else if (thisTime > rangeMaximum) {
-//			rangeMaximum = thisTime
-//		}
+//		try container.encode(directoryContents, forKey:CodingKeys.directoryContents)
 //	}
 //}
-
+//
 //Equating to Strings
 public extension TimePath {
 	public var monthName:String {
@@ -86,7 +85,7 @@ public extension TimePath {
             return "\(yearElement)"
         }
     }
-        
+            
 	internal func theoreticalTimePath(precision:TimePrecision, for baseDirectory:URL) -> URL {
         switch precision {
         case .hourly:
@@ -101,76 +100,45 @@ public extension TimePath {
     }
     
     internal func updateIndicies(precision:TimePrecision, for baseDirectory:URL) throws {
-    }
-}
+    	//enumerate through the stack of the specified precision
+		for (_, curPrecision) in precision.stack.enumerated() {
+			let directory = self.theoreticalTimePath(precision:precision, for:baseDirectory).deletingLastPathComponent()
+			let indexFile = directory.appendingPathComponent(indexFilename, isDirectory:false)
+			
+			var indexObject:[String:[String]]
+			do {
+				indexObject = try serializeJSON([String:[String]].self, file:indexFile)
+			} catch _ {
+				indexObject = [String:[String]]()
+			}
 
-//Equatable Protocol
-extension TimePath {
-	static public func < (lhs:Self, rhs:Self) -> Bool {
-        if (lhs.yearElement < rhs.yearElement) {
-            return true
-        } else if (lhs.yearElement > rhs.yearElement) {
-            return false
-        }
-        
-        if (lhs.monthElement < rhs.monthElement) {
-            return true
-        } else if (lhs.monthElement > rhs.monthElement) {
-            return false
-        }
-        
-        if (lhs.dayElement < rhs.dayElement) {
-        	return true
-        } else if (lhs.dayElement > rhs.dayElement) {
-        	return false
-        }
-        
-        if (lhs.hourElement < rhs.hourElement) {
-            return true
-        } else if (lhs.hourElement > rhs.hourElement) {
-            return false
-        } else {
-            return false
-        }
-    }
-
-    static public func <= (lhs:Self, rhs:Self) -> Bool {
-        return (lhs < rhs) || (lhs == rhs)
-    }
-    
-    static public func >= (lhs:Self, rhs:Self) -> Bool {
-        return (lhs > rhs) || (lhs == rhs)
-    }
-    
-    static public func > (lhs:Self, rhs:Self) -> Bool {
-        if (lhs.yearElement > rhs.yearElement) {
-            return true
-        } else if (lhs.yearElement < rhs.monthElement) {
-            return false
-        }
-        
-        if (lhs.monthElement > rhs.monthElement) {
-            return true
-        } else if (lhs.monthElement < rhs.monthElement) {
-            return false
-        }
-        
-        if (lhs.dayElement > rhs.dayElement) {
-        	return true
-        } else if (lhs.dayElement < rhs.dayElement) {
-        	return false
-        }
-        
-        if (lhs.hourElement > rhs.hourElement) {
-            return true
-        } else if (lhs.hourElement < rhs.hourElement) {
-            return false
-        } else {
-            return false
-        }
-    }
-    
-    static public func == (lhs:Self, rhs:Self) -> Bool {
-        return (lhs.yearElement == rhs.yearElement) && (lhs.monthElement == rhs.monthElement) && (lhs.hourElement == rhs.hourElement) && (lhs.dayElement == rhs.dayElement)
+			func insertInIndex(key:Int, value:Int) {
+				let keyString = String(key)
+				let valueString = String(value)
+				if var existingContents = indexObject[keyString] {
+					if (existingContents.contains(valueString) == false) {
+						existingContents.append(valueString)
+						indexObject[keyString] = existingContents
+					}
+				} else {
+					indexObject[keyString] = [valueString]
+				}
+			}
+			
+			switch curPrecision {
+			case .daily:
+				insertInIndex(key:dayElement, value:hourElement)
+			case .monthly:
+				insertInIndex(key:monthElement, value:dayElement)
+			case .annual:
+				insertInIndex(key:yearElement, value:monthElement)
+			default:
+				break;
+			}
+			
+			try serializeJSON(object:indexObject, file:indexFile)
+		}
+		
+		
     }
 }
