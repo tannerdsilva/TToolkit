@@ -102,7 +102,7 @@ public extension TimePath {
     internal func updateIndicies(precision:TimePrecision, for baseDirectory:URL) throws {
     	//enumerate through the stack of the specified precision
 		for (_, curPrecision) in precision.stack.enumerated() {
-			let directory = self.theoreticalTimePath(precision:precision, for:baseDirectory).deletingLastPathComponent()
+			let directory = self.theoreticalTimePath(precision:curPrecision, for:baseDirectory).deletingLastPathComponent()
 			let indexFile = directory.appendingPathComponent(indexFilename, isDirectory:false)
 			
 			var indexObject:[String:[String]]
