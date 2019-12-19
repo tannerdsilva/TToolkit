@@ -89,11 +89,11 @@ public extension TimePath {
 	internal func theoreticalTimePath(precision:TimePrecision, for baseDirectory:URL) -> URL {
         switch precision {
         case .hourly:
-            return baseDirectory.appendingPathComponent(String(yearElement), isDirectory: true).appendingPathComponent(String(monthElement), isDirectory: true).appendingPathComponent(String(dayElement), isDirectory: true).appendingPathComponent(String(hourElement), isDirectory:true)
+            return baseDirectory.appendingPathComponent(String(yearElement), isDirectory: true).appendingPathComponent(String(monthElement) + ". " + String(monthName), isDirectory: true).appendingPathComponent(String(dayElement), isDirectory: true).appendingPathComponent(String(hourElement), isDirectory:true)
         case .daily:
-            return baseDirectory.appendingPathComponent(String(yearElement), isDirectory: true).appendingPathComponent(String(monthElement), isDirectory: true).appendingPathComponent(String(dayElement), isDirectory: true)
+            return baseDirectory.appendingPathComponent(String(yearElement), isDirectory: true).appendingPathComponent(String(monthElement) + ". " + String(monthName), isDirectory: true).appendingPathComponent(String(dayElement), isDirectory: true)
         case .monthly:
-            return baseDirectory.appendingPathComponent(String(yearElement), isDirectory:true).appendingPathComponent(String(monthElement), isDirectory:true)
+            return baseDirectory.appendingPathComponent(String(yearElement), isDirectory:true).appendingPathComponent(String(monthElement) + ". " + String(monthName), isDirectory:true)
         case .annual:
             return baseDirectory.appendingPathComponent(String(yearElement), isDirectory:true)
         }
