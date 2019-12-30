@@ -9,13 +9,13 @@ public enum ShellAuthentication {
 
 
 public struct Host {
-	public var local:Shell {
+	public static var local:Shell {
 		get {
 			return Local(context:CustomContext(main))
 		}
 	}
 	
-	public var current:Shell {
+	public static var current:Shell {
 		get {
 			return Local(context:main)
 		}
