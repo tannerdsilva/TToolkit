@@ -221,14 +221,14 @@ private func readDate(from thisURL:URL) throws -> Date {
 
 public struct JournalFrame: Comparable, Hashable {
 	private let _time:TimeStruct	
-	var time:TimePath {
+	public var time:TimePath {
 		get {
 			return _time
 		}
 	}
 	
-	let directory:URL
-	let precision:TimePrecision
+	public let directory:URL
+	public let precision:TimePrecision
 	
 	fileprivate init(time:TimePath, journal:Journal) {
 		self._time = TimeStruct(time, distill:journal.precision)
