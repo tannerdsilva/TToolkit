@@ -280,7 +280,7 @@ public struct JournalFrame: Comparable, Hashable {
 	}
 }
 
-public enum JournalFrameTarget { 
+public enum FrameTarget { 
 	case itterateBackwards(UInt)
 	case dateOnOrBefore(TimePath)
 }
@@ -316,7 +316,7 @@ public class Journal {
     private var latestDirectoryPath:URL		//this represents the path where the "latest" timepath is stored on disk
         
     //MARK: Private Functions
-    //this function assumes the input TimeStruct has a theoretical timepath that exists given the journalers directory and precision
+    //This function assumes the input TimeStruct has a theoretical timepath that exists given the journalers directory and precision
     fileprivate func enumerateBackwards(from thisTime:TimeStruct, using enumeratorFunction:InternalJournalEnumerator) throws -> TimeStruct {
     	var dateToTarget:TimeStruct = thisTime
     	var fileToCheck:URL? = nil
@@ -336,8 +336,8 @@ public class Journal {
     	throw JournalerError.journalTailReached(dateToTarget.theoreticalTimePath(precision:precision, for:directory))
     }
         
-    //progresses the journal with a new directory representing current time
-    private func writeNewHead(with nowDate:TimePath = Date()) throws -> TimeStruct {
+    //Progresses the journal with a new directory representing current time
+    fileprivate func writeNewHead(with nowDate:TimePath = Date()) throws -> TimeStruct {
 		let pathAsStructure = TimeStruct(nowDate)
 		let newDirectory = pathAsStructure.theoreticalTimePath(precision:precision, for:directory)
 		if (FileManager.default.fileExists(atPath: newDirectory.path) == false) {
@@ -358,7 +358,7 @@ public class Journal {
     }
     
 	//For searching x number of directory iterations before the present head
-    private func loadFrame(backFromHead foldersBack:UInt = 0) throws -> JournalFrame {
+    fileprivate func loadFrame(backFromHead foldersBack:UInt = 0) throws -> JournalFrame {
     	guard let headStruct = currentHead else {
     		throw JournalerError.missingHead
     	}
@@ -376,7 +376,7 @@ public class Journal {
     }
     
 	//For searching for a particular timepath closest to a particular head
-    private func loadFrame(onOrBefore date:TimePath) throws -> JournalFrame {
+    fileprivate func loadFrame(onOrBefore date:TimePath) throws -> JournalFrame {
     	guard let headStruct = currentHead else {
     		throw JournalerError.missingHead
     	}
@@ -402,7 +402,7 @@ public class Journal {
         currentHeadURL = currentHead?.theoreticalTimePath(precision:precision, for:directory)
     }
     
-    public func loadFrame(_ target:JournalFrameTarget) throws -> JournalFrame {
+    public func loadFrame(_ target:FrameTarget) throws -> JournalFrame {
     	switch target {
 		case let .itterateBackwards(steps):
     		return try loadFrame(backFromHead:steps)
@@ -411,9 +411,21 @@ public class Journal {
     	}
     }
         
-    public func advanceHead(using:TimePath) throws -> URL {
-    	let nowTimeStruct = try writeNewHead()
-    	return nowTimeStruct.theoreticalTimePath(precision:precision, for:directory)
+    public func advanceHead(using inputDate:TimePath = Date()) throws -> JournalFrame {
+    	do {
+    		let newTime = try writeNewHead(with: inputDate)
+    		return try JournalFrame(time:newTime, journal:self)
+    	} catch let error {
+    		switch error {
+			case JournalerError.headAlreadyExists:
+    			guard let hasHead = currentHead else {
+    				throw error
+    			}
+    			return JournalFrame(time:hasHead, journal:self)
+    		default:
+    			throw error
+    		}
+    	}
     }
     
     public func enumerateBackwards(using enumFunction:JournalEnumerator) throws -> URL {
