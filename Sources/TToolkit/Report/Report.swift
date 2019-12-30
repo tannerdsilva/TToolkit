@@ -3,6 +3,10 @@ import Foundation
 fileprivate let encoder = JSONEncoder()
 fileprivate let decoder = JSONDecoder()
 
+enum ReportError: Error {
+	case journalHeadMissing
+}
+
 //MARK: Report
 //public typealias Reportable = Codable & Hashable
 public struct Report<T> where T:Hashable, T:Codable {
@@ -18,13 +22,15 @@ public struct Report<T> where T:Hashable, T:Codable {
         self.filename = name + ".json"
     }
     
-    public func advanceHeadAndWrite(_ inputObjects:UnitType) throws {
-        let writeURL = try journal.advanceHead().appendingPathComponent(filename, isDirectory:false)
-        try inputObjects.encodeBinaryJSON(file: writeURL)
+    public func writeToHead(_ inputObjects:UnitType) throws {
+    	guard let writeURL = journal.currentHeadURL else {
+    		throw ReportError.journalHeadMissing
+    	}
+    	try inputObjects.encodeBinaryJSON(file:writeURL.appendingPathComponent(filename, isDirectory:false))
     }
-    
+        
     public func loadSnapshot(_ date:Date) throws -> UnitType {
-		let readURL = try journal.directoryOnOrBefore(date:date).directory.appendingPathComponent(filename, isDirectory:false)
+		let readURL = try journal.loadFrame(.dateOnOrBefore(date)).directory.appendingPathComponent(filename, isDirectory:false)
 		return try JSONDecoder.decodeBinaryJSON(file:readURL, type:UnitType.self)
     }
 }
