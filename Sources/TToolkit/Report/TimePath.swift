@@ -10,34 +10,6 @@ public protocol TimePath {
 }
 
 fileprivate let indexFilename = ".index-file"
-//
-//internal struct TimePathIndex:Codable {
-//	enum CodingKeys:CodingKey {
-//		case rangeMinimum
-//		case rangeMaximum
-//		case directoryContents
-//	}
-//
-//	var rangeMinimum:TimeStruct
-//	var rangeMaximum:TimeStruct
-//	
-//	var directoryContents:[String:[String]]
-//	
-//	init(from decoder:Decoder) throws {
-//		let values = try decoder.container(keyedBy:CodingKeys.self)
-//		rangeMinimum = try values.decode(TimeStruct.self, forKey:.rangeMinimum)
-//		rangeMaximum = try values.decode(TimeStruct.self, forKey:.rangeMaximum)
-//		directoryContents = try values.decode([String:[String]].self, forKey:.directoryContents)
-//	}
-//
-//	func encode(to encoder:Encoder) throws {
-//		var container = encoder.container(keyedBy:CodingKeys.self)
-//		try container.encode(rangeMinimum, forKey:CodingKeys.rangeMinimum)
-//		try container.encode(rangeMaximum, forKey:CodingKeys.rangeMaximum)
-//		try container.encode(directoryContents, forKey:CodingKeys.directoryContents)
-//	}
-//}
-//
 
 //Equating to Strings
 public extension TimePath {

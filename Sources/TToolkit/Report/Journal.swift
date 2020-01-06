@@ -22,7 +22,7 @@ public enum TimePrecision {
     }
 }
 
-internal struct TimeStruct: TimePath, Codable, Hashable, Comparable {
+public struct TimeStruct: TimePath, Codable, Hashable, Comparable {
     enum CodingKeys: CodingKey {
         case yearElement
         case monthName
@@ -32,14 +32,19 @@ internal struct TimeStruct: TimePath, Codable, Hashable, Comparable {
         case preciseGMTISO
     }
     
-    var yearElement:Int
-    var monthElement: Int
-    var dayElement: Int
-    var hourElement: Int
+    enum TimeStructInitError:Error {
+    	case invalidGMTISOString
+    }
     
-    var preciseGMTISO: String
+    public var yearElement:Int
+    public var monthElement: Int
+    public var dayElement: Int
+    public var hourElement: Int
     
-    init(from decoder:Decoder) throws {
+    public var preciseGMTISO: String
+    
+    //MARK: Codable functions
+    public init(from decoder:Decoder) throws {
         let values = try decoder.container(keyedBy:CodingKeys.self)
         yearElement = try values.decode(Int.self, forKey: .yearElement)
         monthElement = try values.decode(Int.self, forKey: .monthElement)
@@ -48,7 +53,7 @@ internal struct TimeStruct: TimePath, Codable, Hashable, Comparable {
         preciseGMTISO = try values.decode(String.self, forKey: .preciseGMTISO)
     }
     
-    func encode(to encoder:Encoder) throws {
+    public func encode(to encoder:Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(yearElement, forKey: .yearElement)
         try container.encode(monthElement, forKey: .monthElement)
@@ -57,7 +62,7 @@ internal struct TimeStruct: TimePath, Codable, Hashable, Comparable {
         try container.encode(preciseGMTISO, forKey: .preciseGMTISO)
     }
     
-    init(_ input:TimePath, distill:TimePrecision? = nil) {
+    public init(_ input:TimePath, distill:TimePrecision? = nil) {
 		preciseGMTISO = input.preciseGMTISO
 		
     	switch distill {
@@ -87,11 +92,22 @@ internal struct TimeStruct: TimePath, Codable, Hashable, Comparable {
 			monthElement = input.monthElement
 			dayElement = input.dayElement
 			hourElement = input.hourElement
-
     	}
     }
+    
+    public init(isoString:String) throws {
+    	guard let inputDate = Date.fromISOString(isoString) else {
+    		print(Colors.Red("TToolkit could not convert this ISO GMT string"))
+    		throw TimeStructInitError.invalidGMTISOString
+    	}
+    	yearElement = inputDate.yearElement
+		monthElement = inputDate.monthElement
+		dayElement = inputDate.dayElement
+		hourElement = inputDate.hourElement
+		preciseGMTISO = isoString
+    }
 	    
-    init(yearElement:Int, monthElement:Int, dayElement:Int, hourElement:Int, preciseGMTISO:String) {
+    public init(yearElement:Int, monthElement:Int, dayElement:Int, hourElement:Int, preciseGMTISO:String) {
         self.yearElement = yearElement
         self.monthElement = monthElement
         self.dayElement = dayElement
@@ -220,19 +236,14 @@ private func readDate(from thisURL:URL) throws -> Date {
 }
 
 public struct JournalFrame: Comparable, Hashable {
-	private let _time:TimeStruct	
-	public var time:TimePath {
-		get {
-			return _time
-		}
-	}
+	private let time:TimeStruct	
 	
 	public let directory:URL
 	public let precision:TimePrecision
 	
-	fileprivate init(time:TimePath, journal:Journal) {
-		self._time = TimeStruct(time, distill:journal.precision)
-		self.directory = self._time.theoreticalTimePath(precision:journal.precision, for:journal.directory)
+	fileprivate init(time:TimeStruct, journal:Journal) {
+		self.time = time
+		self.directory = time.theoreticalTimePath(precision:journal.precision, for:journal.directory)
 		self.precision = journal.precision
 	}
 	
@@ -264,19 +275,19 @@ public struct JournalFrame: Comparable, Hashable {
 	
 	//MARK: Comparable Protocol
 	public static func < (lhs:JournalFrame, rhs:JournalFrame) -> Bool {
-		return lhs._time < rhs._time
+		return lhs.time < rhs.time
 	}
 	public static func > (lhs:JournalFrame, rhs:JournalFrame) -> Bool {
-		return lhs._time > rhs._time
+		return lhs.time > rhs.time
 	}
 	public static func == (lhs:JournalFrame, rhs:JournalFrame) -> Bool {
-		return lhs._time == rhs._time
+		return lhs.time == rhs.time
 	}
 	public static func >= (lhs:JournalFrame, rhs:JournalFrame) -> Bool {
-		return lhs._time >= rhs._time
+		return lhs.time >= rhs.time
 	}
 	public static func <= (lhs:JournalFrame, rhs:JournalFrame) -> Bool {
-		return lhs._time <= rhs._time
+		return lhs.time <= rhs.time
 	}
 }
 
@@ -306,7 +317,7 @@ public class Journal {
     public let directory:URL
 	public let precision:TimePrecision
 	
-	private var currentHead:TimeStruct?
+	public var currentHead:TimeStruct?
 	public var currentHeadURL:URL?
 	
 	//URL Related Variables
@@ -399,6 +410,10 @@ public class Journal {
         
 		latestDirectoryPath = directory.appendingPathComponent(Journal.latestTimeRepName, isDirectory:false)
         currentHead = try? JSONDecoder.decodeBinaryJSON(file: latestDirectoryPath, type:TimeStruct.self)
+        if (currentHead == nil) {
+        	print(Colors.Red("[JOURNAL]\tJournal inialized with no head found."))
+        }
+        
         currentHeadURL = currentHead?.theoreticalTimePath(precision:precision, for:directory)
     }
     
