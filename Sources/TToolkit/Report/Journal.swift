@@ -236,7 +236,7 @@ private func readDate(from thisURL:URL) throws -> Date {
 }
 
 public struct JournalFrame: Comparable, Hashable {
-	private let time:TimeStruct	
+	public let time:TimeStruct	
 	
 	public let directory:URL
 	public let precision:TimePrecision

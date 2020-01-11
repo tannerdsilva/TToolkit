@@ -9,8 +9,9 @@ enum ReportError: Error {
 
 //MARK: Report
 //public typealias Reportable = Codable & Hashable
-public struct Report<T> where T:Hashable, T:Codable {
+public class Report<T> where T:Hashable, T:Codable {
     public typealias UnitType = T
+    public typealias ReportModifier = (URL, T) throws -> T
     
     public let journal:Journal
     public let name:String
@@ -32,6 +33,17 @@ public struct Report<T> where T:Hashable, T:Codable {
     public func loadSnapshot(_ date:Date) throws -> UnitType {
 		let readURL = try journal.loadFrame(.dateOnOrBefore(date)).directory.appendingPathComponent(filename, isDirectory:false)
 		return try JSONDecoder.decodeBinaryJSON(file:readURL, type:UnitType.self)
+    }
+    
+    public func reverseModify(using enumFunction:ReportModifier) throws {
+    	try journal.enumerateBackwards(using: { filePath, time in
+    		let readURL = filePath.appendingPathComponent(filename, isDirectory:false)
+    		let loadedData:T = try JSONDecoder.decodeBinaryJSON(file:readURL, type:T.self)
+    		if let resultToWrite = try? enumFunction(filePath, loadedData) {
+    			try resultToWrite.encodeBinaryJSON(file:readURL)
+    		}
+    		return .proceed
+    	})
     }
 }
 
