@@ -1,8 +1,5 @@
 import Foundation
 
-fileprivate let encoder = JSONEncoder()
-fileprivate let decoder = JSONDecoder()
-
 enum ReportError: Error {
 	case journalHeadMissing
 }
@@ -29,12 +26,7 @@ public class Report<T> where T:Hashable, T:Codable {
     	}
     	try inputObjects.encodeBinaryJSON(file:writeURL.appendingPathComponent(filename, isDirectory:false))
     }
-        
-    public func loadSnapshot(_ date:Date) throws -> UnitType {
-		let readURL = try journal.loadFrame(.dateOnOrBefore(date)).directory.appendingPathComponent(filename, isDirectory:false)
-		return try JSONDecoder.decodeBinaryJSON(file:readURL, type:UnitType.self)
-    }
-    
+            
     public func reverseModify(using enumFunction:ReportModifier) throws {
     	try journal.enumerateBackwards(using: { filePath, time in
     		let readURL = filePath.appendingPathComponent(filename, isDirectory:false)
@@ -49,8 +41,14 @@ public class Report<T> where T:Hashable, T:Codable {
 
 extension Report where UnitType:Sequence, UnitType.Element:Hashable, UnitType.Element:Codable {
 	public func compareDates(_ d1:Date, _ d2:Date) throws -> ReportComparison<UnitType.Element> {
-		let data1 = Dictionary(grouping:try loadSnapshot(d1), by: { $0.hashValue }).compactMapValues({ $0.first })
-		let data2 = Dictionary(grouping:try loadSnapshot(d2), by: { $0.hashValue }).compactMapValues({ $0.first })
+		let frame1 = try journal.loadFrame(.dateOnOrBefore(d1))
+		let frame2 = try journal.loadFrame(.dateOnOrBefore(d2))
+		
+		let frame1DataURL = frame1.directory.appendingPathComponent(filename, isDirectory:false)
+		let frame2DataURL = frame2.directory.appendingPathComponent(filename, isDirectory:false)
+		
+		let data1 = Dictionary(grouping:try JSONDecoder.decodeBinaryJSON(file:frame1DataURL, type:UnitType.self), by: { $0.hashValue }).compactMapValues({ $0.first })
+		let data2 = Dictionary(grouping:try JSONDecoder.decodeBinaryJSON(file:frame2DataURL, type:UnitType.self), by: { $0.hashValue }).compactMapValues({ $0.first })
 		
 		let hashes1 = Set(data1.keys)
 		let hashes2 = Set(data2.keys)
@@ -62,7 +60,7 @@ extension Report where UnitType:Sequence, UnitType.Element:Hashable, UnitType.El
 		let exclusive1 = _exclusive.subtracting(hashes2)
 		let exclusive2 = _exclusive.subtracting(hashes1)
 		
-		return ReportComparison<UnitType.Element>(data1:data1, data2:data2, hashes1:hashes1, hashes2:hashes2, common:common, exclusive1:exclusive1, exclusive2:exclusive2)
+		return ReportComparison<UnitType.Element>(data1:data1, data2:data2, hashes1:hashes1, hashes2:hashes2, common:common, exclusive1:exclusive1, exclusive2:exclusive2, time1:frame1.time, time2:frame2.time)
 	}
 }
 
@@ -77,4 +75,7 @@ public struct ReportComparison<T> where T:Hashable, T:Codable {
 	
 	public let exclusive1:Set<Int>
 	public let exclusive2:Set<Int>
+	
+	public let time1:TimeStruct
+	public let time2:TimeStruct
 }
