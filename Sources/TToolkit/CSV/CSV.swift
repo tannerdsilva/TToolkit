@@ -8,6 +8,7 @@ fileprivate func csvBreakdown(line:String) -> [String] {
     var possibleQuoteEscape = false
     var buffer = ""
     var elements = [String]()
+    
     func terminate() {
         elements.append(buffer)
         possibleQuoteEscape = false
@@ -15,6 +16,7 @@ fileprivate func csvBreakdown(line:String) -> [String] {
         isTerminated = true
         buffer = ""
     }
+    
     for (_, curChar) in line.enumerated() {
         if (isTerminated == false) {
             switch curChar {
@@ -110,7 +112,7 @@ public func readCSV(_ inputFile:URL) throws -> [[String:String]] {
 
     let csvHeader = csvBreakdown(line:inputFileLines[0])
     var parsedLines = [[String:String]]()
-    inputFileLines.explode(lanes:defaultLaneCount, using: { (n, curLine) -> [String:String] in
+    inputFileLines.explode(lanes:3, using: { (n, curLine) -> [String:String] in
         guard n != 0 else {
             throw CSVReadingError.headerLineSkipped
         }
