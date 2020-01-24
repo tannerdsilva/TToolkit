@@ -8,6 +8,31 @@
 import Foundation
 
 extension Collection {
+	//explode a collection - no return values
+	public func explode(lanes:Int = 5, using thisFunction:@escaping (Int, Element) throws -> Void) {
+        let semaphore = DispatchSemaphore(value:lanes)
+        let mergeQueue = DispatchQueue(label:"com.ttoolkit.explode-merge")
+        let computeThread = DispatchQueue(label:"com.ttoolkit.explode-compute", attributes:[DispatchQueue.Attributes.concurrent])
+        let queueingGroup = DispatchGroup()
+        let flightGroup = DispatchGroup()
+
+        for (n, curItem) in enumerated() {
+            queueingGroup.enter()
+            computeThread.async {
+                flightGroup.enter()
+                semaphore.wait()
+                queueingGroup.leave()
+                do {
+                    try thisFunction(n, curItem)
+                } catch _ {}
+                semaphore.signal()
+                flightGroup.leave()
+            }
+            queueingGroup.wait()
+        }
+        flightGroup.wait()
+    }
+    
     //explode a collection - allows the user to handle the merging of data themselves
     public func explode<T>(lanes:Int = 5, using thisFunction:@escaping (Int, Element) throws -> T?, merge mergeFunction:@escaping (Int, T) throws -> Void) {
         let semaphore = DispatchSemaphore(value:lanes)
