@@ -143,11 +143,8 @@ public struct TimeStruct: TimePath, Codable, Hashable, Comparable {
         
         if (lhs.hourElement < rhs.hourElement) {
             return true
-        } else if (lhs.hourElement > rhs.hourElement) {
-            return false
-        } else {
-            return false
         }
+		return false
     }
 
     static public func <= (lhs:TimeStruct, rhs:TimeStruct) -> Bool {
@@ -179,11 +176,8 @@ public struct TimeStruct: TimePath, Codable, Hashable, Comparable {
         
         if (lhs.hourElement > rhs.hourElement) {
             return true
-        } else if (lhs.hourElement < rhs.hourElement) {
-            return false
-        } else {
-            return false
         }
+		return false
     }
     
     static public func == (lhs:TimeStruct, rhs:TimeStruct) -> Bool {
