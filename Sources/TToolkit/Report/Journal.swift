@@ -262,9 +262,6 @@ public struct JournalFrame: Comparable, Hashable {
 			case .annual:
 			hasher.combine(time.yearElement)
 		}
-		
-		hasher.combine(directory.path)
-		hasher.combine(precision)
 	}
 	
 	//MARK: Comparable Protocol
