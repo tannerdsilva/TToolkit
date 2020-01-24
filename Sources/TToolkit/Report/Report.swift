@@ -40,9 +40,9 @@ public class Report<T> where T:Hashable, T:Codable {
 }
 
 extension Report where UnitType:Sequence, UnitType.Element:Hashable, UnitType.Element:Codable {
-	public func compareDates(_ d1:Date, _ d2:Date) throws -> ReportComparison<UnitType.Element> {
-		let frame1 = try journal.loadFrame(.dateOnOrBefore(d1))
-		let frame2 = try journal.loadFrame(.dateOnOrBefore(d2))
+	public func compareDates(_ ft1:FrameTarget, _ ft2:FrameTarget) throws -> ReportComparison<UnitType.Element> {
+		let frame1 = try journal.loadFrame(ft1)
+		let frame2 = try journal.loadFrame(ft2)
 		
 		let frame1DataURL = frame1.directory.appendingPathComponent(filename, isDirectory:false)
 		let frame2DataURL = frame2.directory.appendingPathComponent(filename, isDirectory:false)
