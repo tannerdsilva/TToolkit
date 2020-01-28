@@ -16,3 +16,15 @@ Exploding collections are also useful for explanding data. For example, a collec
 
 Every variant of the `explode` functions has a leading argument: `lanes:Int` in which the numer of actively working threads can be defined.  Lanes can be though of as  the maximum number of threads that will be executed at any given time. When one lane is finished executing, another lane _(if available)_ will begin executing in its place.
 
+### CSV encoding and decoding
+
+TToolkit defines a protocol for making any structure or class codable to a CSV format.
+
+### Data Line Slicing
+
+Automatically detects the three common types of line breaks used in a data variable and splits accordingly.
+
+Supports linebreaks in CR, LF, and CRLF.
+
+The data line slicing functions also have the ability to detect and stip the byte order mark from the beginning of a data sequence. Default behavior is to strip any known BOM sequence from the beginning of a Data variable.
+
