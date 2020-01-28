@@ -98,7 +98,7 @@ extension Collection {
     }
     
     //explode a collection - returns a dictionary
-    public func explode<T, U>(lanes:Int = 5, using thisFunction:@escaping (Int, Element) throws -> (key:T, value:U?)) -> [T:U] where T:Hashable {
+    public func explode<T, U>(lanes:Int = 5, using thisFunction:@escaping (Int, Element) throws -> (key:T, value:U)) -> [T:U] where T:Hashable {
         let semaphore = DispatchSemaphore(value:lanes)
         let mergeQueue = DispatchQueue(label:"com.ttoolkit.explode-merge")
         let computeThread = DispatchQueue(label:"com.ttoolkit.explode-compute", attributes:[DispatchQueue.Attributes.concurrent])
@@ -106,7 +106,6 @@ extension Collection {
         let flightGroup = DispatchGroup()
         
         var buildData = [T:U]()
-        
         for (n, curItem) in enumerated() {
             queueingGroup.enter()
             computeThread.async {
