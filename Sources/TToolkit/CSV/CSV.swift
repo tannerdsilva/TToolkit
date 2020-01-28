@@ -8,6 +8,7 @@ fileprivate func csvBreakdown(line:String) -> [String] {
     var possibleQuoteEscape = false
     var buffer = ""
     var elements = [String]()
+    var visibleBegan = false
     
     func terminate() {
         elements.append(buffer)
@@ -18,43 +19,43 @@ fileprivate func csvBreakdown(line:String) -> [String] {
     }
     
     for (_, curChar) in line.enumerated() {
-        if (isTerminated == false) {
-            switch curChar {
-            case "\"":
-                if (possibleQuoteEscape == true) {
-                    buffer.append("\"")
-                    possibleQuoteEscape = false
-                } else {
-                    possibleQuoteEscape = true
-                }
-            case ",":
-                if (isQuoted == true && possibleQuoteEscape == false) {
-                    buffer.append(",")
-                } else {
-                    if (possibleQuoteEscape == true) {
-                        possibleQuoteEscape = false
-                    }
-                    terminate()
-                }
-            default:
-                if (possibleQuoteEscape == true) {
-                    possibleQuoteEscape = false
-                }
-                buffer.append(curChar)
-            }
-        } else {
-            isTerminated = false
-            //determine if this string is quoted
-            switch curChar {
-            case "\"":
-                isQuoted = true
-            case ",":
-                terminate()
-            default:
-                buffer.append(curChar)
-                isQuoted = false
-            }
-        }
+    	if (isTerminated == false) {
+			switch curChar {
+			case "\"":
+				if (possibleQuoteEscape == true) {
+					buffer.append("\"")
+					possibleQuoteEscape = false
+				} else {
+					possibleQuoteEscape = true
+				}
+			case ",":
+				if (isQuoted == true && possibleQuoteEscape == false) {
+					buffer.append(",")
+				} else {
+					if (possibleQuoteEscape == true) {
+						possibleQuoteEscape = false
+					}
+					terminate()
+				}
+			default:
+				if (possibleQuoteEscape == true) {
+					possibleQuoteEscape = false
+				}
+				buffer.append(curChar)
+			}
+		} else {
+			isTerminated = false
+			//determine if this string is quoted
+			switch curChar {
+			case "\"":
+				isQuoted = true
+			case ",":
+				terminate()
+			default:
+				buffer.append(curChar)
+				isQuoted = false
+			}
+		}
     }
     terminate()
     return elements
@@ -99,12 +100,12 @@ public func readCSV(_ inputFile:URL) throws -> [[String:String]] {
         case headerLineSkipped
     }
     let inputFileData = try Data(contentsOf:inputFile)
+    //trim any invisible characters off the top
+     
     guard let inputFileString = String(data:inputFileData, encoding:.utf8) else {
         throw CSVReadingError.unableToConvertToString
     }
-    let inputFileLines = inputFileString.split(whereSeparator: {
-        return $0.isNewline
-    }).map({String($0)})
+    let inputFileLines = inputFileData.lineParse().compactMap { String(data:$0, encoding:.utf8) }
 
     guard inputFileLines.count > 0 else {
         throw CSVReadingError.noHeaderFound
