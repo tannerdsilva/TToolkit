@@ -66,11 +66,11 @@
       },
       {
         "package": "SwiftShell",
-        "repositoryURL": "https://github.com/kareman/SwiftShell.git",
+        "repositoryURL": "https://github.com/tannerdsilva/SwiftShell.git",
         "state": {
-          "branch": null,
-          "revision": "fb7fc2c9ad8811caf324431a508fb79e3fb74f99",
-          "version": "5.0.1"
+          "branch": "master",
+          "revision": "a6de422bf204bc3636ed766595db0120e8f9dcd1",
+          "version": null
         }
       }
     ]

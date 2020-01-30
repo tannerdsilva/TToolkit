@@ -17,7 +17,7 @@ let package = Package(
     dependencies: [
         // Dependencies declare other packages that this package depends on.
         // .package(url: /* package url */, from: "1.0.0"),
-		.package(url: "https://github.com/kareman/SwiftShell.git", .upToNextMinor(from:"5.0.0")),
+		.package(url: "https://github.com/tannerdsilva/SwiftShell.git", .branch("master")),
     	.package(url: "https://github.com/IBM-Swift/Swift-SMTP.git", .upToNextMinor(from:"5.1.1")),
     	.package(url: "https://github.com/jakeheis/Shout.git", from: "0.5.0")
     ],
