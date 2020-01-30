@@ -26,5 +26,10 @@ Automatically detects the three common types of line breaks used in a data varia
 
 Supports linebreaks in CR, LF, and CRLF.
 
-The data line slicing functions also have the ability to detect and stip the byte order mark from the beginning of a data sequence. Default behavior is to strip any known BOM sequence from the beginning of a Data variable.
+The data line slicing functions also have the ability to detect and stip the byte order mark from the beginning of a data sequence. Default behavior is to strip any known BOM sequence from the beginning of a Data variable, however, this behavior can be overridden.
 
+### Interactive Process Interface
+
+Do you need to write a process that can launch and interact with other processes safely? The `InteractiveProcess` class has you covered!
+
+With the `InteractiveProcess` class, you can not only read stderr and stdout from a process in real time. Unlike other shell interfaces, `InteractiveProcess` allows you to write to a process while also reading from it. This makes it very helpful for executing against interactive shells and processes.
