@@ -29,6 +29,7 @@ public class InteractiveProcess {
 	public var workingDirectory:URL
 	public var proc = Process()
 	public var streamGuard = StringStreamGuard()
+	public var stdoutBuffer = Data()
 	public var state:InteractiveProcessState = .running
 	private let control = DispatchSemaphore(value:1)
 	
@@ -101,15 +102,24 @@ public class InteractiveProcess {
 		}
 	}
 		
-	public func readLine() -> [String]? {
-		var lineToReturn:[String]? = nil
-		while lineToReturn == nil && proc.isRunning == true && state == .running {
-			let bytes = stdout.readData(ofLength:256)
-			if bytes.count > 0 {
-				streamGuard.processData(bytes)
-				lineToReturn = streamGuard.flushLines()
+	public func readLine() -> [Data]? {
+		var linesToReturn:[Data]? = nil
+		while linesToReturn != nil && linesToReturn!.count < 2 && ((proc.isRunning == true && state == .running) || stdout.availableData.count > 0) {
+			stdoutBuffer += stdout.availableData
+			linesToReturn = stdoutBuffer.lineSlice(removeBOM:false)
+		}
+		
+		if let hasLinesToReturn = linesToReturn {
+			if state == .running {
+				//do not return the last line...
+				let lineCount = hasLinesToReturn.count
+				if lineCount >= 2 {
+					let lessOne = lineCount - 1
+					stdoutBuffer = hasLinesToReturn[lessOne]
+					linesToReturn!.dropLast(1)
+				}
 			}
 		}
-		return lineToReturn
+		return linesToReturn
 	}
 }
