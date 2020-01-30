@@ -105,7 +105,8 @@ public func readCSV(_ inputFile:URL) throws -> [[String:String]] {
     guard let inputFileString = String(data:inputFileData, encoding:.utf8) else {
         throw CSVReadingError.unableToConvertToString
     }
-    let inputFileLines = inputFileData.lineParse().compactMap { String(data:$0, encoding:.utf8) }
+    let inputLinesData = inputFileData.lineParse() ?? [Data]()
+    let inputFileLines = inputLinesData.compactMap { String(data:$0, encoding:.utf8) }
 
     guard inputFileLines.count > 0 else {
         throw CSVReadingError.noHeaderFound
