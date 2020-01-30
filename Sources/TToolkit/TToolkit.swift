@@ -19,6 +19,45 @@ public struct StringStopwatch {
 	}
 }
 
+public struct StringStreamGuard {
+//takes a data stream and returns it as whole lines. protects objects downstream from encountering incomplete character sequences.
+	private var inputBuffer = Data()
+	private var inputString = String()
+	public init() {
+	}
+	
+	public mutating func processData(_ newData:Data) -> Bool {
+		let dataToMap = (inputBuffer.count > 0) ? (inputBuffer + newData) : newData
+		if let utfTest = String(data:dataToMap, encoding:.utf8) {
+			inputString += utfTest
+			inputBuffer.removeAll(keepingCapacity:true)
+			return utfTest.contains(where:{ $0.isNewline })
+		} else {
+			inputBuffer.append(newData)
+			return false
+		}
+	}
+	
+	public mutating func flushLines() -> [String]? {
+		let start = inputString.startIndex
+		let end = inputString.endIndex
+		if let lastTerm = inputString.lastIndex(where:{ (someChar:Character) in
+			return someChar.isNewline 
+		}) {
+			let newlines = String(inputString[start..<lastTerm]).split { $0.isNewline }
+			if (inputString.distance(from:lastTerm, to:end) > 0) {
+				inputString = String(inputString[lastTerm..<end])
+			} else {
+				inputString.removeAll(keepingCapacity:true)
+			}
+			return newlines.map { String($0) }
+		} else {
+			return nil
+		}
+	}
+}
+
+
 public func promptLoop(with promptingString:String, terminator:String) -> [String] {
 	var promptString:String? = nil
 	var arrayToReturn = [String]()
