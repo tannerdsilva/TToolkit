@@ -332,11 +332,17 @@ fileprivate enum BOM: UInt {
 	}
 }
 
+public enum LinebreakType:UInt8 {
+	case cr
+	case lf
+	case crlf
+}
+
 extension Data {
-	public func lineParse() -> [Data] {
+	public func lineParse() -> [Data]? {
 		return self.lineSlice(removeBOM:true)
 	}
-	public func lineSlice(removeBOM:Bool) -> [Data] {
+	public func lineSlice(removeBOM:Bool) -> [Data]? {
 		let bytesCount = self.count
 		if (bytesCount > 0) {
 			var bomTail:Int? = nil
@@ -410,22 +416,22 @@ extension Data {
 				return [self[lb..<bytesCount]]
 			}
 			
+			let crlfTotal = crlf.count
 			let suspectedLineCountAsDouble = Double(suspectedLineCount)
-			var lfTotal = lf.count - crlf.count
+			var lfTotal = lf.count - crlfTotal
 			if (lfTotal < 0) {
 				lfTotal = 0
 			}
-			var crTotal = cr.count - crlf.count
+			var crTotal = cr.count - crlfTotal
 			if (crTotal < 0) {
 				crTotal = 0
 			}
-			let crlfTotal = crlf.count
 			
 			let lfPercent:Double = Double(lfTotal)/suspectedLineCountAsDouble
 			let crPercent:Double = Double(crTotal)/suspectedLineCountAsDouble
 			let crlfPercent:Double = Double(crlfTotal)/suspectedLineCountAsDouble
 
-			if crlfPercent > crPercent && crlfPercent > lfPercent {
+			if (crlfPercent > crPercent && crlfPercent > lfPercent) {
 				let lb = lfLast ?? bomTail ?? startIndex
 				let addedLB = lb+1
 				if addedLB < bytesCount {
@@ -434,7 +440,7 @@ extension Data {
 
 				return crlf.sorted(by: { $0.lowerBound < $1.lowerBound }).map { self[$0] }
 				
-			} else if lfPercent > crlfPercent && lfPercent > crPercent {
+			} else if (lfPercent > crlfPercent && lfPercent > crPercent) {
 				let lb = lfLast ?? bomTail ?? startIndex
 				if lb < bytesCount {
 					lf.update(with:lb..<bytesCount)
@@ -451,7 +457,7 @@ extension Data {
 				return cr.sorted(by: { $0.lowerBound < $1.lowerBound }).map { self[$0] }
 			}
 		} else {
-			return [self]
+			return nil
 		}
 	}
 }
