@@ -1,224 +1,16 @@
 import Foundation
 
-public enum TimePrecision {
-    case hourly
-    case daily
-    case monthly
-    case annual
-    
-    var stack:[TimePrecision] {
-    	get {
-    		switch self {
-    			case .hourly:
-    				return [.annual, .monthly, .daily, .hourly]
-    			case .daily:
-    				return [.annual, .monthly, .daily]
-    			case .monthly:
-    				return [.annual, .monthly]
-    			case .annual:
-    				return [.annual]
-    		}
-    	}
-    }
-}
-
-public struct TimeStruct: TimePath, Codable, Hashable, Comparable {
-    enum CodingKeys: CodingKey {
-        case yearElement
-        case monthName
-        case monthElement
-        case dayElement
-		case hourElement
-        case preciseGMTISO
-    }
-    
-    enum TimeStructInitError:Error {
-    	case invalidGMTISOString
-    }
-    
-    public var yearElement:Int
-    public var monthElement: Int
-    public var dayElement: Int
-    public var hourElement: Int
-    
-    public var preciseGMTISO: String
-    
-    //MARK: Codable functions
-    public init(from decoder:Decoder) throws {
-        let values = try decoder.container(keyedBy:CodingKeys.self)
-        yearElement = try values.decode(Int.self, forKey: .yearElement)
-        monthElement = try values.decode(Int.self, forKey: .monthElement)
-        dayElement = try values.decode(Int.self, forKey: .dayElement)
-        hourElement = try values.decode(Int.self, forKey: .hourElement)
-        preciseGMTISO = try values.decode(String.self, forKey: .preciseGMTISO)
-    }
-    
-    public func encode(to encoder:Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(yearElement, forKey: .yearElement)
-        try container.encode(monthElement, forKey: .monthElement)
-        try container.encode(dayElement, forKey: .dayElement)
-        try container.encode(hourElement, forKey: .hourElement)
-        try container.encode(preciseGMTISO, forKey: .preciseGMTISO)
-    }
-    
-    public init(_ input:TimePath, distill:TimePrecision? = nil) {
-		preciseGMTISO = input.preciseGMTISO
-		
-    	switch distill {
-		case .daily:
-			yearElement = input.yearElement
-			monthElement = input.monthElement
-			dayElement = input.dayElement
-			
-			hourElement = 0
-			
-		case .monthly:
-			yearElement = input.yearElement
-			monthElement = input.monthElement
-			
-			dayElement = 0
-			hourElement = 0
-			
-		case .annual:
-			yearElement = input.yearElement
-			
-			monthElement = 0
-			dayElement = 0
-			hourElement = 0
-			
-		default:
-			yearElement = input.yearElement
-			monthElement = input.monthElement
-			dayElement = input.dayElement
-			hourElement = input.hourElement
-    	}
-    }
-    
-    public init(isoString:String) throws {
-    	guard let inputDate = Date.fromISOString(isoString) else {
-    		print(Colors.Red("TToolkit could not convert this ISO GMT string"))
-    		throw TimeStructInitError.invalidGMTISOString
-    	}
-    	yearElement = inputDate.yearElement
-		monthElement = inputDate.monthElement
-		dayElement = inputDate.dayElement
-		hourElement = inputDate.hourElement
-		preciseGMTISO = isoString
-    }
-	    
-    public init(yearElement:Int, monthElement:Int, dayElement:Int, hourElement:Int, preciseGMTISO:String) {
-        self.yearElement = yearElement
-        self.monthElement = monthElement
-        self.dayElement = dayElement
-        self.hourElement = hourElement
-        self.preciseGMTISO = preciseGMTISO
-    }
-
-    public func hash(into hasher:inout Hasher) {
-        hasher.combine(yearElement)
-        hasher.combine(monthElement)
-        hasher.combine(dayElement)
-        hasher.combine(hourElement)
-    }
-    
-	static public func < (lhs:TimeStruct, rhs:TimeStruct) -> Bool {
-        if (lhs.yearElement < rhs.yearElement) {
-            return true
-        } else if (lhs.yearElement > rhs.yearElement) {
-            return false
-        }
-        
-        if (lhs.monthElement < rhs.monthElement) {
-            return true
-        } else if (lhs.monthElement > rhs.monthElement) {
-            return false
-        }
-        
-        if (lhs.dayElement < rhs.dayElement) {
-        	return true
-        } else if (lhs.dayElement > rhs.dayElement) {
-        	return false
-        }
-        
-        if (lhs.hourElement < rhs.hourElement) {
-            return true
-        }
-		return false
-    }
-
-    static public func <= (lhs:TimeStruct, rhs:TimeStruct) -> Bool {
-        return (lhs < rhs) || (lhs == rhs)
-    }
-    
-    static public func >= (lhs:TimeStruct, rhs:TimeStruct) -> Bool {
-        return (lhs > rhs) || (lhs == rhs)
-    }
-    
-    static public func > (lhs:TimeStruct, rhs:TimeStruct) -> Bool {
-        if (lhs.yearElement > rhs.yearElement) {
-            return true
-        } else if (lhs.yearElement < rhs.monthElement) {
-            return false
-        }
-        
-        if (lhs.monthElement > rhs.monthElement) {
-            return true
-        } else if (lhs.monthElement < rhs.monthElement) {
-            return false
-        }
-        
-        if (lhs.dayElement > rhs.dayElement) {
-        	return true
-        } else if (lhs.dayElement < rhs.dayElement) {
-        	return false
-        }
-        
-        if (lhs.hourElement > rhs.hourElement) {
-            return true
-        }
-		return false
-    }
-    
-    static public func == (lhs:TimeStruct, rhs:TimeStruct) -> Bool {
-        return (lhs.yearElement == rhs.yearElement) && (lhs.monthElement == rhs.monthElement) && (lhs.hourElement == rhs.hourElement) && (lhs.dayElement == rhs.dayElement)
-    }
-}
-
-fileprivate let calendar = Calendar.current
-extension Date: TimePath {
-	public var yearElement:Int {
-		return calendar.component(.year, from:self)
-	}
-	
-	public var monthElement:Int {
-		return calendar.component(.month, from:self)
-	}
-	
-	public var dayElement:Int {
-		return calendar.component(.day, from:self)
-	}
-	
-	public var hourElement:Int {
-		return calendar.component(.hour, from:self)
-	}
-    
-    public var preciseGMTISO: String {
-        return self.isoString
-    }
-}
-
 private enum DateEncodingError:Error {
     case malformedData
     case noFileFound
 }
 
-private func write(date:TimePath, to thisURL:URL) throws {
+fileprivate func write(date:TimePath, to thisURL:URL) throws {
 	let isoData = try date.preciseGMTISO.safeData(using:.utf8)
 	try isoData.write(to:thisURL)
 }
 
-private func readDate(from thisURL:URL) throws -> Date {
+fileprivate func readDate(from thisURL:URL) throws -> Date {
     let urlData = try Data(contentsOf:thisURL)
     guard let dateString = String(data:urlData, encoding:.utf8) else {
         throw DateEncodingError.malformedData
@@ -316,7 +108,7 @@ public class Journal {
     private static let previousTimeRepName:String = ".previous.timerep.json"
     private static let creationTimestamp:String = ".creation-timestamp.iso"
     private var latestDirectoryPath:URL		//this represents the path where the "latest" timepath is stored on disk
-        
+	
     //MARK: Private Functions
     //This function assumes the input TimeStruct has a theoretical timepath that exists given the journalers directory and precision
     fileprivate func enumerateBackwards(from thisTime:TimeStruct, using enumeratorFunction:InternalJournalEnumerator) throws -> TimeStruct {
@@ -358,6 +150,11 @@ public class Journal {
 			throw JournalerError.headAlreadyExists
 		}
     }
+    
+//    fileprivate func indexedLoad(_ targetTime:TimePath) throws -> JournalFrame {
+//    	
+//    	
+//    }
     
 	//For searching x number of directory iterations before the present head
     fileprivate func loadFrame(backFromHead foldersBack:UInt = 0) throws -> JournalFrame {
