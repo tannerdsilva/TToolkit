@@ -23,8 +23,6 @@ public struct StringStreamGuard {
 //takes a data stream and returns it as whole lines. protects objects downstream from encountering incomplete character sequences.
 	private var inputBuffer = Data()
 	private var inputString = String()
-	public init() {
-	}
 	
 	public mutating func processData(_ newData:Data) -> Bool {
 		let dataToMap = (inputBuffer.count > 0) ? (inputBuffer + newData) : newData
@@ -106,17 +104,6 @@ public func prompt(with promptingString:String, validChoices:[String], displayVa
 
 
 //MARK: JSON serialization
-public enum JSONSerializationError:Error {
-	case invalidObjectType
-}
-public func serializeJSON<T>(_:T.Type, file:URL) throws -> T {
-	let fileData = try Data(contentsOf:file)
-	guard let fileObject = try JSONSerialization.jsonObject(with:fileData) as? T else {
-		throw JSONSerializationError.invalidObjectType
-	}
-	return fileObject
-}
-
 public func serializeJSON(object:Any, file:URL) throws {
 	let jsonData = try JSONSerialization.data(withJSONObject:object)
 	try jsonData.write(to:file)
