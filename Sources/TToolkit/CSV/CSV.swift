@@ -1,7 +1,5 @@
 import Foundation
 
-fileprivate let defaultLaneCount = 8
-
 fileprivate func csvBreakdown(line:String) -> [String] {
     var isTerminated = true
     var isQuoted = false
@@ -83,7 +81,7 @@ extension CSVEncodable {
 extension Dictionary:CSVEncodable where Key == String, Value == String {
     public var csvColumns:Set<String> {
         get {
-            return Set<String>(self.keys)
+            return Set<String>(keys)
         }
     }
     
@@ -114,21 +112,18 @@ public func readCSV(_ inputFile:URL) throws -> [[String:String]] {
 
     let csvHeader = csvBreakdown(line:inputFileLines[0])
     var parsedLines = [[String:String]]()
-    inputFileLines.explode(lanes:3, using: { (n, curLine) -> [String:String] in
-        guard n != 0 else {
-            throw CSVReadingError.headerLineSkipped
-        }
-        let parsedLine = csvBreakdown(line:curLine).map({ String($0) })
-        var thisLine = [String:String]()
-        for (nn, lineItem) in parsedLine.enumerated() {
-            if (nn < csvHeader.count) {
-                thisLine[csvHeader[nn]] = lineItem
-            }
-        }
-        return thisLine
-    }, merge: { _, thisItem in
-        parsedLines.append(thisItem)
-    })
+    for (n, curLine) in inputFileLines.enumerated() {
+		if n != 0 {
+			let parsedLine = csvBreakdown(line:curLine).map({ String($0) })
+			var thisLine = [String:String]()
+			for (nn, lineItem) in parsedLine.enumerated() {
+				if (nn < csvHeader.count) {
+					thisLine[csvHeader[nn]] = lineItem
+				}
+			}
+			parsedLines.append(thisLine)
+    	}
+    }
     return parsedLines
 }
 
@@ -153,8 +148,8 @@ extension Collection where Element: CSVEncodable {
         let headerData = try headerString.safeData(using:.utf8)
         
         var dataLines = headerData
-        self.explode(lanes:defaultLaneCount, using:{ n, curRow in
-            var thisLine = Array<String>(repeating:"".csvEncodedString(), count:allColumns.count)
+        self.explode(lanes:2, using:{ n, curRow in
+            var thisLine = Array<String>(repeating:"", count:allColumns.count)
             for(_, kv) in allColumns.enumerated() {
                 if let hasIndex = allColumns.firstIndex(of:kv), let hasValue = curRow.csvValue(columnName:kv) {
                     thisLine[hasIndex] = hasValue.csvEncodedString()
