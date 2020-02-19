@@ -1,74 +1,135 @@
 import Foundation
 
-fileprivate struct Segment {
-	enum IPV6SegmentError:Error {
-		case invalidLength
-	}
-	
-	var integerRepresentation:Int64
-	var fullString:String
-	
-	init<T>(_ input:T) throws where T:Collection, T.Element == Character {
-		guard input.count <= 4 else {
-			throw IPV6SegmentError.invalidLength
+fileprivate extension Character {
+	var hexValue:Int? {
+		switch self {
+			case "0":
+			return 0
+			case "1":
+			return 1
+			case "2":
+			return 2
+			case "3":
+			return 3
+			case "4":
+			return 4
+			case "5":
+			return 5
+			case "6":
+			return 6
+			case "7":
+			return 7
+			case "8":
+			return 8
+			case "9":
+			return 9
+			case "A", "a":
+			return 10
+			case "B", "b":
+			return 11
+			case "C", "c":
+			return 12
+			case "D", "d":
+			return 13
+			case "E", "e":
+			return 14
+			case "F", "f":
+			return 15
+			default:
+			return nil
 		}
-		
-		integerRepresentation = 0
-		fullString = ""
 	}
 }
 
+//fileprivate struct V6Segment {
+//var value:Int
+//
+//init?<T>(_ input:T) where T:Collection, T.Element == Character {
+//	let inputCount = input.count
+//	guard input.count < 5 else {
+//		return nil
+//	}
+//	guard inputCount != 0 else {
+//		value = "0000"
+//	} 
+//	
+//	for (_, curChar) in input.enumerated() {
+//		switch curChar { 
+//			case "0":
+//			return 
+//			default:
+//		}
+//	}
+//}
+//}
+//fileprivate struct V6Segment {
+//	enum IPV6SegmentError:Error {
+//		case invalidLength
+//	}
+//	
+//	var integerRepresentation:Int64
+//	var fullString:String
+//	
+//	init<T>(_ input:T) throws where T:Collection, T.Element == Character {
+//		guard input.count <= 4 else {
+//			throw IPV6SegmentError.invalidLength
+//		}
+//		
+//		integerRepresentation = 0
+//		fullString = ""
+//	}
+//}
 
-private struct AddressV6:Comparable {
-	enum InitError:Error {
-		case invalidAddressString
-	}
-	
-	var segments:[Segment]
-
-	init(_ addressString:String) throws {
-		guard addressString.count <= 39 else {
-			throw InitError.invalidAddressString
-		}
-		
-		segments = [Segment]()
-		
-		var curSegmentString = ""
-		var lastItterationWasColon = false
-		for (_, curChar) in addressString.enumerated() {
-			switch curChar {
-				case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F", "a", "b", "c", "d", "e", "f":
-					curSegmentString.append(curChar)
-					if (lastItterationWasColon == false) {
-						lastItterationWasColon = true
-					}
-				case ":":
-					if (lastItterationWasColon == false) {
-						let newSegment = try Segment(curSegmentString)
-						segments.append(newSegment)
-						curSegmentString = ""
-						lastItterationWasColon = true
-					} else {
-						
-					}
-				default:
-					throw InitError.invalidAddressString
-			}
-		}
-	}
-	
-	public static func == (lhs:AddressV6, rhs:AddressV6) -> Bool {
-		return true
-	}
-	
-	public static func > (lhs:AddressV6, rhs:AddressV6) -> Bool {
-		return true
-	}
-	
-	public static func < (lhs:AddressV6, rhs:AddressV6) -> Bool {
-		return true
-	}
-}
+//private struct AddressV6:Comparable {
+//	enum InitError:Error {
+//		case invalidAddressString
+//	}
+//	
+//	var segments:[Segment]
+//
+//	init(_ addressString:String) throws {
+//		guard addressString.count <= 39 else {
+//			throw InitError.invalidAddressString
+//		}
+//		
+//		segments = [Segment]()
+//		
+//		var curSegmentString = ""
+//		var lastItterationWasColon = false
+//		for (_, curChar) in addressString.enumerated() {
+//			switch curChar {
+//				case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F", "a", "b", "c", "d", "e", "f":
+//					curSegmentString.append(curChar)
+//					if (lastItterationWasColon == false) {
+//						lastItterationWasColon = true
+//					}
+//				case ":":
+//					if (lastItterationWasColon == false) {
+//						let newSegment = try Segment(curSegmentString)
+//						segments.append(newSegment)
+//						curSegmentString = ""
+//						lastItterationWasColon = true
+//					} else {
+//						
+//					}
+//				default:
+//					throw InitError.invalidAddressString
+//			}
+//		}
+//	}
+//	
+//	public static func == (lhs:AddressV6, rhs:AddressV6) -> Bool {
+//		return true
+//	}
+//	
+//	public static func > (lhs:AddressV6, rhs:AddressV6) -> Bool {
+//		return true
+//	}
+//	
+//	public static func < (lhs:AddressV6, rhs:AddressV6) -> Bool {
+//		return true
+//	}
+//}
 
 //public struct AddressV4:Comparable {
 //	enum InitError:Error {
