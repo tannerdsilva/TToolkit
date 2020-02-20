@@ -399,7 +399,7 @@ extension Data {
 							suspectedLineCount += 1
 						}
 
-						if n+1 <= bytesCount && lfLast != n-1 {
+						if lb < n && lfLast != n-1 {
 							lf.update(with:lb..<n)
 						}
 						
@@ -412,7 +412,7 @@ extension Data {
                             lb = bomTail ?? startIndex
                         }
 
-						if n+1 <= bytesCount && crLast != n-1 {
+						if lb < n && crLast != n-1 {
 							cr.update(with:lb..<n)
                         }
 						crLast = n
@@ -461,7 +461,7 @@ extension Data {
 			} else if (lfPercent > crlfPercent && lfPercent > crPercent) {
 				var lb:Self.Index
                 if let hasLb = lfLast {
-                    lb = hasLb.advanced(by: 0)
+                    lb = hasLb.advanced(by: 1)
                 } else {
                     lb = bomTail ?? startIndex
                 }
