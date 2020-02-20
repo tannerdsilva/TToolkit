@@ -383,7 +383,14 @@ extension Data {
 			for (n, curByte) in enumerated() {
 				switch curByte {
 					case 10: //lf
-						let lb = lfLast ?? bomTail ?? startIndex
+                        var lb:Self.Index
+                        
+                        if let hasLb = lfLast {
+                            lb = hasLb.advanced(by: 1)
+                        } else {
+                            lb = bomTail ?? startIndex
+                        }
+                        
 						//was last character cr?
 						if (crLast != nil && crLast! == n-1) {
 							if lfLastHadTrailingCR == true {
@@ -397,15 +404,21 @@ extension Data {
 							lfLastHadTrailingCR = false
 						}
 
-						if lb < n && n+1 < bytesCount {
-							lf.update(with:lb..<n+1)
+						if lb < n && n < bytesCount {
+							lf.update(with:lb..<n)
 						}
 						
 						lfLast = n
 					case 13: //cr
-						let lb = crLast ?? bomTail ?? startIndex
-						if lb < n && n+1 < bytesCount {
-							cr.update(with:lb..<n+1)
+                        let lb:Data.Index
+                        if let hasLb = crLast {
+                            lb = hasLb.advanced(by: 1)
+                        } else {
+                            lb = bomTail ?? startIndex
+                        }
+
+						if lb < n {
+							cr.update(with:lb..<n)
 						}
 						crLast = n
 						suspectedLineCount += 1
