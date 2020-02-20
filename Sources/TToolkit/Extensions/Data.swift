@@ -405,7 +405,7 @@ extension Data {
 							lfLastHadTrailingCR = false
 						}
 
-						if n < bytesCount {
+						if n+1 <= bytesCount && lfLast != n-1 {
 							lf.update(with:lb..<n)
 						}
 						
@@ -418,7 +418,7 @@ extension Data {
                             lb = bomTail ?? startIndex
                         }
 
-						if n+1 <= bytesCount {
+						if n+1 <= bytesCount && crLast != n-1 {
 							cr.update(with:lb..<n)
                         }
 						crLast = n
@@ -456,16 +456,8 @@ extension Data {
 				}
 
                 return crlf.sorted(by: { $0.lowerBound < $1.lowerBound }).map {
-                    self[$0].filter({
-                    switch $0 {
-                    case 10:
-                        return false
-                    case 13:
-                        return false
-                    default:
-                        return true
-                    }
-                })}
+                    self[$0]
+                }
 				
 			} else if (lfPercent > crlfPercent && lfPercent > crPercent) {
 				let lb = lfLast ?? bomTail ?? startIndex
@@ -474,16 +466,8 @@ extension Data {
 				}
 				
                 return lf.sorted(by: { $0.lowerBound < $1.lowerBound }).map {
-                    self[$0].filter({
-                    switch $0 {
-                    case 10:
-                        return false
-                    case 13:
-                        return false
-                    default:
-                        return true
-                    }
-                })}
+                    self[$0]
+                }
 				
 			} else {
 				let lb = crLast ?? bomTail ?? startIndex
@@ -492,16 +476,7 @@ extension Data {
 				}
 			
                 return cr.sorted(by: { $0.lowerBound < $1.lowerBound }).map {
-                    self[$0].filter {
-                        switch $0 {
-                        case 10:
-                            return false
-                        case 13:
-                            return false
-                        default:
-                            return true
-                        }
-                    }
+                    self[$0]
                 }
 			}
 		} else {
