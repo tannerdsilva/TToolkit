@@ -29,10 +29,10 @@ public protocol Command {
 
 public struct CommandResult {
 	public let exitCode:Int
-	public let stdout:[String]
-	public let stderr:[String]
+	public let stdout:[Data]
+	public let stderr:[Data]
     
-    public init(exitCode:Int, stdout:[String], stderr:[String]) {
+    public init(exitCode:Int, stdout:[Data], stderr:[Data]) {
         self.exitCode = exitCode
         self.stdout = stdout
         self.stderr = stderr

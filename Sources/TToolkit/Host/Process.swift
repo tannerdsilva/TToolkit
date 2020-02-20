@@ -23,7 +23,7 @@ public class LoggedProcess<C>:InteractiveProcess<C> where C:Command {
             throw ProcessError.processStillRunning
         }
         control.wait()
-        let returnCommand = CommandResult(exitCode: Int(proc.terminationStatus), stdout: stdoutData.lineSlice(removeBOM: false).compactMap { String(data:$0, encoding:.utf8) }, stderr: stderrData.lineSlice(removeBOM: false).compactMap({ String(data:$0, encoding:.utf8) }))
+        let returnCommand = CommandResult(exitCode: Int(proc.terminationStatus), stdout: stdoutData.lineSlice(removeBOM: false), stderr: stderrData.lineSlice(removeBOM: false))
         control.signal()
         return returnCommand
     }
