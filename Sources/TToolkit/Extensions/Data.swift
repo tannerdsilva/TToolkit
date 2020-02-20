@@ -392,9 +392,9 @@ extension Data {
                             
                             //was last character cr?
                             if (crLast != nil && crLast! == n-1) {
-                                if lb < crLast! {
+//                                if lb < crLast! {
                                     crlf.update(with:lb..<crLast!)
-                                }
+//                                }
                             } else {
                                 suspectedLineCount += 1
                             }
