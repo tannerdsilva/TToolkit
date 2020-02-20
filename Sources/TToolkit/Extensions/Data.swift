@@ -387,9 +387,9 @@ extension Data {
 						//was last character cr?
 						if (crLast != nil && crLast! == n-1) {
 							if lfLastHadTrailingCR == true {
-								crlf.update(with:lb+1..<crLast!)
+								crlf.update(with:lb+1..<crLast-1!)
 							} else {
-								crlf.update(with:lb..<crLast!)
+								crlf.update(with:lb..<crLast-1!)
 							}
 							lfLastHadTrailingCR = true
 						} else {
@@ -398,14 +398,14 @@ extension Data {
 						}
 
 						if lb < n {
-							lf.update(with:lb..<n+1)
+							lf.update(with:lb..<n)
 						}
 						
 						lfLast = n
 					case 13: //cr
 						let lb = crLast ?? bomTail ?? startIndex
 						if lb < n {
-							cr.update(with:lb..<n+1)
+							cr.update(with:lb..<n)
 						}
 						crLast = n
 						suspectedLineCount += 1
