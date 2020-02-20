@@ -477,7 +477,7 @@ extension Data {
 			} else {
 				var lb:Self.Index
                 if let hasLb = crLast {
-                    lb = hasLb.advanced(by: 0)
+                    lb = hasLb.advanced(by: 1)
                 } else {
                     lb = bomTail ?? startIndex
                 }
