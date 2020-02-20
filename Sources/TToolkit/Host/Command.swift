@@ -28,9 +28,9 @@ public protocol Command {
 }
 
 public struct CommandResult {
-	var exitCode:Int
-	var stdout:[String]
-	var stderr:[String]
+	public let exitCode:Int
+	public let stdout:[String]
+	public let stderr:[String]
     
     public init(exitCode:Int, stdout:[String], stderr:[String]) {
         self.exitCode = exitCode
