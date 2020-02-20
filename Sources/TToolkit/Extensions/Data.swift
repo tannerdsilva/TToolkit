@@ -398,14 +398,14 @@ extension Data {
 						}
 
 						if lb < n {
-							lf.update(with:lb..<n)
+							lf.update(with:lb..<n+1)
 						}
 						
 						lfLast = n
 					case 13: //cr
 						let lb = crLast ?? bomTail ?? startIndex
 						if lb < n {
-							cr.update(with:lb..<n)
+							cr.update(with:lb..<n+1)
 						}
 						crLast = n
 						suspectedLineCount += 1
