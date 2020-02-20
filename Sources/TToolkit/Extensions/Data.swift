@@ -443,10 +443,15 @@ extension Data {
 			let crlfPercent:Double = Double(crlfTotal)/suspectedLineCountAsDouble
 
 			if (crlfPercent > crPercent && crlfPercent > lfPercent) {
-				let lb = lfLast ?? bomTail ?? startIndex
-				let addedLB = lb+1
-				if addedLB < bytesCount {
-					crlf.update(with:addedLB..<bytesCount)
+				var lb:Self.Index
+                if let hasLb = lfLast {
+                    lb = hasLb.advanced(by: 1)
+                } else {
+                    lb = bomTail ?? startIndex
+                }
+
+				if lb < endIndex {
+					crlf.update(with:lb..<endIndex)
 				}
 
                 return crlf.sorted(by: { $0.lowerBound < $1.lowerBound }).map {
@@ -454,19 +459,31 @@ extension Data {
                 }
 				
 			} else if (lfPercent > crlfPercent && lfPercent > crPercent) {
-				let lb = lfLast ?? bomTail ?? startIndex
-				if lb < bytesCount {
-					lf.update(with:lb..<bytesCount)
-				}
+				var lb:Self.Index
+                if let hasLb = lfLast {
+                    lb = hasLb.advanced(by: 1)
+                } else {
+                    lb = bomTail ?? startIndex
+                }
+
+                if lb < endIndex {
+                    crlf.update(with:lb..<endIndex)
+                }
 				
                 return lf.sorted(by: { $0.lowerBound < $1.lowerBound }).map {
                     self[$0]
                 }
 				
 			} else {
-				let lb = crLast ?? bomTail ?? startIndex
-				if lb < bytesCount {
-					cr.update(with:lb..<bytesCount)
+				var lb:Self.Index
+                if let hasLb = lfLast {
+                    lb = hasLb.advanced(by: 1)
+                } else {
+                    lb = bomTail ?? startIndex
+                }
+                
+				if lb < endIndex {
+					cr.update(with:lb..<endIndex)
 				}
 			
                 return cr.sorted(by: { $0.lowerBound < $1.lowerBound }).map {
