@@ -399,7 +399,7 @@ extension Data {
 							suspectedLineCount += 1
 						}
 
-						if lfLast != n-1 {
+						if lb != n {
 							lf.update(with:lb..<n)
 						}
 						
@@ -412,7 +412,7 @@ extension Data {
                             lb = bomTail ?? startIndex
                         }
 
-						if crLast != n-1 {
+						if lb != n {
 							cr.update(with:lb..<n)
                         }
 						crLast = n
