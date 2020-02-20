@@ -464,7 +464,7 @@ extension Data {
                 }
 
                 if lb < endIndex {
-                    crlf.update(with:lb..<endIndex)
+                    lf.update(with:lb..<endIndex)
                 }
 				
                 return lf.sorted(by: { $0.lowerBound < $1.lowerBound }).map {
