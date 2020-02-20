@@ -418,9 +418,9 @@ extension Data {
                             lb = bomTail ?? startIndex
                         }
 
-						if n < bytesCount {
+						if n+1 <= bytesCount {
 							cr.update(with:lb..<n)
-						}
+                        }
 						crLast = n
 						suspectedLineCount += 1
 					default:
@@ -455,7 +455,17 @@ extension Data {
 					crlf.update(with:addedLB..<bytesCount)
 				}
 
-				return crlf.sorted(by: { $0.lowerBound < $1.lowerBound }).map { self[$0] }
+                return crlf.sorted(by: { $0.lowerBound < $1.lowerBound }).map {
+                    self[$0].filter({
+                    switch $0 {
+                    case 10:
+                        return false
+                    case 13:
+                        return false
+                    default:
+                        return true
+                    }
+                })}
 				
 			} else if (lfPercent > crlfPercent && lfPercent > crPercent) {
 				let lb = lfLast ?? bomTail ?? startIndex
@@ -463,7 +473,17 @@ extension Data {
 					lf.update(with:lb..<bytesCount)
 				}
 				
-				return lf.sorted(by: { $0.lowerBound < $1.lowerBound }).map { self[$0] }
+                return lf.sorted(by: { $0.lowerBound < $1.lowerBound }).map {
+                    self[$0].filter({
+                    switch $0 {
+                    case 10:
+                        return false
+                    case 13:
+                        return false
+                    default:
+                        return true
+                    }
+                })}
 				
 			} else {
 				let lb = crLast ?? bomTail ?? startIndex
@@ -471,7 +491,18 @@ extension Data {
 					cr.update(with:lb..<bytesCount)
 				}
 			
-				return cr.sorted(by: { $0.lowerBound < $1.lowerBound }).map { self[$0] }
+                return cr.sorted(by: { $0.lowerBound < $1.lowerBound }).map {
+                    self[$0].filter {
+                        switch $0 {
+                        case 10:
+                            return false
+                        case 13:
+                            return false
+                        default:
+                            return true
+                        }
+                    }
+                }
 			}
 		} else {
 			return nil
