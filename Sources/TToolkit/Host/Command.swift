@@ -28,14 +28,16 @@ public protocol Command {
 	var arguments:[String] { get }
 }
 
-public protocol CommandResult {
-	associatedtype CommandType:Command
-	
-	var command:CommandType { get }
-	
-	var exitCode:Int { get }
-	var stdout:String { get }
-	var stderr:String { get }
+public struct CommandResult {
+	var exitCode:Int
+	var stdout:[String]
+	var stderr:[String]
+    
+    public init(exitCode:Int, stdout:[String], stderr:[String]) {
+        self.exitCode = exitCode
+        self.stdout = stdout
+        self.stderr = stderr
+    }
 }
 
 public struct BasicCommand:Command {
@@ -55,31 +57,65 @@ public struct BasicCommand:Command {
 //MARK: Context Protocol
 public protocol Context {
 	var workingDirectory:URL { get set }
-	var currentUser:String { get }
-	var environmentVars:[String:String] { get }
-	func run<T, U>(_:T) throws -> U where T:Command, U:CommandResult, U.CommandType == T
+	var username:String { get }
+	var hostname:String { get }
+    var environment:[String:String] { get }
 }
 
+extension Context {
+    public func run<T>(_ thisCommand: T) throws -> CommandResult where T:Command {
+        let process = try LoggedProcess(thisCommand, workingDirectory:workingDirectory)
+        process.runGroup.wait()
+        let result = try process.exportResult()
+        return result
+    }
+}
 
+public struct HostContext:Context {
+    public var workingDirectory:URL
+    public var username:String
+    public var hostname:String
+    public var environment:[String:String]
+    
+    init<T>(_ someContext:T) where T:Context {
+        workingDirectory = someContext.workingDirectory
+        username = someContext.username
+        hostname = someContext.hostname
+        environment = someContext.environment
+    }
+}
 
-private struct LocalContect {
-	var path = CommandLine.safeArguments.first ?? ""
-	var arguments = CommandLine.safeArguments.dropFirst()
-	var currentDirectory = URL(fileURLWithPath:FileManager.default.currentDirectoryPath)
+private struct LocalContext:Context {
+    public typealias ShellType = Bash
+    
+    public var workingDirectory: URL
+	public let environment:[String:String]
+	public let username:String
+	public let hostname:String
+	
+	init() {
+		workingDirectory = URL(fileURLWithPath:FileManager.default.currentDirectoryPath)
+		let procInfo = ProcessInfo.processInfo
+		environment = procInfo.environment
+		username = procInfo.userName
+		hostname = procInfo.hostName
+	}
 }
 
 //MARK: Host Protocol
+fileprivate let mainContext = LocalContext()
 
 public struct Host {
-	static var local:Context {
-		get {
-			return Local(context:CustomContext(main))
-		}
-	}
-	
-	 static var current:Shell {
-		get {
-			return Local(context:main)
-		}
-	}
+
+    var current:Context {
+        get {
+            return mainContext as Context
+        }
+    }
+    
+    var local:HostContext {
+        get {
+            return HostContext(mainContext)
+        }
+    }
 }

@@ -1,6 +1,5 @@
 import Foundation
 import Shout
-import SwiftShell
 
 
 //internal class Local<T>:Shell where T: CommandRunning, T: Context {

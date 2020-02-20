@@ -342,6 +342,9 @@ extension Data {
 	public func lineParse() -> [Data]? {
 		return self.lineSlice(removeBOM:true)
 	}
+    public func lineSlice(removeBOM:Bool) -> [Data] {
+        return self.lineSlice(removeBOM: removeBOM) ?? [Data]()
+    }
 	public func lineSlice(removeBOM:Bool) -> [Data]? {
 		let bytesCount = self.count
 		if (bytesCount > 0) {
