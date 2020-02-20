@@ -380,13 +380,10 @@ extension Data {
 			var suspectedLineCount:UInt64 = 0
 			
 			for (n, curByte) in enumerated() {
-                if n+1 == bytesCount {
-                    
-                } else {
+                if true {
                     switch curByte {
                         case 10: //lf
-                            var lb:Self.Index
-                            
+                            let lb:Data.Index
                             if let hasLb = lfLast {
                                 lb = hasLb.advanced(by: 1)
                             } else {
