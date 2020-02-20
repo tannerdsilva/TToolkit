@@ -94,7 +94,7 @@ public class InteractiveProcess<C> where C:Command {
     public var runGroup = DispatchGroup() //remains entered until the process finishes executing. Suspending does not cause this group to leave
 
     public init(command:C, workingDirectory:URL) throws {
-		env = ProcessInfo.processInfo.environment
+        env = command.environment
 		let inPipe = Pipe()
 		let outPipe = Pipe()
 		let errPipe = Pipe()

@@ -2,19 +2,17 @@ import Foundation
 
 //MARK: Shell Protocol
 public protocol Shell {
-	associatedtype CommandType:Command
 	static var path:URL { get }
-	static func buildCommand(_:String) -> CommandType
+    static func executableAndArguments(_:String) -> (executable:URL, arguments:[String])
+
 }
 
 //MARK: Shell Implementations
 public struct Bash:Shell {
-	public typealias CommandType = BasicCommand
 	public static let path = URL(fileURLWithPath:"/bin/bash")
-	public static func buildCommand(_ thisCommand:String) -> CommandType {
-		return BasicCommand(executable:Self.path, arguments:["-c", Self.terminate(thisCommand)])
+    public static func executableAndArguments(_ thisCommand:String) -> (executable:URL, arguments:[String]) {
+        return (executable:Self.path, arguments:["-c", Self.terminate(thisCommand)])
 	}
-	
 	fileprivate static func terminate(_ inlineCommand:String) -> String {
 		return inlineCommand.replacingOccurrences(of:"'", with:"\'")
 	}
@@ -26,6 +24,7 @@ public struct Bash:Shell {
 public protocol Command {
 	var executable:URL { get }
 	var arguments:[String] { get }
+    var environment:[String:String] { get }
 }
 
 public struct CommandResult {
@@ -43,19 +42,18 @@ public struct CommandResult {
 public struct BasicCommand:Command {
 	public let executable:URL
 	public let arguments:[String]
+    public let environment: [String : String]
 	
-	public init(executable:URL, arguments:[String]) {
+    public init(executable:URL, arguments:[String], environment:[String:String]) {
 		self.executable = executable
 		self.arguments = arguments
-	}
-	
-	public init<T>(shell:T.Type, command:String) where T:Shell, T.CommandType == BasicCommand {
-		self = shell.buildCommand(command)
+        self.environment = environment
 	}
 }
 
 //MARK: Context Protocol
 public protocol Context {
+    associatedtype ShellType:Shell
 	var workingDirectory:URL { get set }
 	var username:String { get }
 	var hostname:String { get }
@@ -63,15 +61,23 @@ public protocol Context {
 }
 
 extension Context {
-    public func run<T>(_ thisCommand: T) throws -> CommandResult where T:Command {
-        let process = try LoggedProcess(thisCommand, workingDirectory:workingDirectory)
+    public func runSync(_ thisCommand:String) throws -> CommandResult {
+        let commandToRun = build(thisCommand)
+        let process = try LoggedProcess(commandToRun, workingDirectory:workingDirectory)
         process.runGroup.wait()
         let result = try process.exportResult()
         return result
     }
+    
+    public func build(_ commandString: String) -> BasicCommand {
+        let shellBuild = ShellType.executableAndArguments(commandString)
+        let buildCommand = BasicCommand(executable: shellBuild.executable, arguments: shellBuild.arguments, environment: environment)
+        return buildCommand
+    }
 }
 
 public struct HostContext:Context {
+    public typealias ShellType = Bash
     public var workingDirectory:URL
     public var username:String
     public var hostname:String
@@ -107,9 +113,9 @@ fileprivate let mainContext = LocalContext()
 
 public struct Host {
 
-    var current:Context {
+    var current:HostContext {
         get {
-            return mainContext as Context
+            return HostContext(mainContext)
         }
     }
     
