@@ -3,25 +3,14 @@ import Foundation
 fileprivate func bashEscape(string:String) -> String {
 	return "'" + string.replacingOccurrences(of:"'", with:"\'") + "'"
 }
-public struct ResolvedCommand {
-	public let executable:URL
-	public let arguments:[String]
-	
-	init(bash commandString:String) {
-		executable = URL(fileURLWithPath:"/bin/bash", isDirectory:false)
-		arguments = ["-c", bashEscape(string:commandString)]
-	}
-}
-
-
-public enum InteractiveProcessState:UInt8 {
-	case running
-	case suspended
-	case exited
-}
 
 public class InteractiveProcess {
-
+	enum State:UInt8 {
+		case running
+		case suspended
+		case exited
+	}
+	
 	public var env:[String:String]
 	public var stdin:FileHandle
 	public var stdout:FileHandle
@@ -29,10 +18,11 @@ public class InteractiveProcess {
 	public var workingDirectory:URL
 	public var proc = Process()
 	public var streamGuard = StringStreamGuard()
-	public var state:InteractiveProcessState = .running
+	public var state:State = .running
 	private let control = DispatchSemaphore(value:1)
-	
-	public init(command:ResolvedCommand, workingDirectory:URL? = nil) throws { 
+	public var runGroup = DispatchGroup() //remains entered until the process finishes executing. Suspending does not cause this group to leave
+
+	public init<C>(command:C, workingDirectory:URL? = nil, _ onComplete:@escaping(CommandResult) -> Void) throws where C:Command {
 		env = ProcessInfo.processInfo.environment
 		let inPipe = Pipe()
 		let outPipe = Pipe()
@@ -59,10 +49,17 @@ public class InteractiveProcess {
 			}
 			self.control.wait()
 			self.state = .exited
+			self.runGroup.leave()
 			self.control.signal()
 		}
 		
-		try proc.run()
+		runGroup.enter()
+		do {
+			try proc.run()
+		} catch let error {
+			runGroup.leave()
+			throw error
+		}
 	}
 	
 	public func suspend() -> Bool? {

@@ -17,7 +17,6 @@ let package = Package(
     dependencies: [
         // Dependencies declare other packages that this package depends on.
         // .package(url: /* package url */, from: "1.0.0"),
-		.package(url: "https://github.com/tannerdsilva/SwiftShell.git", .branch("master")),
     	.package(url: "https://github.com/IBM-Swift/Swift-SMTP.git", .upToNextMinor(from:"5.1.1")),
     	.package(url: "https://github.com/jakeheis/Shout.git", from: "0.5.0")
     ],
@@ -26,7 +25,7 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages which this package depends on.
         .target(
             name: "TToolkit",
-            dependencies: ["SwiftShell", "SwiftSMTP", "Shout"]),
+            dependencies: ["SwiftSMTP", "Shout"]),
         .testTarget(
             name: "TToolkitTests",
             dependencies: ["TToolkit"]),

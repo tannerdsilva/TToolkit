@@ -63,15 +63,6 @@
           "revision": "75ba1b9c0f524f9f3a87f19d87c1a3f2dfb8710f",
           "version": "5.1.2"
         }
-      },
-      {
-        "package": "SwiftShell",
-        "repositoryURL": "https://github.com/tannerdsilva/SwiftShell.git",
-        "state": {
-          "branch": "master",
-          "revision": "a6de422bf204bc3636ed766595db0120e8f9dcd1",
-          "version": null
-        }
       }
     ]
   },
