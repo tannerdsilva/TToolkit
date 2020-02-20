@@ -113,13 +113,13 @@ fileprivate let mainContext = LocalContext()
 
 public struct Host {
 
-    var current:HostContext {
+    public var current:HostContext {
         get {
             return HostContext(mainContext)
         }
     }
     
-    var local:HostContext {
+    public var local:HostContext {
         get {
             return HostContext(mainContext)
         }
