@@ -1,5 +1,9 @@
 import Foundation
 
+public enum CommandError:Error {
+	case temporaryDirectoryNameConflict
+}
+
 //MARK: Shell Protocol
 public protocol Shell {
 	static var path:URL { get }
@@ -67,6 +71,19 @@ extension Context {
         process.runGroup.wait()
         let result = try process.exportResult()
         return result
+    }
+	
+    public func mktemp(clashVerify:Bool = false) throws -> URL {
+    	let temporaryDirectory = try FileManager.default.temporaryDirectory
+    	let dirName = String.random(length:Int.random(in:10..<24))
+    	let targetURL = temporaryDirectory.appendingPathComponent(dirName, isDirectory:true)
+    	if clashVerify {
+    		if try FileManager.default.fileExists(atPath:targetURL.path) == true {
+    			throw CommandError.temporaryDirectoryNameConflict
+    		}
+    	}
+		try FileManager.default.createDirectory(at:targetURL, withIntermediateDirectories:false)
+		return targetURL
     }
     
     public func build(_ commandString: String) -> BasicCommand {
