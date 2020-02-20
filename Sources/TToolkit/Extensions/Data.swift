@@ -404,7 +404,7 @@ extension Data {
 							lfLastHadTrailingCR = false
 						}
 
-						if lb < n && n < bytesCount {
+						if n < bytesCount {
 							lf.update(with:lb..<n)
 						}
 						
@@ -417,7 +417,7 @@ extension Data {
                             lb = bomTail ?? startIndex
                         }
 
-						if lb < n {
+						if n < bytesCount {
 							cr.update(with:lb..<n)
 						}
 						crLast = n
