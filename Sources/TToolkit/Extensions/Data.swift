@@ -392,14 +392,14 @@ extension Data {
                         
 						//was last character cr?
 						if (crLast != nil && crLast! == n-1) {
-                            if lb < crLast! && n < bytesCount {
+                            if lb < crLast! {
 								crlf.update(with:lb..<crLast!)
 							}
 						} else {
 							suspectedLineCount += 1
 						}
 
-						if lb < n && lfLast != n-1 {
+						if lb < endIndex && lfLast != n-1 {
 							lf.update(with:lb..<n)
 						}
 						
@@ -412,7 +412,7 @@ extension Data {
                             lb = bomTail ?? startIndex
                         }
 
-						if lb < n && crLast != n-1 {
+						if lb < endIndex && crLast != n-1 {
 							cr.update(with:lb..<n)
                         }
 						crLast = n
