@@ -380,42 +380,37 @@ extension Data {
 			var suspectedLineCount:UInt64 = 0
 			
 			for (n, curByte) in enumerated() {
-                if true {
-                    switch curByte {
-                        case 10: //lf
-                            let lb:Data.Index
-                            if let hasLb = lfLast {
-                                lb = hasLb.advanced(by: 1)
-                            } else {
-                                lb = bomTail ?? startIndex
-                            }
-                            
-                            //was last character cr?
-                            if (crLast != nil && crLast! == n-1) {
-//                                if lb < crLast! {
-                                    crlf.update(with:lb..<crLast!)
-//                                }
-                            } else {
-                                suspectedLineCount += 1
-                            }
-
-                            lf.update(with:lb..<n)
-                            lfLast = n
-                        case 13: //cr
-                            let lb:Data.Index
-                            if let hasLb = crLast {
-                                lb = hasLb.advanced(by: 1)
-                            } else {
-                                lb = bomTail ?? startIndex
-                            }
-
-                            cr.update(with:lb..<n)
-                            crLast = n
+                switch curByte {
+                    case 10: //lf
+                        let lb:Data.Index
+                        if let hasLb = lfLast {
+                            lb = hasLb.advanced(by: 1)
+                        } else {
+                            lb = bomTail ?? startIndex
+                        }
+                        
+                        //was last character cr?
+                        if (crLast != nil && crLast! == n-1) {
+                            crlf.update(with:lb..<crLast!)
+                        } else {
                             suspectedLineCount += 1
-                        default:
-                        break;
-                    }
+                        }
 
+                        lf.update(with:lb..<n)
+                        lfLast = n
+                    case 13: //cr
+                        let lb:Data.Index
+                        if let hasLb = crLast {
+                            lb = hasLb.advanced(by: 1)
+                        } else {
+                            lb = bomTail ?? startIndex
+                        }
+
+                        cr.update(with:lb..<n)
+                        crLast = n
+                        suspectedLineCount += 1
+                    default:
+                    break;
                 }
             }
 			
