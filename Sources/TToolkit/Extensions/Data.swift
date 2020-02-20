@@ -393,9 +393,10 @@ extension Data {
                         
 						//was last character cr?
 						if (crLast != nil && crLast! == n-1) {
-							if lfLastHadTrailingCR == true && lb+1 < crLast! {
-								crlf.update(with:lb+1..<crLast!)
-							} else {
+//							if lfLastHadTrailingCR == true && lb+1 < crLast! {
+//								crlf.update(with:lb+1..<crLast!)
+//							} else {
+                            if lb < crLast! && n < bytesCount {
 								crlf.update(with:lb..<crLast!)
 							}
 							lfLastHadTrailingCR = true
