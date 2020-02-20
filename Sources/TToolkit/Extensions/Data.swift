@@ -461,7 +461,7 @@ extension Data {
 			} else if (lfPercent > crlfPercent && lfPercent > crPercent) {
 				var lb:Self.Index
                 if let hasLb = lfLast {
-                    lb = hasLb.advanced(by: 1)
+                    lb = hasLb.advanced(by: 0)
                 } else {
                     lb = bomTail ?? startIndex
                 }
@@ -477,7 +477,7 @@ extension Data {
 			} else {
 				var lb:Self.Index
                 if let hasLb = lfLast {
-                    lb = hasLb.advanced(by: 1)
+                    lb = hasLb.advanced(by: 0)
                 } else {
                     lb = bomTail ?? startIndex
                 }
