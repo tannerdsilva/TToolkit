@@ -387,9 +387,9 @@ extension Data {
 						//was last character cr?
 						if (crLast != nil && crLast! == n-1) {
 							if lfLastHadTrailingCR == true {
-								crlf.update(with:lb+1..<crLast-1!)
+								crlf.update(with:lb+1..<crLast!-1)
 							} else {
-								crlf.update(with:lb..<crLast-1!)
+								crlf.update(with:lb..<crLast!-1)
 							}
 							lfLastHadTrailingCR = true
 						} else {
