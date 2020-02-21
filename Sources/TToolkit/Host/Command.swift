@@ -68,7 +68,7 @@ extension Context {
     public func runSync(_ thisCommand:String) throws -> CommandResult {
         let commandToRun = build(thisCommand)
         let process = try LoggedProcess(commandToRun, workingDirectory:workingDirectory)
-        process.runGroup.wait()
+        process.proc.waitUntilExit()
         let result = try process.exportResult()
         return result
     }
