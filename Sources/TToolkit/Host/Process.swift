@@ -12,7 +12,7 @@ public class LoggedProcess:InteractiveProcess {
     
     public init<C>(_ command:C, workingDirectory:URL) throws where C:Command {
         try super.init(command:command, workingDirectory: workingDirectory, run:false)
-        stdout.readabilityHandler = { [weak self] stdoutFH in
+        stdout.readabilityHandler = { [weak self] _ in
             guard let self = self else {
                 return
             }
@@ -24,7 +24,7 @@ public class LoggedProcess:InteractiveProcess {
             }
         }
         
-        stderr.readabilityHandler = { [weak self] stderrFH in
+        stderr.readabilityHandler = { [weak self] _ in
             guard let self = self else {
                 return
             }
