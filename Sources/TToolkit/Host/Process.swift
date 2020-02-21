@@ -16,6 +16,7 @@ public class LoggedProcess<C>:InteractiveProcess<C> where C:Command {
         try super.init(command:command, workingDirectory: workingDirectory, run:false)
         launchStdErrLoop()
         launchStdOutLoop()
+        try self.run()
     }
     
     public func exportResult() throws -> CommandResult {
