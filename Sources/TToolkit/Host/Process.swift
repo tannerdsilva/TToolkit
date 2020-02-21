@@ -13,7 +13,7 @@ public class LoggedProcess<C>:InteractiveProcess<C> where C:Command {
     public var stderrData = Data()
     
     public init(_ command:C, workingDirectory:URL) throws {
-        try super.init(command:command, workingDirectory: workingDirectory)
+        try super.init(command:command, workingDirectory: workingDirectory, run:false)
         launchStdErrLoop()
         launchStdOutLoop()
     }
@@ -29,12 +29,14 @@ public class LoggedProcess<C>:InteractiveProcess<C> where C:Command {
     }
     
     internal func launchStdOutLoop() {
-        print("stdout launched")
+        let launchGroup = DispatchGroup()
+        launchGroup.enter()
         runGroup.enter()
         processQueue.async { [weak self] in
             guard let self = self else {
                 return
             }
+            launchGroup.leave()
             var bytesCount:Int = 0
             self.control.wait()
             while self.state != .exited || bytesCount > 0 {
@@ -109,7 +111,7 @@ public class InteractiveProcess<C> where C:Command {
     public var suspendGroup = DispatchGroup()
     public var runGroup = DispatchGroup() //remains entered until the process finishes executing. Suspending does not cause this group to leave
 
-    public init(command:C, workingDirectory:URL) throws {
+    public init(command:C, workingDirectory:URL, run:Bool) throws {
         env = command.environment
 		let inPipe = Pipe()
 		let outPipe = Pipe()
@@ -135,15 +137,21 @@ public class InteractiveProcess<C> where C:Command {
 			self.runGroup.leave()
 			self.control.signal()
 		}
-		
-		runGroup.enter()
-		do {
-			try proc.run()
-		} catch let error {
-			runGroup.leave()
-			throw error
-		}
-	}
+        
+        if run {
+            try self.run()
+        }
+    }
+    
+    public func run() throws {
+        runGroup.enter()
+        do {
+            try proc.run()
+        } catch let error {
+            runGroup.leave()
+            throw error
+        }
+    }
 	
 	public func suspend() -> Bool? {
 		control.wait()
