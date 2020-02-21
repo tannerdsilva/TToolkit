@@ -29,21 +29,33 @@ public class LoggedProcess<C>:InteractiveProcess<C> where C:Command {
     }
     
     internal func launchStdOutLoop() {
+        print("stdout launched")
         runGroup.enter()
         processQueue.async { [weak self] in
             guard let self = self else {
                 return
             }
-            self.suspendGroup.wait()
-            while self.state != .exited {
-                let newLines:Data = self.readStdOut()
-                if newLines.count > 0 {
-                    self.control.wait()
-                    self.stdoutData.append(newLines)
-                    self.control.signal()
+            var bytesCount:Int = 0
+            self.control.wait()
+            while self.state != .exited || bytesCount > 0 {
+                self.control.signal()
+                let readBytes:Data = self.stdout.availableData
+                bytesCount = readBytes.count
+                if bytesCount > 0 {
+                    self.runGroup.enter()
+                    self.processQueue.async { [weak self] in
+                        guard let self = self else {
+                            return
+                        }
+                        self.control.wait()
+                        self.stdoutData.append(contentsOf:readBytes)
+                        self.control.signal()
+                        self.runGroup.leave()
+                    }
                 }
-                self.suspendGroup.wait()
+                self.control.wait()
             }
+            self.control.signal()
             self.runGroup.leave()
         }
     }
@@ -53,16 +65,20 @@ public class LoggedProcess<C>:InteractiveProcess<C> where C:Command {
             guard let self = self else {
                 return
             }
-            
-            self.suspendGroup.wait()
-            while self.state != .exited {
-                let newLines:Data = self.readStdErr()
-                if newLines.count > 0 {
-                    self.control.wait()
-                    self.stderrData.append(contentsOf:newLines)
-                    self.control.signal()
+            var bytesCount:Int = 0
+            while self.state != .exited || bytesCount > 0 {
+                let newBytes:Data = self.stderr.availableData
+                bytesCount = newBytes.count
+                if bytesCount > 0 {
+                    self.processQueue.async { [weak self] in
+                        guard let self = self else {
+                            return
+                        }
+                        self.control.wait()
+                        self.stderrData.append(contentsOf:newBytes)
+                        self.control.signal()
+                    }
                 }
-                self.suspendGroup.wait()
             }
             self.runGroup.leave()
         }
@@ -168,54 +184,54 @@ public class InteractiveProcess<C> where C:Command {
 	}
 
     //MARK: Reading Output Streams As Lines
-    public func readStdErr() -> [String] {
-        var lineToReturn:[String]? = nil
-        while lineToReturn == nil && proc.isRunning == true && state == .running {
-            suspendGroup.wait()
-            let bytes = stderr.readData(ofLength: 512)
-            if bytes.count > 0 {
-                _ = stderrGuard.processData(bytes)
-                lineToReturn = stderrGuard.flushLines()
-            }
-        }
-        return lineToReturn ?? [String]()
-    }
-    public func readStdOut() -> [String] {
-        var lineToReturn:[String]? = nil
-        while lineToReturn == nil && proc.isRunning == true && state == .running {
-            suspendGroup.wait()
-            let bytes = stdout.readData(ofLength: 512)
-            if bytes.count > 0 {
-                _ = stdoutGuard.processData(bytes)
-                lineToReturn = stdoutGuard.flushLines()
-            }
-        }
-        return lineToReturn ?? [String]()
-    }
-
-    
-    //MARK: Reading Output Streams as Data
-    public func readStdOut(length:Int = 512) -> Data {
-        var dataToReturn:Data? = nil
-        while dataToReturn == nil && proc.isRunning == true && state == .running {
-            suspendGroup.wait()
-            let bytes = stdout.readData(ofLength: length)
-            if bytes.count > 0 {
-                dataToReturn = bytes
-            }
-        }
-        return dataToReturn ?? Data()
-    }
-    
-    public func readStdErr(length:Int = 512) -> Data {
-        var dataToReturn:Data? = nil
-        while dataToReturn == nil && proc.isRunning == true && state == .running {
-            suspendGroup.wait()
-            let bytes = stderr.readData(ofLength: length)
-            if bytes.count > 0 {
-                dataToReturn = bytes
-            }
-        }
-        return dataToReturn ?? Data()
-    }
+//    public func readStdErr() -> [String] {
+//        var lineToReturn:[String]? = nil
+//        while lineToReturn == nil && proc.isRunning == true && state == .running {
+//            let bytes = stderr.availableData
+//            if bytes.count > 0 {
+//                _ = stderrGuard.processData(bytes)
+//                lineToReturn = stderrGuard.flushLines()
+//            }
+//            suspendGroup.wait()
+//        }
+//        return lineToReturn ?? [String]()
+//    }
+//    public func readStdOut() -> [String] {
+//        var lineToReturn:[String]? = nil
+//        while lineToReturn == nil && proc.isRunning == true && state == .running {
+//            let bytes = stdout.availableData
+//            if bytes.count > 0 {
+//                _ = stdoutGuard.processData(bytes)
+//                lineToReturn = stdoutGuard.flushLines()
+//            }
+//            suspendGroup.wait()
+//        }
+//        return lineToReturn ?? [String]()
+//    }
+//
+//
+//    //MARK: Reading Output Streams as Data
+//    public func readStdOut() -> Data {
+//        var dataToReturn:Data? = nil
+//        while dataToReturn == nil && proc.isRunning == true && state == .running {
+//            let bytes = stdout.availableData
+//            if bytes.count > 0 {
+//                dataToReturn = bytes
+//            }
+//            suspendGroup.wait()
+//        }
+//        return dataToReturn ?? Data()
+//    }
+//
+//    public func readStdErr() -> Data {
+//        var dataToReturn:Data? = nil
+//        while dataToReturn == nil && proc.isRunning == true && state == .running {
+//            let bytes = stderr.availableData
+//            if bytes.count > 0 {
+//                dataToReturn = bytes
+//            }
+//            suspendGroup.wait()
+//        }
+//        return dataToReturn ?? Data()
+//    }
 }

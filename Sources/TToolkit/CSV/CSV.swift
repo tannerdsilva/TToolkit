@@ -98,8 +98,7 @@ public func readCSV(_ inputFile:URL) throws -> [[String:String]] {
         case headerLineSkipped
     }
     let inputFileData = try Data(contentsOf:inputFile)
-    //trim any invisible characters off the top
-    
+
     let inputLinesData = inputFileData.lineParse() ?? [Data]()
     let inputFileLines = inputLinesData.compactMap { String(data:$0, encoding:.utf8) }
 
