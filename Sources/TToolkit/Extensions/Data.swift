@@ -348,8 +348,11 @@ extension Data {
 	public func lineSlice(removeBOM:Bool) -> [Data]? {
 		let bytesCount = self.count
 		if (bytesCount > 0) {
+            
 			var bomTail:Int? = nil
 			if removeBOM == true {
+                
+                //this portion of the parser tries to identify the leading byte order mark if the user has specified that they want this stripped
 				if var potentialBOMS = BOM.potentialBOMs(fromStartingByte:self[0]) {
 					var i = 1
 					while i < bytesCount && i < 5 && bomTail == nil && potentialBOMS.count > 0 {
