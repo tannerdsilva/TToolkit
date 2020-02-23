@@ -17,13 +17,9 @@ public class LoggedProcess:InteractiveProcess {
                 return
             }
             let readData = self.stdout.availableData
-            var buildBytes = [UInt8]()
-            for (_, curByte) in readData.enumerated() {
-            	buildBytes.append(curByte)
-            }
-            if buildBytes.count > 0 {
+            if readData.count > 0 {
             	self.processQueue.sync {
-					self.stdoutData.append(contentsOf:buildBytes)
+					self.stdoutData.append(readData)
 				}
             }
         }
@@ -33,13 +29,9 @@ public class LoggedProcess:InteractiveProcess {
                 return
             }
             let readData = self.stderr.availableData
-            var buildBytes = [UInt8]()
-            for (_, curByte) in readData.enumerated() {
-            	buildBytes.append(curByte)
-            }
-            if buildBytes.count > 0 {
+            if readData.count > 0 {
             	self.processQueue.sync {
-					self.stdoutData.append(contentsOf:buildBytes)
+					self.stdoutData.append(readData)
 				}
             }
         }
