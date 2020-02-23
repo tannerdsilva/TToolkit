@@ -34,7 +34,7 @@ public class LoggedProcess:InteractiveProcess {
             }
             let readData = self.stderr.availableData
             var buildBytes = [UInt8]()
-            for (_, curByte) in buildBytes.enumerated() {
+            for (_, curByte) in readData.enumerated() {
             	buildBytes.append(curByte)
             }
             if buildBytes.count > 0 {
@@ -61,9 +61,11 @@ public class InteractiveProcess {
     let processQueue = DispatchQueue(label:"com.tannersilva.ttoolkit.process-interactive")
     
 	public enum State:UInt8 {
-		case running = 0
-		case suspended = 1
-		case exited = 2
+		case initialized = 0
+		case running = 1
+		case suspended = 2
+		case exited = 4
+		case failed = 5
 	}
     
 	public var env:[String:String]
@@ -72,7 +74,7 @@ public class InteractiveProcess {
 	public var stderr:FileHandle
 	public var workingDirectory:URL
 	internal var proc = Process()
-	public var state:State = .running
+	public var state:State = .initialized
 
     public init<C>(command:C, workingDirectory wd:URL, run:Bool) throws where C:Command {
         env = command.environment
@@ -106,7 +108,9 @@ public class InteractiveProcess {
         try processQueue.sync {
             do {
                 try proc.run()
+                state = .running
             } catch let error {
+                state = .failed
                 throw error
             }
 
