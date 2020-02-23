@@ -17,9 +17,9 @@ public class LoggedProcess:InteractiveProcess {
                 return
             }
             self.processQueue.sync {
-                let readData = self.stdout.availableData
-                if readData.count > 0 {
-                    self.stdoutData.append(readData)
+                let dataBytes = self.stdout.availableData.bytes
+                if dataBytes.count > 0 {
+                    self.stdoutData.append(contentsOf:dataBytes)
                 }
             }
         }
@@ -29,9 +29,9 @@ public class LoggedProcess:InteractiveProcess {
                 return
             }
             self.processQueue.sync {
-                let readData = self.stderr.availableData
-                if readData.count > 0 {
-                    self.stderrData.append(readData)
+                let dataBytes = self.stderr.availableData.bytes
+                if dataBytes.count > 0 {
+                    self.stderrData.append(contentsOf:dataBytes)
                 }
             }
         }
@@ -123,8 +123,6 @@ public class InteractiveProcess {
 	public var workingDirectory:URL
 	internal var proc = Process()
 	public var state:State = .running
-	
-    //public var runGroup = DispatchGroup() //remains entered until the process finishes executing. Suspending does not cause this group to leave
 
     public init<C>(command:C, workingDirectory wd:URL, run:Bool) throws where C:Command {
         env = command.environment

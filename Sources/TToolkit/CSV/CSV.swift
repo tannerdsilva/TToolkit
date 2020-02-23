@@ -144,6 +144,16 @@ extension Collection where Element: CSVEncodable {
         let headerData = try headerString.safeData(using:.utf8)
         
         var dataLines = headerData
+        for (n, curRow) in enumerated() {
+        	var thisLine = Array<String>(repeating:"", count:allColumns.count)
+            for(_, kv) in allColumns.enumerated() {
+                if let hasIndex = allColumns.firstIndex(of:kv), let hasValue = curRow.csvValue(columnName:kv) {
+                    thisLine[hasIndex] = hasValue.csvEncodedString()
+                }
+            }
+            let lineString = thisLine.joined(separator:",") + "\n"
+            let didConvertToData = try lineString.safeData(using:.utf8)
+        }
         self.explode(lanes:2, using:{ n, curRow in
             var thisLine = Array<String>(repeating:"", count:allColumns.count)
             for(_, kv) in allColumns.enumerated() {
