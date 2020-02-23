@@ -16,11 +16,11 @@ public class LoggedProcess:InteractiveProcess {
             guard let self = self else {
                 return
             }
-            self.processQueue.sync {
-                let readData = self.stdout.availableData
-                if readData.count > 0 {
-                    self.stdoutData.append(readData)
-                }
+            let readData = self.stdout.availableData
+            if readData.count > 0 {
+            	self.processQueue.sync {
+					self.stdoutData.append(readData)
+				}
             }
         }
         
@@ -28,11 +28,11 @@ public class LoggedProcess:InteractiveProcess {
             guard let self = self else {
                 return
             }
-            self.processQueue.sync {
-                let readData = self.stderr.availableData
-                if readData.count > 0 {
-                    self.stderrData.append(readData)
-                }
+            let readData = self.stderr.availableData
+            if readData.count > 0 {
+            	self.processQueue.sync {
+					self.stdoutData.append(readData)
+				}
             }
         }
         
@@ -47,64 +47,6 @@ public class LoggedProcess:InteractiveProcess {
             return CommandResult(exitCode: Int(proc.terminationStatus), stdout: stdoutData.lineSlice(removeBOM: false), stderr: stderrData.lineSlice(removeBOM: false))
         }
     }
-    
-//    internal func launchStdOutLoop() {
-//        let launchGroup = DispatchGroup()
-//        launchGroup.enter()
-//        runGroup.enter()
-//        processQueue.async { [weak self] in
-//            guard let self = self else {
-//                return
-//            }
-//            launchGroup.leave()
-//            var bytesCount:Int = 0
-//            self.control.wait()
-//            while self.state != .exited || bytesCount > 0 {
-//                self.control.signal()
-//                let readBytes:Data = self.stdout.availableData
-//                bytesCount = readBytes.count
-//                if bytesCount > 0 {
-//                    self.runGroup.enter()
-//                    self.processQueue.async { [weak self] in
-//                        guard let self = self else {
-//                            return
-//                        }
-//                        self.control.wait()
-//                        self.stdoutData.append(contentsOf:readBytes)
-//                        self.control.signal()
-//                        self.runGroup.leave()
-//                    }
-//                }
-//                self.control.wait()
-//            }
-//            self.control.signal()
-//            self.runGroup.leave()
-//        }
-//    }
-//    internal func launchStdErrLoop() {
-//        runGroup.enter()
-//        processQueue.async { [weak self] in
-//            guard let self = self else {
-//                return
-//            }
-//            var bytesCount:Int = 0
-//            while self.state != .exited || bytesCount > 0 {
-//                let newBytes:Data = self.stderr.availableData
-//                bytesCount = newBytes.count
-//                if bytesCount > 0 {
-//                    self.processQueue.async { [weak self] in
-//                        guard let self = self else {
-//                            return
-//                        }
-//                        self.control.wait()
-//                        self.stderrData.append(contentsOf:newBytes)
-//                        self.control.signal()
-//                    }
-//                }
-//            }
-//            self.runGroup.leave()
-//        }
-//    }
 }
 
 public class InteractiveProcess {
