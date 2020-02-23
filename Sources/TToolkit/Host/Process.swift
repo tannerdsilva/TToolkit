@@ -17,9 +17,9 @@ public class LoggedProcess:InteractiveProcess {
                 return
             }
             self.processQueue.sync {
-                let dataBytes = self.stdout.availableData.bytes
-                if dataBytes.count > 0 {
-                    self.stdoutData.append(contentsOf:dataBytes)
+                let readData = self.stdout.availableData
+                if readData.count > 0 {
+                    self.stdoutData.append(readData)
                 }
             }
         }
@@ -29,9 +29,9 @@ public class LoggedProcess:InteractiveProcess {
                 return
             }
             self.processQueue.sync {
-                let dataBytes = self.stderr.availableData.bytes
-                if dataBytes.count > 0 {
-                    self.stderrData.append(contentsOf:dataBytes)
+                let readData = self.stderr.availableData
+                if readData.count > 0 {
+                    self.stderrData.append(readData)
                 }
             }
         }

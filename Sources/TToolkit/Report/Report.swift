@@ -37,6 +37,11 @@ public class Report<T> where T:Hashable, T:Codable {
     		return .proceed
     	})
     }
+    
+    public func loadData(_ frame:JournalFrame) throws -> UnitType {
+    	let frameTargetURL = frame.directory.appendingPathComponent(filename, isDirectory:false)
+    	return try JSONDecoder.decodeBinaryJSON(file:frameTargetURL, type:UnitType.self)
+    }
 }
 
 extension Report where UnitType:Sequence, UnitType.Element:Hashable, UnitType.Element:Codable {
