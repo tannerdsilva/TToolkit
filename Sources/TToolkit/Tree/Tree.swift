@@ -45,17 +45,41 @@ enum Child:UInt8 {
 
 class Tree<T> where T:Comparable, T:Hashable {
 	
-	private var val:T?
+	private var val:T? = nil
+	
+	private var childCount:Int = 0
 	
 	private var left:Tree<T>? = nil
 	private var right:Tree<T>? = nil
-	
-	init() {
-		val = nil
+
+	//build a tree with a collection of objects
+	init<U>(_ input:U) where U:Collection, U.Element == T {
+		childCount = input.count
+		for (n, curVal) in input.enumerated() {
+			switch n {
+				case 0:
+					val = curVal
+				default:
+					if val! > curVal {
+						if left != nil {
+							left!.insert(curVal)
+						} else {
+							left = Tree(curVal)
+						}
+					} else {
+						if right != nil {
+							right!.insert(curVal)
+						} else {
+							right = Tree(curVal)
+						}
+					}
+			}
+		}
 	}
 	
 	init(_ input:T?) {
 		val = input
+		childCount = 1
 	}
 	
 	public func forEveryValue(_ doThisWork:@escaping(T) throws -> Void) rethrows {
@@ -94,7 +118,7 @@ class Tree<T> where T:Comparable, T:Hashable {
 	public func insert(_ newValue:T) {
 		if val == nil { 
 			val = newValue
-		} else if val!.hashValue > newValue.hashValue {
+		} else if val! > newValue {
 			if left != nil {
 				left!.insert(newValue)
 			} else {
@@ -107,9 +131,11 @@ class Tree<T> where T:Comparable, T:Hashable {
 				right = Tree<T>(newValue)
 			}
 		}
+		childCount += 1
 	}
 	
-	private func childValues(_ buildArray:inout Array<T>) {
+	//build the child values of the tree into the given array pointer
+	internal func childValues(_ buildArray:inout Array<T>) {
 		if val != nil {
 			buildArray.append(val!)
 		}
@@ -123,46 +149,29 @@ class Tree<T> where T:Comparable, T:Hashable {
 		}
 	}
 	
-	var childValues:[T] {
+	//what are the child values of the tree
+	public var childValues:[T] {
 		get {
 			var buildChildValues = [T]()
 			
-			if let hasRight = right {
-				buildChildValues.append(contentsOf:hasRight.childValues)
-			}
-			
 			if let hasLeft = left { 
-				buildChildValues.append(contentsOf:hasLeft.childValues)
+				hasLeft.childValues(&buildChildValues)
 			}
 			
 			if val != nil {
 				buildChildValues.append(val!)
 			}
+			
+			if let hasRight = right {
+				hasRight.childValues(&buildChildValues)
+			}
+
 			return buildChildValues 
 		}
 	}
-	
-	var childCount:Int {
-		get {
-			if left == nil && right == nil {
-				if val != nil {
-					return 1
-				} else {
-					return 0
-				}
-			} else if left != nil && right == nil {
-				return left!.childCount + 1
-			} else if right != nil && left == nil {
-				return right!.childCount + 1
-			} else {
-				let rightCount = right!.childCount
-				let leftCount = left!.childCount
-				return rightCount + leftCount + 1
-			}
-		}
-	}
 		
-	var depth:Int {
+	//how deep is this tree?
+	public var depth:Int {
 		get {
 			var leftDepth:Int? = nil
 			if left != nil {
