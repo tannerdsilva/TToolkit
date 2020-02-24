@@ -19,7 +19,7 @@ public class LoggedProcess:InteractiveProcess {
             guard let self = self else {
                 return
             }
-            let readData = self.stdout.readData(ofLength:readLength)
+            let readData = self.stdout.readData(ofLength:self.readLength)
             if readData.count > 0 {
             	self.processQueue.sync {
             		self.stdoutData.append(readData)
@@ -31,7 +31,7 @@ public class LoggedProcess:InteractiveProcess {
             guard let self = self else {
                 return
             }
-            let readData = self.stderr.readData(ofLength:readLength)
+            let readData = self.stderr.readData(ofLength:self.readLength)
             if readData.count > 0 {
             	self.processQueue.sync {
             		self.stderrData.append(readData)
@@ -71,7 +71,6 @@ public class InteractiveProcess {
 	public var workingDirectory:URL
 	internal var proc = Process()
 	public var state:State = .initialized
-	public var 
 
     public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
         processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
