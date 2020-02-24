@@ -10,17 +10,20 @@ public class LoggedProcess:InteractiveProcess {
     public var stdoutData = Data()
     public var stderrData = Data()
     
+    //how many bytes should be read from the socket at a time
+    public var readLength:Int = 4096
+    
     public init<C>(_ command:C, workingDirectory:URL) throws where C:Command {
         try super.init(command:command, workingDirectory: workingDirectory, run:false)
         stdout.readabilityHandler = { [weak self] _ in
             guard let self = self else {
                 return
             }
-            let readData = self.stdout.availableData
+            let readData = self.stdout.readData(ofLength:readLength)
             if readData.count > 0 {
             	self.processQueue.sync {
-					self.stdoutData.append(readData)
-				}
+            		self.stdoutData.append(readData)
+            	}
             }
         }
         
@@ -28,11 +31,11 @@ public class LoggedProcess:InteractiveProcess {
             guard let self = self else {
                 return
             }
-            let readData = self.stderr.availableData
+            let readData = self.stderr.readData(ofLength:readLength)
             if readData.count > 0 {
             	self.processQueue.sync {
-					self.stdoutData.append(readData)
-				}
+            		self.stderrData.append(readData)
+            	}
             }
         }
         
@@ -68,6 +71,7 @@ public class InteractiveProcess {
 	public var workingDirectory:URL
 	internal var proc = Process()
 	public var state:State = .initialized
+	public var 
 
     public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
         processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
