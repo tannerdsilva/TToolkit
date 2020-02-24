@@ -4,6 +4,59 @@ public enum CommandError:Error {
 	case temporaryDirectoryNameConflict
 }
 
+public enum Priority:UInt8 {
+	case highest
+	case high
+	case `default`
+	case low
+	case lowest
+	
+	public func asDispatchQoS() -> DispatchQoS.QoSClass {
+		switch self {
+			case .highest:
+				return .userInteractive
+			case .high:
+				return .userInitiated
+			case .`default`:
+				return .`default`
+			case .low:
+				return .utility
+			case .lowest:
+				return .background
+		}
+	}
+	
+	public func asDispatchQoS() -> DispatchQoS {
+		switch self {
+			case .highest:
+				return .userInteractive
+			case .high:
+				return .userInitiated
+			case .`default`:
+				return .`default`
+			case .low:
+				return .utility
+			case .lowest:
+				return .background
+		}
+	}
+	
+	public func asProcessQualityOfService() -> QualityOfService {
+		switch self {
+			case .highest:
+				return .userInteractive
+			case .high:
+				return .userInitiated
+			case .`default`:
+				return .`default`
+			case .low:
+				return .utility
+			case .lowest:
+				return .background
+		}
+	}
+}
+
 //MARK: Shell Protocol
 public protocol Shell {
 	static var path:URL { get }

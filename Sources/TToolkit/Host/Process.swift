@@ -49,8 +49,9 @@ public class LoggedProcess:InteractiveProcess {
     }
 }
 
+
 public class InteractiveProcess {
-    let processQueue = DispatchQueue(label:"com.tannersilva.ttoolkit.process-interactive")
+    let processQueue:DispatchQueue
     
 	public enum State:UInt8 {
 		case initialized = 0
@@ -68,7 +69,8 @@ public class InteractiveProcess {
 	internal var proc = Process()
 	public var state:State = .initialized
 
-    public init<C>(command:C, workingDirectory wd:URL, run:Bool) throws where C:Command {
+    public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
+        processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
         env = command.environment
 		let inPipe = Pipe()
 		let outPipe = Pipe()
@@ -83,6 +85,7 @@ public class InteractiveProcess {
 		proc.standardInput = inPipe
 		proc.standardOutput = outPipe
 		proc.standardError = errPipe
+		proc.qualityOfService = qos.asProcessQualityOfService()
 		proc.terminationHandler = { [weak self] someItem in
 			guard let self = self else {
 				return
