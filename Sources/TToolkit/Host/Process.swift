@@ -22,10 +22,24 @@ public class LoggedProcess:InteractiveProcess {
                 return
             }
             let readData = self.stdout.availableData
-            print("read data of length \(readData.count)")
-            self.processQueue.sync {
-           		self.stdoutData.append(readData)
-           	}
+            let bytesCount = readData.count
+            if bytesCount > 0 {
+				var copiedBytes = Data(capacity:readData.count)
+				copiedBytes.withUnsafeMutableBytes({ someVar in
+					readData.copyBytes(to:someVar, count:bytesCount)
+				})
+				self.processQueue.sync {
+					self.stdoutData.append(copiedBytes)
+				}
+            }
+            
+            //self.processQueue.sync {
+//            	let buildData = Data(readData)
+//            	buildData.withUnsafeBytes({ (rawBufPoint:UnsafeRawBufferPointer) -> Void in
+//            		stdoutData.append(rawBufPoint)
+//            	})
+////           		self.stdoutData.append(readData)
+//           	}
         }
         
         stderr.readabilityHandler = { [weak self] _ in
