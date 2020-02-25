@@ -21,11 +21,13 @@ public class LoggedProcess:InteractiveProcess {
             guard let self = self else {
                 return
             }
-            let readData = self.stdout.availableData
-            let bytesCount = readData.count
-            if bytesCount > 0 {
-				let copiedBytes = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-            	print("Read \(copiedBytes.count)")
+            self.processQueue.sync {
+				let readData = self.stdout.availableData
+				let bytesCount = readData.count
+				if bytesCount > 0 {
+					let copiedBytes = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+					print("Read \(copiedBytes.count)")
+				}
             }
             
             //self.processQueue.sync {
