@@ -31,17 +31,17 @@ public class LoggedProcess:InteractiveProcess {
             }
         }
         
-        stderr.readabilityHandler = { [weak self] _ in
-            guard let self = self else {
-                return
-            }
-            let readData = self.stderr.readData(ofLength:self.readLength)
-            if readData.count > 0 {
-            	self.processQueue.sync {
-            		self.stderrData.append(readData)
-            	}
-            }
-        }
+        //stderr.readabilityHandler = { [weak self] _ in
+//            guard let self = self else {
+//                return
+//            }
+//            let readData = self.stderr.readData(ofLength:self.readLength)
+//            if readData.count > 0 {
+//            	self.processQueue.sync {
+//            		self.stderrData.append(readData)
+//            	}
+//            }
+//        }
         
         try self.run()
     }
