@@ -18,11 +18,11 @@ public class LoggedProcess:InteractiveProcess {
     public init<C>(_ command:C, workingDirectory:URL) throws where C:Command {
         try super.init(command:command, workingDirectory: workingDirectory, run:false)
         stdout.readabilityHandler = { [weak self] _ in
-            guard let self = self else {
+            guard let self = self, self.state == .running else {
                 return
             }
             self.processQueue.sync {
-				let readData = self.stdout.availableData
+            	let readData = self.stdout.availableData
 				let bytesCount = readData.count
 				if bytesCount > 0 {
 					let copiedBytes = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
@@ -55,8 +55,6 @@ public class LoggedProcess:InteractiveProcess {
         }
     }
 }
-
-
 
 public class InteractiveProcess {
     let processQueue:DispatchQueue
@@ -100,6 +98,12 @@ public class InteractiveProcess {
 			}
             self.processQueue.sync {
                 self.state = .exited
+                
+                if #available(macOS 10.15, *) {
+					try? self.stdin.close()
+					try? self.stdout.close()
+					try? self.stderr.close()
+                }
             }
 		}
         if run {
@@ -150,6 +154,14 @@ public class InteractiveProcess {
                 return nil
             }
         }
+	}
+	
+	deinit {
+		if #available(macOS 10.15, *) {
+			try? stdin.close()
+			try? stdout.close()
+			try? stderr.close()
+		}
 	}
 
     //MARK: Reading Output Streams As Lines
