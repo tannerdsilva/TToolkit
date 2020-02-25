@@ -21,7 +21,8 @@ public class LoggedProcess:InteractiveProcess {
             guard let self = self else {
                 return
             }
-            print("yay things are happening")
+            let readData = self.stdout.readData(ofLength:self.readLength)
+            print("read data of length \(readData.count)")
             //self.processQueue.sync {
 //            	print("queue entered")
 //				let readData = self.stdout.readData(ofLength:self.readLength)
