@@ -21,19 +21,20 @@ public class LoggedProcess:InteractiveProcess {
             guard let self = self else {
                 return
             }
-            let readData = self.stdout.readData(ofLength:self.readLength)
-            if readData.count > 0 {
-            	print("found data")
-				readData.withUnsafeBytes({ rawBuffPointer in
-					print("data acquired")
-					let duplicatedData = Data(rawBuffPointer)
-					print("data initialized")
-					self.processQueue.sync {
+            self.processQueue.sync {
+            	print("queue entered")
+				let readData = self.stdout.readData(ofLength:self.readLength)
+				if readData.count > 0 {
+					print("found data")
+					readData.withUnsafeBytes({ rawBuffPointer in
+						print("data acquired")
+						let duplicatedData = Data(rawBuffPointer)
+						print("data initialized")
 						print("sync entered")
 						self.stdoutData.append(duplicatedData)
 						print("appended")
-					}
-				})
+					})
+				}
             }
         }
         
