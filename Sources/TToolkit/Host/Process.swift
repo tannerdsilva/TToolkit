@@ -26,17 +26,9 @@ public class LoggedProcess:InteractiveProcess {
 				let bytesCount = readData.count
 				if bytesCount > 0 {
 					let copiedBytes = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-					print("Read \(copiedBytes.count)")
+					self.stdoutData.append(copiedBytes)
 				}
             }
-            
-            //self.processQueue.sync {
-//            	let buildData = Data(readData)
-//            	buildData.withUnsafeBytes({ (rawBufPoint:UnsafeRawBufferPointer) -> Void in
-//            		stdoutData.append(rawBufPoint)
-//            	})
-////           		self.stdoutData.append(readData)
-//           	}
         }
         
         stderr.readabilityHandler = { [weak self] _ in
