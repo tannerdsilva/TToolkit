@@ -23,9 +23,11 @@ public class LoggedProcess:InteractiveProcess {
             }
             let readData = self.stdout.readData(ofLength:self.readLength)
             if readData.count > 0 {
-            	self.processQueue.sync {
-            		self.stdoutData.append(readData)
-            	}
+				self.stdoutData.withUnsafeMutableBytes { rawBuffPointer in
+					self.processQueue.sync {
+						readData.copyBytes(to:rawBuffPointer)
+					}
+				}
             }
         }
         
