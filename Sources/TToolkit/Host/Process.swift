@@ -1,7 +1,9 @@
 import Foundation
+
 enum ProcessError:Error {
     case processStillRunning
 }
+
 fileprivate func bashEscape(string:String) -> String {
 	return "'" + string.replacingOccurrences(of:"'", with:"\'") + "'"
 }

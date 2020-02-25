@@ -16,3 +16,6 @@ extension JSONDecoder {
 		return try decoder.decode(T.self, from:binaryData)
 	}
 }
+
+//also see URL extension files for `read` convenience function
+

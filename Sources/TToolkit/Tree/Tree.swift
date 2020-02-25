@@ -1,50 +1,11 @@
 import Foundation
 
-extension Array {
-	fileprivate mutating func popMedianValue() -> Element {
-		let fi = startIndex
-		let length = Double(count)
-		let targetOffset = Int(floor((length / 2)))
-		let targetIndex = index(fi, offsetBy:targetOffset)
-		return remove(at:targetIndex)
-	}
-	
-	fileprivate mutating func splitInHalf() -> (left:ArraySlice<Element>, right:ArraySlice<Element>) {
-		let fi = startIndex
-		let ei = endIndex
-		let length = Double(count)
-		let targetOffset = Int(floor((length / 2)))
-		let targetIndex = index(fi, offsetBy:targetOffset)
-		return (left:self[fi..<targetIndex], right:self[targetIndex..<ei])
-	}
-}
-
-extension ArraySlice {
-	fileprivate mutating func popMedianValue() -> Element {
-		let fi = startIndex
-		let length = Double(count)
-		let targetOffset = Int(floor((length / 2)))
-		let targetIndex = index(fi, offsetBy:targetOffset)
-		return remove(at:targetIndex)
-	}
-	
-	fileprivate func splitInHalf() -> (left:ArraySlice<Element>, right:ArraySlice<Element>) {
-		let fi = startIndex
-		let ei = endIndex
-		let length = Double(count)
-		let targetOffset = Int(floor((length / 2)))
-		let targetIndex = index(fi, offsetBy:targetOffset)
-		return (left:self[fi..<targetIndex], right:self[targetIndex..<ei])
-	}
-}
-
 enum Child:UInt8 {
 	case left
 	case right
 }
 
-class Tree<T> where T:Comparable, T:Hashable {
-	
+class Tree<T> where T:Comparable {
 	private var val:T? = nil
 	
 	private var childCount:Int = 0
@@ -53,7 +14,7 @@ class Tree<T> where T:Comparable, T:Hashable {
 	private var right:Tree<T>? = nil
 
 	//build a tree with a collection of objects
-	init<U>(_ input:U) where U:Collection, U.Element == T {
+	public init<U>(_ input:U) where U:Collection, U.Element == T {
 		childCount = input.count
 		for (n, curVal) in input.enumerated() {
 			switch n {
@@ -77,7 +38,7 @@ class Tree<T> where T:Comparable, T:Hashable {
 		}
 	}
 	
-	init(_ input:T?) {
+	public init(_ input:T?) {
 		val = input
 		childCount = 1
 	}
@@ -133,6 +94,24 @@ class Tree<T> where T:Comparable, T:Hashable {
 		}
 		childCount += 1
 	}
+	
+	//public func remove(_ removeThis:T) {
+//		if val = nil {
+//			val = newValue
+//		} else if val! > newValue {
+//			if left != nil {
+//				left!.insert(newValue)
+//			} else {
+//				left = Tree<T>(newValue)
+//			}
+//		} else {
+//			if right != nil {
+//				right!.remove(newValue)
+//			} else {
+//				right = Tree<T>(newValue)
+//			}
+//		}
+//	}
 	
 	//build the child values of the tree into the given array pointer
 	internal func childValues(_ buildArray:inout Array<T>) {
@@ -197,6 +176,10 @@ class Tree<T> where T:Comparable, T:Hashable {
 				return 0
 			}
 		}
+	}
+	
+	private func removeFromTree() {
+		
 	}
 }
 
