@@ -23,11 +23,12 @@ public class LoggedProcess:InteractiveProcess {
             }
             let readData = self.stdout.readData(ofLength:self.readLength)
             if readData.count > 0 {
-				self.stdoutData.withUnsafeMutableBytes { rawBuffPointer in
+				readData.withUnsafeBytes({ rawBuffPointer in
+					let duplicatedData = Data(rawBuffPointer)
 					self.processQueue.sync {
-						readData.copyBytes(to:rawBuffPointer)
+						self.stdoutData.append(duplicatedData)
 					}
-				}
+				})
             }
         }
         
@@ -55,6 +56,7 @@ public class LoggedProcess:InteractiveProcess {
         }
     }
 }
+
 
 
 public class InteractiveProcess {
