@@ -24,13 +24,8 @@ public class LoggedProcess:InteractiveProcess {
             let readData = self.stdout.availableData
             let bytesCount = readData.count
             if bytesCount > 0 {
-				var copiedBytes = Data(capacity:readData.count)
-				copiedBytes.withUnsafeMutableBytes({ someVar in
-					readData.copyBytes(to:someVar, count:bytesCount)
-				})
-				self.processQueue.sync {
-					self.stdoutData.append(copiedBytes)
-				}
+				let copiedBytes = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+            	print("Read \(copiedBytes.count)")
             }
             
             //self.processQueue.sync {
