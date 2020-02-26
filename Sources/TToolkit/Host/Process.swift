@@ -8,57 +8,11 @@ fileprivate func bashEscape(string:String) -> String {
 	return "'" + string.replacingOccurrences(of:"'", with:"\'") + "'"
 }
 
-public class LoggedProcess:InteractiveProcess {
-    public var stdoutData = Data()
-    public var stderrData = Data()
-    
-    //how many bytes should be read from the socket at a time
-    public var readLength:Int = 4096
-    
-    public init<C>(_ command:C, workingDirectory:URL) throws where C:Command {
-        try super.init(command:command, workingDirectory: workingDirectory, run:false)
-        stdout.readabilityHandler = { [weak self] _ in
-            guard let self = self, self.state == .running else {
-                return
-            }
-            self.processQueue.sync {
-            	let readData = self.stdout.availableData
-				let bytesCount = readData.count
-				if bytesCount > 0 {
-					let copiedBytes = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-					self.stdoutData.append(copiedBytes)
-				}
-            }
-        }
-        
-        //stderr.readabilityHandler = { [weak self] _ in
-//            guard let self = self else {
-//                return
-//            }
-//            let readData = self.stderr.readData(ofLength:self.readLength)
-//            if readData.count > 0 {
-//            	self.processQueue.sync {
-//            		self.stderrData.append(readData)
-//            	}
-//            }
-//        }
-        
-        try self.run()
-    }
-    
-    public func exportResult() throws -> CommandResult {
-        try processQueue.sync {
-            guard state == .exited else {
-                throw ProcessError.processStillRunning
-            }
-            return CommandResult(exitCode: Int(proc.terminationStatus), stdout: stdoutData.lineSlice(removeBOM: false), stderr: stderrData.lineSlice(removeBOM: false))
-        }
-    }
-}
-
-private let safeInitThread = DispatchQueue(label:"com.tannersilva.process-interactive.static-init", qos:.highest.asDispatchQoS())
+private let safeInit = DispatchSemaphore(value:1)
 
 public class InteractiveProcess {
+    public typealias OutputHandler = (Data) -> Void
+    
     let processQueue:DispatchQueue
     
 	public enum State:UInt8 {
@@ -76,42 +30,107 @@ public class InteractiveProcess {
 	public var workingDirectory:URL
 	internal var proc = Process()
 	public var state:State = .initialized
+    
+    private var _stdoutHandler:OutputHandler? = nil
+    public var stdoutHandler:OutputHandler? {
+        get {
+            return _stdoutHandler
+        }
+        set {
+            processQueue.sync {
+                _stdoutHandler = newValue
+            }
+        }
+    }
+    
+    private var _stderrHandler:OutputHandler? = nil
+    public var stderrHandler:OutputHandler? {
+        get {
+            return _stderrHandler
+        }
+        set {
+            processQueue.sync {
+                _stderrHandler = newValue
+            }
+        }
+    }
 
     public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
-        safeInitThread.sync {
-			processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
-			env = command.environment
-			let inPipe = Pipe()
-			let outPipe = Pipe()
-			let errPipe = Pipe()
-			stdin = inPipe.fileHandleForWriting
-			stdout = outPipe.fileHandleForReading
-			stderr = errPipe.fileHandleForReading
-			workingDirectory = wd
-			proc.arguments = command.arguments
-			proc.executableURL = command.executable
-			proc.currentDirectoryURL = wd
-			proc.standardInput = inPipe
-			proc.standardOutput = outPipe
-			proc.standardError = errPipe
-			proc.qualityOfService = qos.asProcessQualityOfService()
-			proc.terminationHandler = { [weak self] someItem in
-				guard let self = self else {
-					return
-				}
-				self.processQueue.sync {
-					self.state = .exited
-				
-					if #available(macOS 10.15, *) {
-						try? self.stdin.close()
-						try? self.stdout.close()
-						try? self.stderr.close()
-					}
+        safeInit.wait()
+		processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
+		env = command.environment
+		let inPipe = Pipe()
+		let outPipe = Pipe()
+		let errPipe = Pipe()
+		stdin = inPipe.fileHandleForWriting
+		stdout = outPipe.fileHandleForReading
+		stderr = errPipe.fileHandleForReading
+		workingDirectory = wd
+		proc.arguments = command.arguments
+		proc.executableURL = command.executable
+		proc.currentDirectoryURL = wd
+		proc.standardInput = inPipe
+		proc.standardOutput = outPipe
+		proc.standardError = errPipe
+		proc.qualityOfService = qos.asProcessQualityOfService()
+		proc.terminationHandler = { [weak self] someItem in
+			guard let self = self else {
+				return
+			}
+			self.processQueue.sync {
+				self.state = .exited
+			
+				if #available(macOS 10.15, *) {
+					try? self.stdin.close()
+					try? self.stdout.close()
+					try? self.stderr.close()
 				}
 			}
-			if run {
-				try self.run()
-			}
+		}
+        
+        stdout.readabilityHandler = { [weak self] _ in
+            guard let self = self, self.state == .running || self.state == .suspended else {
+                return
+            }
+            var dataRead:Data? = nil
+            self.processQueue.sync {
+                let readData = self.stdout.availableData
+                let bytesCount = readData.count
+                if bytesCount > 0 {
+                    dataRead = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+                }
+            }
+            if dataRead != nil {
+                self.stdoutHandler?(dataRead!)
+            }
+        }
+        
+        stderr.readabilityHandler = { [weak self] _ in
+            guard let self = self, self.state == .running || self.state == .suspended else {
+                return
+            }
+            var dataRead:Data? = nil
+            self.processQueue.sync {
+                let readData = self.stderr.availableData
+                let bytesCount = readData.count
+                if bytesCount > 0 {
+                    dataRead = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+                }
+            }
+            if dataRead != nil {
+                self.stderrHandler?(dataRead!)
+            }
+        }
+
+
+		if run {
+            do {
+                try self.run()
+                safeInit.signal()
+            } catch let error {
+                safeInit.signal()
+                throw error
+            }
 		}
     }
     
@@ -159,6 +178,12 @@ public class InteractiveProcess {
             }
         }
 	}
+    
+    public func waitForExitCode() -> Int {
+        proc.waitUntilExit()
+        let returnCode = proc.terminationStatus
+        return Int(returnCode)
+    }
 	
 	deinit {
 		if #available(macOS 10.15, *) {
