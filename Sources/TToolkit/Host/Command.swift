@@ -149,26 +149,45 @@ public struct HostContext:Context {
     public var hostname:String
     public var environment:[String:String]
     
-    init() {
-        workingDirectory = URL(fileURLWithPath:FileManager.default.currentDirectoryPath)
-		let procInfo = ProcessInfo.processInfo
-        username = procInfo.userName
-        hostname = procInfo.hostName
-        environment = procInfo.environment
+    init<T>(_ someContext:T) where T:Context {
+        workingDirectory = someContext.workingDirectory
+        username = someContext.username
+        hostname = someContext.hostname
+        environment = someContext.environment
     }
 }
+
+private struct LocalContext:Context {
+    public typealias ShellType = Bash
+    
+    public var workingDirectory: URL
+	public let environment:[String:String]
+	public let username:String
+	public let hostname:String
+	
+	init() {
+		workingDirectory = URL(fileURLWithPath:FileManager.default.currentDirectoryPath)
+		let procInfo = ProcessInfo.processInfo
+		environment = procInfo.environment
+		username = procInfo.userName
+		hostname = procInfo.hostName
+	}
+}
+
+//MARK: Host Protocol
+fileprivate let mainContext = LocalContext()
 
 public struct Host {
 
     public static var current:HostContext {
         get {
-            return HostContext()
+            return HostContext(mainContext)
         }
     }
     
     public static var local:HostContext {
         get {
-            return HostContext()
+            return HostContext(mainContext)
         }
     }
 }
