@@ -56,7 +56,7 @@ public class InteractiveProcess {
     }
 
     public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
-        safeInit.wait()
+//        safeInit.wait()
 		processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
 		env = command.environment
 		let inPipe = Pipe()
@@ -126,9 +126,9 @@ public class InteractiveProcess {
 		if run {
             do {
                 try self.run()
-                safeInit.signal()
+//                safeInit.signal()
             } catch let error {
-                safeInit.signal()
+//                safeInit.signal()
                 throw error
             }
 		}
