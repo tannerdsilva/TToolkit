@@ -56,6 +56,8 @@ public class LoggedProcess:InteractiveProcess {
     }
 }
 
+private let safeInitThread = DispatchQueue(label:"com.tannersilva.process-interactive.static-init", qos:.highest.asDispatchQoS())
+
 public class InteractiveProcess {
     let processQueue:DispatchQueue
     
@@ -76,39 +78,41 @@ public class InteractiveProcess {
 	public var state:State = .initialized
 
     public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
-        processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
-        env = command.environment
-		let inPipe = Pipe()
-		let outPipe = Pipe()
-		let errPipe = Pipe()
-		stdin = inPipe.fileHandleForWriting
-		stdout = outPipe.fileHandleForReading
-		stderr = errPipe.fileHandleForReading
-        workingDirectory = wd
-		proc.arguments = command.arguments
-		proc.executableURL = command.executable
-		proc.currentDirectoryURL = wd
-		proc.standardInput = inPipe
-		proc.standardOutput = outPipe
-		proc.standardError = errPipe
-		proc.qualityOfService = qos.asProcessQualityOfService()
-		proc.terminationHandler = { [weak self] someItem in
-			guard let self = self else {
-				return
+        safeInitThread.sync {
+			processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
+			env = command.environment
+			let inPipe = Pipe()
+			let outPipe = Pipe()
+			let errPipe = Pipe()
+			stdin = inPipe.fileHandleForWriting
+			stdout = outPipe.fileHandleForReading
+			stderr = errPipe.fileHandleForReading
+			workingDirectory = wd
+			proc.arguments = command.arguments
+			proc.executableURL = command.executable
+			proc.currentDirectoryURL = wd
+			proc.standardInput = inPipe
+			proc.standardOutput = outPipe
+			proc.standardError = errPipe
+			proc.qualityOfService = qos.asProcessQualityOfService()
+			proc.terminationHandler = { [weak self] someItem in
+				guard let self = self else {
+					return
+				}
+				self.processQueue.sync {
+					self.state = .exited
+				
+					if #available(macOS 10.15, *) {
+						try? self.stdin.close()
+						try? self.stdout.close()
+						try? self.stderr.close()
+					}
+				}
 			}
-            self.processQueue.sync {
-                self.state = .exited
-                
-                if #available(macOS 10.15, *) {
-					try? self.stdin.close()
-					try? self.stdout.close()
-					try? self.stderr.close()
-                }
-            }
+			if run {
+				try self.run()
+			}
 		}
-        if run {
-            try self.run()
-        }
     }
     
     public func run() throws {
