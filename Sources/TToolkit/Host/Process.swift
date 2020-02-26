@@ -100,8 +100,8 @@ public class InteractiveProcess {
                     dataRead = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
                 }
             }
-            if dataRead != nil {
-                self.stdoutHandler?(dataRead!)
+            if let hasHandler = self.stdoutHandler {
+                hasHandler(dataRead!)
             }
         }
         
@@ -117,8 +117,8 @@ public class InteractiveProcess {
                     dataRead = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
                 }
             }
-            if dataRead != nil {
-                self.stderrHandler?(dataRead!)
+            if let hasHandler = self.stderrHandler {
+            	hasHandler(dataRead!)
             }
         }
 
@@ -180,7 +180,9 @@ public class InteractiveProcess {
 	}
     
     public func waitForExitCode() -> Int {
-        proc.waitUntilExit()
+    	if state == .suspended || state == .running {
+			proc.waitUntilExit()
+    	}
         let returnCode = proc.terminationStatus
         return Int(returnCode)
     }
