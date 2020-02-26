@@ -18,7 +18,7 @@ public class TTimer {
 		state = .activated
 		self.queue = queue
 		timer = DispatchSource.makeTimerSource(queue:queue)
-		timer.schedule(deadline:.now(), repeating:DispatchTimeInterval.milliseconds(Int(seconds*100000000)), leeway:.seconds(0))
+		timer.schedule(deadline:.now(), repeating:DispatchTimeInterval.nanoseconds(Int(seconds*100000000)), leeway:.seconds(0))
 		timer.setEventHandler { [weak self] in
 			guard let self = self else {
 				return
@@ -32,7 +32,7 @@ public class TTimer {
 		state = .activated
 		queue = DispatchQueue.global(qos:priority.asDispatchQoS())
 		timer = DispatchSource.makeTimerSource(queue:queue)
-		timer.schedule(deadline:.now(), repeating:DispatchTimeInterval.milliseconds(Int(seconds*100000000)), leeway:.seconds(0))
+		timer.schedule(deadline:.now(), repeating:DispatchTimeInterval.nanoseconds(Int(seconds*100000000)), leeway:.seconds(0))
 		timer.setEventHandler { [weak self] in
 			guard let self = self else {
 				return
@@ -46,7 +46,7 @@ public class TTimer {
 		state = .activated
 		queue = DispatchQueue.global(qos:Priority.`default`.asDispatchQoS())
 		timer = DispatchSource.makeTimerSource(queue:queue)
-		timer.schedule(deadline:.now(), repeating:DispatchTimeInterval.milliseconds(Int(seconds*100000000)), leeway:.seconds(0))
+		timer.schedule(deadline:.now(), repeating:DispatchTimeInterval.nanoseconds(Int(seconds*100000000)), leeway:.seconds(0))
 		timer.setEventHandler { [weak self] in
 			guard let self = self else {
 				return
