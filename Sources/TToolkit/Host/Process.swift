@@ -71,7 +71,7 @@ public class InteractiveProcess {
 		proc.standardInput = inPipe
 		proc.standardOutput = outPipe
 		proc.standardError = errPipe
-		proc.qualityOfService = qos.asProcessQualityOfService()
+//		proc.qualityOfService = qos.asProcessQualityOfService()
 		proc.terminationHandler = { [weak self] someItem in
 			guard let self = self else {
 				return
