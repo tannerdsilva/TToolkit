@@ -9,7 +9,6 @@ fileprivate func bashEscape(string:String) -> String {
 }
 
 private let safeInit = DispatchSemaphore(value:1)
-
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     
@@ -56,7 +55,7 @@ public class InteractiveProcess {
     }
 
     public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
-//        safeInit.wait()
+		print(Colors.dim("Initializing pipe..."))
 		processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
 		env = command.environment
 		let inPipe = Pipe()
@@ -122,13 +121,12 @@ public class InteractiveProcess {
             }
         }
 
+		print(Colors.Green("[PIPE]\tInitialization successful."))
 
 		if run {
             do {
                 try self.run()
-//                safeInit.signal()
             } catch let error {
-//                safeInit.signal()
                 throw error
             }
 		}
@@ -137,10 +135,12 @@ public class InteractiveProcess {
     public func run() throws {
         try processQueue.sync {
             do {
+            	print("Running...")
                 try proc.run()
                 state = .running
             } catch let error {
                 state = .failed
+                print(Colors.Red("FAILED"))
                 throw error
             }
 
