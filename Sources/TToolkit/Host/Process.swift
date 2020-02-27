@@ -8,7 +8,6 @@ fileprivate func bashEscape(string:String) -> String {
 	return "'" + string.replacingOccurrences(of:"'", with:"\'") + "'"
 }
 
-private let safeInit = DispatchSemaphore(value:1)
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     
@@ -120,8 +119,6 @@ public class InteractiveProcess {
             }
         }
 
-		print(Colors.Green("[PIPE]\tInitialization successful."))
-
 		if run {
             do {
                 try self.run()
@@ -134,12 +131,10 @@ public class InteractiveProcess {
     public func run() throws {
         try processQueue.sync {
             do {
-            	print("Running...")
                 try proc.run()
                 state = .running
             } catch let error {
                 state = .failed
-                print(Colors.Red("FAILED"))
                 throw error
             }
 
