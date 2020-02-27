@@ -55,7 +55,6 @@ public class InteractiveProcess {
     }
 
     public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
-		print(Colors.dim("Initializing pipe..."))
 		processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
 		env = command.environment
 		let inPipe = Pipe()
@@ -71,7 +70,7 @@ public class InteractiveProcess {
 		proc.standardInput = inPipe
 		proc.standardOutput = outPipe
 		proc.standardError = errPipe
-//		proc.qualityOfService = qos.asProcessQualityOfService()
+		proc.qualityOfService = qos.asProcessQualityOfService()
 		proc.terminationHandler = { [weak self] someItem in
 			guard let self = self else {
 				return
@@ -99,8 +98,8 @@ public class InteractiveProcess {
                     dataRead = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
                 }
             }
-            if let hasHandler = self.stdoutHandler {
-                hasHandler(dataRead!)
+            if let hasHandler = self.stdoutHandler, let dataForCallback = dataRead {
+                hasHandler(dataForCallback)
             }
         }
         
@@ -116,8 +115,8 @@ public class InteractiveProcess {
                     dataRead = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
                 }
             }
-            if let hasHandler = self.stderrHandler {
-            	hasHandler(dataRead!)
+            if let hasHandler = self.stderrHandler, let dataForCallback = dataRead {
+            	hasHandler(dataForCallback)
             }
         }
 
