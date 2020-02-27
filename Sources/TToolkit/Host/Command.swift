@@ -131,6 +131,7 @@ extension Context {
         process.stderrHandler = { newData in
             stderrData.append(newData)
         }
+        try process.run()
         let exitCode = process.waitForExitCode()
         return CommandResult(exitCode: exitCode, stdout: stdoutData.lineSlice(removeBOM: false), stderr: stderrData.lineSlice(removeBOM: false))
     }
