@@ -177,10 +177,6 @@ class Tree<T> where T:Comparable {
 			}
 		}
 	}
-	
-	private func removeFromTree() {
-		
-	}
 }
 
 //class Tree<T> where T:Hashable, T:Comparable {
