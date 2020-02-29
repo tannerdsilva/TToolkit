@@ -11,7 +11,8 @@ fileprivate func bashEscape(string:String) -> String {
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     
-    let processQueue:DispatchQueue
+    public let processQueue:DispatchQueue
+    private let callbackQueue:DispatchQueue
     
 	public enum State:UInt8 {
 		case initialized = 0
@@ -64,6 +65,7 @@ public class InteractiveProcess {
 
     public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
 		processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
+		callbackQueue = DispatchQueue.global(qos:qos.asDispatchQoS())
 		
 		env = command.environment
 		let inPipe = Pipe()
@@ -108,6 +110,11 @@ public class InteractiveProcess {
                 if bytesCount > 0 {
 					let dataCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 					self.stdoutBuff.append(dataCopy)
+					if let hasHandler = self._stdoutHandler {
+						self.callbackQueue.async {
+							hasHandler(dataCopy)
+						}
+					} 
                 }
             }
         }
@@ -125,6 +132,11 @@ public class InteractiveProcess {
             	if bytesCount > 0 {
 					let dataCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 					self.stderrBuff.append(dataCopy)
+					if let hasHandler = self._stderrHandler {
+						self.callbackQueue.async {
+							hasHandler(dataCopy)
+						}
+					}
             	}
             }   
             
