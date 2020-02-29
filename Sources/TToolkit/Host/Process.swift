@@ -22,9 +22,14 @@ public class InteractiveProcess {
 	}
     
 	public var env:[String:String]
+	
 	public var stdin:FileHandle
 	public var stdout:FileHandle
 	public var stderr:FileHandle
+	
+	public var stdoutBuff = Data()
+	public var stderrBuff = Data()
+
 	public var workingDirectory:URL
 	internal var proc = Process()
 	public var state:State = .initialized
@@ -32,7 +37,9 @@ public class InteractiveProcess {
     private var _stdoutHandler:OutputHandler? = nil
     public var stdoutHandler:OutputHandler? {
         get {
-            return _stdoutHandler
+        	return processQueue.sync {
+        		return _stdoutHandler
+        	}
         }
         set {
             processQueue.sync {
@@ -44,7 +51,9 @@ public class InteractiveProcess {
     private var _stderrHandler:OutputHandler? = nil
     public var stderrHandler:OutputHandler? {
         get {
-            return _stderrHandler
+        	return processQueue.sync {
+				return _stderrHandler
+        	}   
         }
         set {
             processQueue.sync {
@@ -55,6 +64,7 @@ public class InteractiveProcess {
 
     public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
 		processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
+		
 		env = command.environment
 		let inPipe = Pipe()
 		let outPipe = Pipe()
@@ -86,37 +96,38 @@ public class InteractiveProcess {
 		}
         
         stdout.readabilityHandler = { [weak self] _ in
-            guard let self = self, self.state == .running || self.state == .suspended else {
+            guard let self = self else {
                 return
             }
-            var dataRead:Data? = nil
             self.processQueue.sync {
+            	guard self.state == .running || self.state == .suspended else {
+            		return
+            	}
                 let readData = self.stdout.availableData
                 let bytesCount = readData.count
                 if bytesCount > 0 {
-                    dataRead = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+					let dataCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+					self.stdoutBuff.append(dataCopy)
                 }
-            }
-            if let hasHandler = self.stdoutHandler, let dataForCallback = dataRead {
-                hasHandler(dataForCallback)
             }
         }
         
         stderr.readabilityHandler = { [weak self] _ in
-            guard let self = self, self.state == .running || self.state == .suspended else {
+            guard let self = self else {
                 return
             }
-            var dataRead:Data? = nil
             self.processQueue.sync {
-                let readData = self.stderr.availableData
-                let bytesCount = readData.count
-                if bytesCount > 0 {
-                    dataRead = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-                }
-            }
-            if let hasHandler = self.stderrHandler, let dataForCallback = dataRead {
-            	hasHandler(dataForCallback)
-            }
+				guard self.state == .running || self.state == .suspended else {
+            		return
+            	}
+            	let readData = self.stdout.availableData
+            	let bytesCount = readData.count
+            	if bytesCount > 0 {
+					let dataCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+					self.stderrBuff.append(dataCopy)
+            	}
+            }   
+            
         }
 
 		if run {
@@ -172,15 +183,39 @@ public class InteractiveProcess {
             }
         }
 	}
+	
+	public func exportStdOut() -> Data {
+		return processQueue.sync {
+			let stdoutToReturn = stdoutBuff
+			stdoutBuff.removeAll(keepingCapacity:true)
+			return stdoutToReturn
+		}
+	}
+	
+	public func exportStdErr() -> Data {
+		return processQueue.sync {
+			let stdoutToReturn = stdoutBuff
+			stdoutBuff.removeAll(keepingCapacity:true)
+			return stdoutToReturn
+		}
+	}
+
     
     public func waitForExitCode() -> Int {
-    	if state == .suspended || state == .running {
+    	var shouldWait:Bool = false
+    	processQueue.sync {
+    		if state == .suspended || state == .running {
+    			shouldWait = true
+    		}
+    	}
+    	if shouldWait {
 			proc.waitUntilExit()
     	}
+    	
         let returnCode = proc.terminationStatus
         return Int(returnCode)
     }
-	
+    	
 	deinit {
 		if #available(macOS 10.15, *) {
 			try? stdin.close()

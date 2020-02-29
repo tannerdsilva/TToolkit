@@ -125,15 +125,9 @@ extension Context {
         var stdoutData = Data()
         
         let process = try InteractiveProcess.init(command:commandToRun, workingDirectory:workingDirectory, run:false)
-        process.stdoutHandler = { newData in
-            stdoutData.append(newData)
-        }
-        process.stderrHandler = { newData in
-            stderrData.append(newData)
-        }
         try process.run()
         let exitCode = process.waitForExitCode()
-        return CommandResult(exitCode: exitCode, stdout: stdoutData.lineSlice(removeBOM: false), stderr: stderrData.lineSlice(removeBOM: false))
+        return CommandResult(exitCode: exitCode, stdout: process.exportStdOut().lineSlice(removeBOM: false), stderr: process.exportStdErr().lineSlice(removeBOM: false))
     }
 	    
     public func build(_ commandString: String) -> BasicCommand {
