@@ -124,7 +124,7 @@ extension Context {
         var stderrData = Data()
         var stdoutData = Data()
         
-        let process = try InteractiveProcess.init(command:commandToRun, workingDirectory:workingDirectory, run:false)
+        let process = try InteractiveProcess(command:commandToRun, workingDirectory:workingDirectory, run:false)
         try process.run()
         let exitCode = process.waitForExitCode()
         return CommandResult(exitCode: exitCode, stdout: process.exportStdOut().lineSlice(removeBOM: false), stderr: process.exportStdErr().lineSlice(removeBOM: false))
