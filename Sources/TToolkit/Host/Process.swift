@@ -12,6 +12,7 @@ public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     
     let processQueue:DispatchQueue
+    let globalCallbackQueue:DispatchQueue
     
 	public enum State:UInt8 {
 		case initialized = 0
@@ -32,7 +33,9 @@ public class InteractiveProcess {
     private var _stdoutHandler:OutputHandler? = nil
     public var stdoutHandler:OutputHandler? {
         get {
-            return _stdoutHandler
+        	return processQueue.sync {
+        		return _stdoutHandler
+        	}
         }
         set {
             processQueue.sync {
@@ -44,7 +47,9 @@ public class InteractiveProcess {
     private var _stderrHandler:OutputHandler? = nil
     public var stderrHandler:OutputHandler? {
         get {
-            return _stderrHandler
+        	return processQueue.sync {
+				return _stderrHandler
+        	}   
         }
         set {
             processQueue.sync {
@@ -55,6 +60,8 @@ public class InteractiveProcess {
 
     public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
 		processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
+		globalCallbackQueue = DispatchQueue.global(qos:qos.asDispatchQoS())
+		
 		env = command.environment
 		let inPipe = Pipe()
 		let outPipe = Pipe()
@@ -89,16 +96,17 @@ public class InteractiveProcess {
             guard let self = self, self.state == .running || self.state == .suspended else {
                 return
             }
-            var dataRead:Data? = nil
             self.processQueue.sync {
                 let readData = self.stdout.availableData
                 let bytesCount = readData.count
                 if bytesCount > 0 {
-                    dataRead = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+					if let hasHandler = self._stdoutHandler {
+						let dataCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+						self.globalCallbackQueue.sync {
+							hasHandler(dataCopy)
+						}
+					}
                 }
-            }
-            if let hasHandler = self.stdoutHandler, let dataForCallback = dataRead {
-                hasHandler(dataForCallback)
             }
         }
         
@@ -106,17 +114,19 @@ public class InteractiveProcess {
             guard let self = self, self.state == .running || self.state == .suspended else {
                 return
             }
-            var dataRead:Data? = nil
             self.processQueue.sync {
-                let readData = self.stderr.availableData
-                let bytesCount = readData.count
-                if bytesCount > 0 {
-                    dataRead = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-                }
-            }
-            if let hasHandler = self.stderrHandler, let dataForCallback = dataRead {
-            	hasHandler(dataForCallback)
-            }
+            	let readData = self.stdout.availableData
+            	let bytesCount = readData.count
+            	if bytesCount > 0 {
+            		if let hasHandler = self._stderrHandler {
+            			let dataCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+            			self.globalCallbackQueue.sync {
+            				hasHandler(dataCopy)
+            			}
+            		}
+            	}
+            }   
+            
         }
 
 		if run {
@@ -180,7 +190,7 @@ public class InteractiveProcess {
         let returnCode = proc.terminationStatus
         return Int(returnCode)
     }
-	
+    	
 	deinit {
 		if #available(macOS 10.15, *) {
 			try? stdin.close()
