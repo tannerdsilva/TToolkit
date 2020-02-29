@@ -93,10 +93,13 @@ public class InteractiveProcess {
 		}
         
         stdout.readabilityHandler = { [weak self] _ in
-            guard let self = self, self.state == .running || self.state == .suspended else {
+            guard let self = self else {
                 return
             }
             self.processQueue.sync {
+            	guard self.state == .running || self.state == .suspended else {
+            		return
+            	}
                 let readData = self.stdout.availableData
                 let bytesCount = readData.count
                 if bytesCount > 0 {
@@ -111,10 +114,13 @@ public class InteractiveProcess {
         }
         
         stderr.readabilityHandler = { [weak self] _ in
-            guard let self = self, self.state == .running || self.state == .suspended else {
+            guard let self = self else {
                 return
             }
             self.processQueue.sync {
+				guard self.state == .running || self.state == .suspended else {
+            		return
+            	}
             	let readData = self.stdout.availableData
             	let bytesCount = readData.count
             	if bytesCount > 0 {
@@ -184,9 +190,16 @@ public class InteractiveProcess {
 	}
     
     public func waitForExitCode() -> Int {
-    	if state == .suspended || state == .running {
+    	var shouldWait:Bool = false
+    	processQueue.sync {
+    		if state == .suspended || state == .running {
+    			shouldWait = true
+    		}
+    	}
+    	if shouldWait {
 			proc.waitUntilExit()
     	}
+    	
         let returnCode = proc.terminationStatus
         return Int(returnCode)
     }
