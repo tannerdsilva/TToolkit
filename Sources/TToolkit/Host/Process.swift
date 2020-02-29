@@ -12,7 +12,6 @@ public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     
     let processQueue:DispatchQueue
-    let globalCallbackQueue:DispatchQueue
     
 	public enum State:UInt8 {
 		case initialized = 0
@@ -23,9 +22,14 @@ public class InteractiveProcess {
 	}
     
 	public var env:[String:String]
+	
 	public var stdin:FileHandle
 	public var stdout:FileHandle
 	public var stderr:FileHandle
+	
+	public var stdoutBuff = Data()
+	public var stderrBuff = Data()
+
 	public var workingDirectory:URL
 	internal var proc = Process()
 	public var state:State = .initialized
@@ -60,7 +64,6 @@ public class InteractiveProcess {
 
     public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
 		processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
-		globalCallbackQueue = DispatchQueue.global(qos:qos.asDispatchQoS())
 		
 		env = command.environment
 		let inPipe = Pipe()
@@ -103,12 +106,8 @@ public class InteractiveProcess {
                 let readData = self.stdout.availableData
                 let bytesCount = readData.count
                 if bytesCount > 0 {
-					if let hasHandler = self._stdoutHandler {
-						let dataCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-						self.globalCallbackQueue.sync {
-							hasHandler(dataCopy)
-						}
-					}
+					let dataCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+					self.stdoutBuff.append(dataCopy)
                 }
             }
         }
@@ -124,12 +123,8 @@ public class InteractiveProcess {
             	let readData = self.stdout.availableData
             	let bytesCount = readData.count
             	if bytesCount > 0 {
-            		if let hasHandler = self._stderrHandler {
-            			let dataCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-            			self.globalCallbackQueue.sync {
-            				hasHandler(dataCopy)
-            			}
-            		}
+					let dataCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+					self.stderrBuff.append(dataCopy)
             	}
             }   
             
@@ -188,6 +183,23 @@ public class InteractiveProcess {
             }
         }
 	}
+	
+	public func exportStdOut() -> Data {
+		return processQueue.sync {
+			let stdoutToReturn = stdoutBuff
+			stdoutBuff.removeAll(keepingCapacity:true)
+			return stdoutToReturn
+		}
+	}
+	
+	public func exportStdErr() -> Data {
+		return processQueue.sync {
+			let stdoutToReturn = stdoutBuff
+			stdoutBuff.removeAll(keepingCapacity:true)
+			return stdoutToReturn
+		}
+	}
+
     
     public func waitForExitCode() -> Int {
     	var shouldWait:Bool = false
