@@ -8,6 +8,8 @@ fileprivate func bashEscape(string:String) -> String {
 	return "'" + string.replacingOccurrences(of:"'", with:"\'") + "'"
 }
 
+let processLaunch = DispatchQueue(label:"com.tannersilva.process-interactive.launch", qos:Priority.highest.asDispatchQoS())
+
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     
@@ -110,11 +112,11 @@ public class InteractiveProcess {
                 if bytesCount > 0 {
 					let dataCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 					self.stdoutBuff.append(dataCopy)
-					if let hasHandler = self._stdoutHandler {
-						self.callbackQueue.async {
-							hasHandler(dataCopy)
-						}
-					} 
+//					if let hasHandler = self._stdoutHandler {
+//						self.callbackQueue.async {
+//							hasHandler(dataCopy)
+//						}
+//					} 
                 }
             }
         }
@@ -132,13 +134,13 @@ public class InteractiveProcess {
             	if bytesCount > 0 {
 					let dataCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 					self.stderrBuff.append(dataCopy)
-					if let hasHandler = self._stderrHandler {
-						self.callbackQueue.async {
-							hasHandler(dataCopy)
-						}
-					}
+//					if let hasHandler = self._stderrHandler {
+//						self.callbackQueue.async {
+//							hasHandler(dataCopy)
+//						}
+//					}
             	}
-            }   
+            }
             
         }
 
@@ -154,7 +156,9 @@ public class InteractiveProcess {
     public func run() throws {
         try processQueue.sync {
             do {
-                try proc.run()
+            	try processLaunch.sync {
+            		try proc.run()
+            	}	
                 state = .running
             } catch let error {
                 state = .failed
@@ -227,64 +231,4 @@ public class InteractiveProcess {
         let returnCode = proc.terminationStatus
         return Int(returnCode)
     }
-    	
-	deinit {
-		if #available(macOS 10.15, *) {
-			try? stdin.close()
-			try? stdout.close()
-			try? stderr.close()
-		}
-	}
-
-    //MARK: Reading Output Streams As Lines
-//    public func readStdErr() -> [String] {
-//        var lineToReturn:[String]? = nil
-//        while lineToReturn == nil && proc.isRunning == true && state == .running {
-//            let bytes = stderr.availableData
-//            if bytes.count > 0 {
-//                _ = stderrGuard.processData(bytes)
-//                lineToReturn = stderrGuard.flushLines()
-//            }
-//            suspendGroup.wait()
-//        }
-//        return lineToReturn ?? [String]()
-//    }
-//    public func readStdOut() -> [String] {
-//        var lineToReturn:[String]? = nil
-//        while lineToReturn == nil && proc.isRunning == true && state == .running {
-//            let bytes = stdout.availableData
-//            if bytes.count > 0 {
-//                _ = stdoutGuard.processData(bytes)
-//                lineToReturn = stdoutGuard.flushLines()
-//            }
-//            suspendGroup.wait()
-//        }
-//        return lineToReturn ?? [String]()
-//    }
-//
-//
-//    //MARK: Reading Output Streams as Data
-//    public func readStdOut() -> Data {
-//        var dataToReturn:Data? = nil
-//        while dataToReturn == nil && proc.isRunning == true && state == .running {
-//            let bytes = stdout.availableData
-//            if bytes.count > 0 {
-//                dataToReturn = bytes
-//            }
-//            suspendGroup.wait()
-//        }
-//        return dataToReturn ?? Data()
-//    }
-//
-//    public func readStdErr() -> Data {
-//        var dataToReturn:Data? = nil
-//        while dataToReturn == nil && proc.isRunning == true && state == .running {
-//            let bytes = stderr.availableData
-//            if bytes.count > 0 {
-//                dataToReturn = bytes
-//            }
-//            suspendGroup.wait()
-//        }
-//        return dataToReturn ?? Data()
-//    }
 }
