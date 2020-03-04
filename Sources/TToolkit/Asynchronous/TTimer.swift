@@ -18,8 +18,8 @@ public class TTimer {
 		state = .activated
 		self.queue = queue
 		timer = DispatchSource.makeTimerSource(queue:queue)
-		let dtime = DispatchTimeInterval.nanoseconds(Int(seconds*1000000000)
-		timer.schedule(deadline:.now(), repeating:dtime), leeway:.seconds(0))
+		let dtime = DispatchTimeInterval.nanoseconds(Int(seconds*1000000000))
+		timer.schedule(deadline:.now() + dtime, repeating:dtime, leeway:.seconds(0))
 		timer.setEventHandler { [weak self] in
 			guard let self = self else {
 				return
@@ -33,8 +33,8 @@ public class TTimer {
 		state = .activated
 		queue = DispatchQueue.global(qos:priority.asDispatchQoS())
 		timer = DispatchSource.makeTimerSource(queue:queue)
-		let dtime = DispatchTimeInterval.nanoseconds(Int(seconds*1000000000)
-		timer.schedule(deadline:.now(), repeating:dtime), leeway:.seconds(0))
+		let dtime = DispatchTimeInterval.nanoseconds(Int(seconds*1000000000))
+		timer.schedule(deadline:.now() + dtime, repeating:dtime, leeway:.seconds(0))
 		timer.setEventHandler { [weak self] in
 			guard let self = self else {
 				return
@@ -48,8 +48,8 @@ public class TTimer {
 		state = .activated
 		queue = DispatchQueue.global(qos:Priority.`default`.asDispatchQoS())
 		timer = DispatchSource.makeTimerSource(queue:queue)
-		let dtime = DispatchTimeInterval.nanoseconds(Int(seconds*1000000000)
-		timer.schedule(deadline:.now() + dtime, repeating:dtime), leeway:.seconds(0))
+		let dtime = DispatchTimeInterval.nanoseconds(Int(seconds*1000000000))
+		timer.schedule(deadline:.now() + dtime, repeating:dtime, leeway:.seconds(0))
 		timer.setEventHandler { [weak self] in
 			guard let self = self else {
 				return
