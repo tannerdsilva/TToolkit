@@ -158,7 +158,7 @@ extension Context {
         let exitCode = process.waitForExitCode()
         let stderrData = process.exportStdErr()
         let stdoutData = process.exportStdOut()
-        let result = CommandResult(exitCode: exitCode, stdout: stdoutData.lineSlice(removeBOM: false), stderr: stderrsData.lineSlice(removeBOM: false))
+        let result = CommandResult(exitCode: exitCode, stdout: stdoutData.lineSlice(removeBOM: false), stderr: stderrData.lineSlice(removeBOM: false))
    		exitObserver.exited(pidString)
    		return result
     }
