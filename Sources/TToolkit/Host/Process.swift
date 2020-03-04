@@ -129,7 +129,7 @@ public class InteractiveProcess {
 				guard self.state == .running || self.state == .suspended else {
             		return
             	}
-            	let readData = self.stdout.availableData
+            	let readData = self.stderr.availableData
             	let bytesCount = readData.count
             	if bytesCount > 0 {
 					let dataCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
@@ -201,6 +201,7 @@ public class InteractiveProcess {
 	}
 	
 	public func exportStdOut() -> Data {
+		print("Exporting stdout...")
 		return processQueue.sync {
 			let stdoutToReturn = stdoutBuff
 			stdoutBuff.removeAll(keepingCapacity:true)
@@ -210,8 +211,8 @@ public class InteractiveProcess {
 	
 	public func exportStdErr() -> Data {
 		return processQueue.sync {
-			let stdoutToReturn = stdoutBuff
-			stdoutBuff.removeAll(keepingCapacity:true)
+			let stdoutToReturn = stderrBuff
+			stderrBuff.removeAll(keepingCapacity:true)
 			return stdoutToReturn
 		}
 	}
