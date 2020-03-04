@@ -201,7 +201,6 @@ public class InteractiveProcess {
 	}
 	
 	public func exportStdOut() -> Data {
-		print("Exporting stdout...")
 		return processQueue.sync {
 			let stdoutToReturn = stdoutBuff
 			stdoutBuff.removeAll(keepingCapacity:true)
