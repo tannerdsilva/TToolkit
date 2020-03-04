@@ -8,11 +8,12 @@ fileprivate func bashEscape(string:String) -> String {
 	return "'" + string.replacingOccurrences(of:"'", with:"\'") + "'"
 }
 
-let processLaunch = DispatchQueue(label:"com.tannersilva.process-interactive.launch", qos:Priority.highest.asDispatchQoS())
+fileprivate let processLaunch = DispatchQueue(label:"com.tannersilva.process-interactive.launcher", qos:Priority.highest.asDispatchQoS())
 
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     
+    private let processGroup = DispatchGroup()
     public let processQueue:DispatchQueue
     private let callbackQueue:DispatchQueue
     
@@ -103,8 +104,10 @@ public class InteractiveProcess {
             guard let self = self else {
                 return
             }
+            self.processGroup.enter()
             self.processQueue.sync {
             	guard self.state == .running || self.state == .suspended else {
+					self.processGroup.leave()
             		return
             	}
                 let readData = self.stdout.availableData
@@ -112,12 +115,13 @@ public class InteractiveProcess {
                 if bytesCount > 0 {
 					let dataCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 					self.stdoutBuff.append(dataCopy)
-//					if let hasHandler = self._stdoutHandler {
-//						self.callbackQueue.async {
-//							hasHandler(dataCopy)
-//						}
-//					} 
+					if let hasHandler = self._stdoutHandler {
+						self.callbackQueue.sync {
+							hasHandler(dataCopy)
+						}
+					} 
                 }
+                self.processGroup.leave()
             }
         }
         
@@ -125,8 +129,10 @@ public class InteractiveProcess {
             guard let self = self else {
                 return
             }
+            self.processGroup.enter()
             self.processQueue.sync {
 				guard self.state == .running || self.state == .suspended else {
+					self.processGroup.leave()
             		return
             	}
             	let readData = self.stderr.availableData
@@ -134,14 +140,14 @@ public class InteractiveProcess {
             	if bytesCount > 0 {
 					let dataCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 					self.stderrBuff.append(dataCopy)
-//					if let hasHandler = self._stderrHandler {
-//						self.callbackQueue.async {
-//							hasHandler(dataCopy)
-//						}
-//					}
+					if let hasHandler = self._stderrHandler {
+						self.callbackQueue.sync {
+							hasHandler(dataCopy)
+						}
+					}
             	}
+            	self.processGroup.leave()
             }
-            
         }
 
 		if run {
@@ -227,7 +233,7 @@ public class InteractiveProcess {
     	if shouldWait {
 			proc.waitUntilExit()
     	}
-    	
+    	processGroup.wait()
         let returnCode = proc.terminationStatus
         return Int(returnCode)
     }
