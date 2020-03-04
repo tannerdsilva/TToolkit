@@ -17,9 +17,9 @@ extension Collection {
 
         for (n, curItem) in enumerated() {
             queueingGroup.enter()
+			semaphore.wait()
             computeThread.async {
                 flightGroup.enter()
-                semaphore.wait()
                 queueingGroup.leave()
                 do {
                     try thisFunction(n, curItem)
@@ -42,9 +42,9 @@ extension Collection {
 
         for (n, curItem) in enumerated() {
             queueingGroup.enter()
+			semaphore.wait()
             computeThread.async {
                 flightGroup.enter()
-                semaphore.wait()
                 queueingGroup.leave()
                 do {
                     if let returnedValue = try thisFunction(n, curItem) {
@@ -73,9 +73,9 @@ extension Collection {
         
         for (n, curItem) in enumerated() {
             queueingGroup.enter()
+			semaphore.wait()
             computeThread.async {
                 flightGroup.enter()
-                semaphore.wait()
                 queueingGroup.leave()
                 
                 do {
@@ -107,9 +107,9 @@ extension Collection {
         var buildData = [T:U]()
         for (n, curItem) in enumerated() {
             queueingGroup.enter()
+			semaphore.wait()
             computeThread.async {
                 flightGroup.enter()
-                semaphore.wait()
                 queueingGroup.leave()
                 
                 do {

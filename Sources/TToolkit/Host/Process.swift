@@ -122,16 +122,6 @@ public class InteractiveProcess {
             self.appendStderrData(bytesCopy)            
         }
         
-        runningTimer = TTimer(seconds:30) { [weak self] _ in
-			guard let self = self else {
-				return
-			}
-			exitObserver.report()
-			if self.proc.isRunning == true {
-				print("\(self.proc.processIdentifier) is running")
-			}
-		}
-
 		if run {
             do {
                 try self.run()
@@ -159,7 +149,6 @@ public class InteractiveProcess {
             	try processLaunch.sync {
             		try proc.run()
             	}
-				exitObserver.began(String(proc.processIdentifier))
                 state = .running
             } catch let error {
                 state = .failed

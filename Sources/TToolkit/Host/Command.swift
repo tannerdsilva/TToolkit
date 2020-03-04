@@ -145,7 +145,7 @@ struct OutstandingExits {
 	}
 }
 
-var exitObserver = OutstandingExits()
+fileprivate var exitObserver = OutstandingExits()
 
 extension Context {
     public func runSync(_ thisCommand:String) throws -> CommandResult {
