@@ -217,7 +217,6 @@ public class InteractiveProcess {
 		proc.waitUntilExit()
 //   
         let returnCode = proc.terminationStatus
-		exitObserver.exited(String(proc.processIdentifier))
         return Int(returnCode)
     }
 }
