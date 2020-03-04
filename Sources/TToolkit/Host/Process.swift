@@ -256,17 +256,17 @@ public class InteractiveProcess {
 
     
     public func waitForExitCode() -> Int {
-    	var shouldWait:Bool = false
-    	processQueue.sync {
-    		if state == .suspended || state == .running {
-    			shouldWait = true
-    		}
-    	}
-    	if shouldWait {
+//    	var shouldWait:Bool = false
+//    	processQueue.sync {
+//    		if state == .suspended || state == .running {
+//    			shouldWait = true
+//    		}
+//    	}
+//    	if shouldWait {
 			proc.waitUntilExit()
-    	}
-    	runningGroup.wait()
+//    	}
     	exitObserver.exited(String(proc.processIdentifier))
+    	runningGroup.wait()
         let returnCode = proc.terminationStatus
         return Int(returnCode)
     }
