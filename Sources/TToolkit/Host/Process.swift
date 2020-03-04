@@ -40,10 +40,6 @@ struct OutstandingExits {
 
 var exitObserver = OutstandingExits()
 
-let exitTimer = TTimer(seconds:15) { _ in
-	exitObserver.report()
-}
-
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     
@@ -168,7 +164,7 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
-			print("-> 30 seconds elapsed")
+			exitObserver.report()
 			if self.proc.isRunning == true {
 				print("\(self.proc.processIdentifier) is running")
 			}
@@ -269,8 +265,8 @@ public class InteractiveProcess {
     	if shouldWait {
 			proc.waitUntilExit()
     	}
-    	exitObserver.exited(String(proc.processIdentifier))
     	runningGroup.wait()
+    	exitObserver.exited(String(proc.processIdentifier))
         let returnCode = proc.terminationStatus
         return Int(returnCode)
     }
