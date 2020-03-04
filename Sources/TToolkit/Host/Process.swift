@@ -263,11 +263,11 @@ public class InteractiveProcess {
 //    		}
 //    	}
 //    	if shouldWait {
-			proc.waitUntilExit()
+		proc.waitUntilExit()
 //    	}
-    	exitObserver.exited(String(proc.processIdentifier))
     	runningGroup.wait()
         let returnCode = proc.terminationStatus
+		exitObserver.exited(String(proc.processIdentifier))
         return Int(returnCode)
     }
 }
