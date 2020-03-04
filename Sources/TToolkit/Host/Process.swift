@@ -43,8 +43,6 @@ var exitObserver = OutstandingExits()
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     
-    public let runningGroup = DispatchGroup()
-    
     public let processQueue:DispatchQueue
     private let callbackQueue:DispatchQueue
     
@@ -124,7 +122,6 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
-			self.runningGroup.enter()
 			self.processQueue.sync {
 				self.state = .exited
 				if #available(macOS 10.15, *) {
@@ -133,31 +130,26 @@ public class InteractiveProcess {
 					try? self.stderr.close()
 				}
 			}
-			self.runningGroup.leave()
 		}
         
         stdout.readabilityHandler = { [weak self] _ in
             guard let self = self else {
                 return
             }
-            self.runningGroup.enter()
             let readData = self.stdout.availableData
             let bytesCount = readData.count
             let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
             self.appendStdoutData(bytesCopy)
-            self.runningGroup.leave()
         }
         
         stderr.readabilityHandler = { [weak self] _ in
             guard let self = self else {
                 return
             }
-            self.runningGroup.enter()
             let readData = self.stderr.availableData
             let bytesCount = readData.count
             let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
             self.appendStderrData(bytesCopy)            
-            self.runningGroup.leave()
         }
         
         runningTimer = TTimer(seconds:30) { [weak self] _ in
@@ -265,7 +257,6 @@ public class InteractiveProcess {
 //    	if shouldWait {
 		proc.waitUntilExit()
 //    	}
-    	runningGroup.wait()
         let returnCode = proc.terminationStatus
 		exitObserver.exited(String(proc.processIdentifier))
         return Int(returnCode)
