@@ -37,8 +37,6 @@ public class InteractiveProcess {
 	internal var proc = Process()
 	public var state:State = .initialized
     
-    public var runningTimer:TTimer? = nil
-    
     private var _stdoutHandler:OutputHandler? = nil
     public var stdoutHandler:OutputHandler? {
         get {

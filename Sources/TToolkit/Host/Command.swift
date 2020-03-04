@@ -150,7 +150,9 @@ fileprivate var exitObserver = OutstandingExits()
 extension Context {
     public func runSync(_ thisCommand:String) throws -> CommandResult {
         let commandToRun = build(thisCommand)
-        
+        let runningTimer = TTimer(seconds:30) { _ in
+			exitObserver.report()
+		}
         let process = try InteractiveProcess(command:commandToRun, workingDirectory:workingDirectory, run:false)
         try process.run()
         let pidString = String(process.proc.processIdentifier)
