@@ -137,13 +137,13 @@ public class InteractiveProcess {
     
     fileprivate func appendStdoutData(_ inputData:Data) {
     	processQueue.sync {
-    		self.stdoutBuffer.append(inputData)
+    		self.stdoutBuff.append(inputData)
     	}
     }
     
     fileprivate func appendStderrData(_ inputData:Data) {
     	processQueue.sync {
-    		self.stderrBuffer.append(inputData)
+    		self.stderrBuff.append(inputData)
     	}
     }
     
