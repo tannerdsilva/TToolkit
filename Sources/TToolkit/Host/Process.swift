@@ -8,12 +8,13 @@ fileprivate func bashEscape(string:String) -> String {
 	return "'" + string.replacingOccurrences(of:"'", with:"\'") + "'"
 }
 
-fileprivate let processLaunch = DispatchQueue(label:"com.tannersilva.process-interactive.launcher", qos:Priority.highest.asDispatchQoS())
+let processLaunch = DispatchQueue(label:"com.tannersilva.process-interactive.launch", qos:Priority.highest.asDispatchQoS())
 
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     
-    private let processGroup = DispatchGroup()
+    public let runningGroup = DispatchGroup()
+    
     public let processQueue:DispatchQueue
     private let callbackQueue:DispatchQueue
     
@@ -89,65 +90,40 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
+			self.runningGroup.enter()
 			self.processQueue.sync {
 				self.state = .exited
-			
 				if #available(macOS 10.15, *) {
 					try? self.stdin.close()
 					try? self.stdout.close()
 					try? self.stderr.close()
 				}
 			}
+			self.runningGroup.leave()
 		}
         
         stdout.readabilityHandler = { [weak self] _ in
             guard let self = self else {
                 return
             }
-            self.processGroup.enter()
-            self.processQueue.sync {
-            	guard self.state == .running || self.state == .suspended else {
-					self.processGroup.leave()
-            		return
-            	}
-                let readData = self.stdout.availableData
-                let bytesCount = readData.count
-                if bytesCount > 0 {
-					let dataCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-					self.stdoutBuff.append(dataCopy)
-					if let hasHandler = self._stdoutHandler {
-						self.callbackQueue.sync {
-							hasHandler(dataCopy)
-						}
-					} 
-                }
-                self.processGroup.leave()
-            }
+            self.runningGroup.enter()
+            let readData = self.stdout.availableData
+            let bytesCount = readData.count
+            let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+            self.appendStdoutData(bytesCopy)
+            self.runningGroup.leave()
         }
         
         stderr.readabilityHandler = { [weak self] _ in
             guard let self = self else {
                 return
             }
-            self.processGroup.enter()
-            self.processQueue.sync {
-				guard self.state == .running || self.state == .suspended else {
-					self.processGroup.leave()
-            		return
-            	}
-            	let readData = self.stderr.availableData
-            	let bytesCount = readData.count
-            	if bytesCount > 0 {
-					let dataCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-					self.stderrBuff.append(dataCopy)
-					if let hasHandler = self._stderrHandler {
-						self.callbackQueue.sync {
-							hasHandler(dataCopy)
-						}
-					}
-            	}
-            	self.processGroup.leave()
-            }
+            self.runningGroup.enter()
+            let readData = self.stderr.availableData
+            let bytesCount = readData.count
+            let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+            self.appendStderrData(bytesCopy)            
+            self.runningGroup.leave()
         }
 
 		if run {
@@ -157,6 +133,18 @@ public class InteractiveProcess {
                 throw error
             }
 		}
+    }
+    
+    fileprivate func appendStdoutData(_ inputData:Data) {
+    	processQueue.sync {
+    		self.stdoutBuffer.append(inputData)
+    	}
+    }
+    
+    fileprivate func appendStderrData(_ inputData:Data) {
+    	processQueue.sync {
+    		self.stderrBuffer.append(inputData)
+    	}
     }
     
     public func run() throws {
@@ -233,7 +221,7 @@ public class InteractiveProcess {
     	if shouldWait {
 			proc.waitUntilExit()
     	}
-    	processGroup.wait()
+    	runningGroup.wait()
         let returnCode = proc.terminationStatus
         return Int(returnCode)
     }
