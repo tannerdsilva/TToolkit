@@ -8,37 +8,7 @@ fileprivate func bashEscape(string:String) -> String {
 	return "'" + string.replacingOccurrences(of:"'", with:"\'") + "'"
 }
 
-let processLaunch = DispatchQueue(label:"com.tannersilva.process-interactive.launch", qos:Priority.highest.asDispatchQoS())
-
-struct OutstandingExits {
-	let dq = DispatchQueue(label:"com.tannersilva.exitcounter")
-	var running = [String:Date]()
-	
-	mutating func began(_ command:String) {
-		dq.sync {
-			running[command] = Date()
-		}
-	}
-	
-	mutating func exited(_ command:String) {
-		dq.sync {
-			running[command] = nil
-		}
-	}
-	
-	func report() {
-		dq.sync {
-			let sorted = running.sorted(by: { $0.value > $1.value })
-			let sortCount = sorted.count
-			print(Colors.Blue("\(sortCount) processes in flight"))
-			for (n, curProcess) in sorted.enumerated() {
-				print(Colors.cyan(curProcess.key))
-			}
-		}
-	}
-}
-
-var exitObserver = OutstandingExits()
+fileprivate let processLaunch = DispatchQueue(label:"com.tannersilva.process-interactive.launch", qos:Priority.highest.asDispatchQoS())
 
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
@@ -256,7 +226,7 @@ public class InteractiveProcess {
 //    	}
 //    	if shouldWait {
 		proc.waitUntilExit()
-//    	}
+//   
         let returnCode = proc.terminationStatus
 		exitObserver.exited(String(proc.processIdentifier))
         return Int(returnCode)
