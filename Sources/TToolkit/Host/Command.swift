@@ -156,10 +156,11 @@ extension Context {
         let pidString = String(process.proc.processIdentifier)
 		exitObserver.began(pidString)
         let exitCode = process.waitForExitCode()
-        let stdoutSliced = process.exportStdOut()
-        let stderrSliced = process.exportStdErr()
-        let result = CommandResult(exitCode: exitCode, stdout: stdoutSliced.lineSlice(removeBOM: false), stderr: stderrSliced.lineSlice(removeBOM: false))
+        let stderrData = process.exportStdErr()
+        let stdoutData = process.exportStdOut()
+        let result = CommandResult(exitCode: exitCode, stdout: stdoutData.lineSlice(removeBOM: false), stderr: stderrsData.lineSlice(removeBOM: false))
    		exitObserver.exited(pidString)
+   		return result
     }
 	    
     public func build(_ commandString: String) -> BasicCommand {
