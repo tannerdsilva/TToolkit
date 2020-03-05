@@ -150,6 +150,7 @@ public class InteractiveProcess {
     public func run() throws {
         try processQueue.sync {
             do {
+            	//framework must launch processes serially for complete thread safety
             	try processLaunch.sync {
             		try proc.run()
             	}
@@ -196,7 +197,7 @@ public class InteractiveProcess {
 	}
 	
 	public func exportStdOut() -> Data {
-		return processQueue.sync {
+		processQueue.sync {
 			let pid = proc.processIdentifier
 			print(Colors.dim("[OUTX]\t\(pid)"))
 			let stdoutToReturn = stdoutBuff
@@ -206,7 +207,7 @@ public class InteractiveProcess {
 	}
 	
 	public func exportStdErr() -> Data {
-		return processQueue.sync {
+		processQueue.sync {
 			let pid = proc.processIdentifier
 			print(Colors.dim("[OUTE]\t\(pid)"))
 			let stdoutToReturn = stderrBuff
