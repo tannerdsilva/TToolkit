@@ -117,51 +117,16 @@ public protocol Context {
     var environment:[String:String] { get }
 }
 
-struct OutstandingExits {
-	let dq = DispatchQueue(label:"com.tannersilva.exitcounter")
-	var running = [String:Date]()
-	
-	mutating func began(_ command:String) {
-		dq.sync {
-			running[command] = Date()
-		}
-	}
-	
-	mutating func exited(_ command:String) {
-		dq.sync {
-			running[command] = nil
-		}
-	}
-	
-	func report() {
-		dq.sync {
-			let sorted = running.sorted(by: { $0.value > $1.value })
-			let sortCount = sorted.count
-			print(Colors.Blue("\(sortCount) processes in flight"))
-			for (n, curProcess) in sorted.enumerated() {
-				print(Colors.cyan(curProcess.key))
-			}
-		}
-	}
-}
-
-fileprivate var exitObserver = OutstandingExits()
-
 extension Context {
     public func runSync(_ thisCommand:String) throws -> CommandResult {
         let commandToRun = build(thisCommand)
-        let runningTimer = TTimer(seconds:15) { _ in
-			exitObserver.report()
-		}
         let process = try InteractiveProcess(command:commandToRun, workingDirectory:workingDirectory, run:false)
         try process.run()
         let pidString = String(process.proc.processIdentifier)
-		exitObserver.began(pidString)
         let exitCode = process.waitForExitCode()
         let stderrData = process.exportStdErr()
         let stdoutData = process.exportStdOut()
         let result = CommandResult(exitCode: exitCode, stdout: stdoutData.lineSlice(removeBOM: false), stderr: stderrData.lineSlice(removeBOM: false))
-   		exitObserver.exited(pidString)
    		return result
     }
 	    

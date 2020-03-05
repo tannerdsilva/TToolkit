@@ -92,7 +92,6 @@ public class InteractiveProcess {
 			}
 			self.processQueue.sync {
 				let pid = self.proc.processIdentifier
-				print(Colors.dim("[TERM]\t\(pid)"))
 				self.state = .exited
 				if #available(macOS 10.15, *) {
 					try? self.stdin.close()
@@ -133,14 +132,12 @@ public class InteractiveProcess {
     
     fileprivate func appendStdoutData(_ inputData:Data) {
     	processQueue.sync {
-			let pid = proc.processIdentifier
     		self.stdoutBuff.append(inputData)
     	}
     }
     
     fileprivate func appendStderrData(_ inputData:Data) {
     	processQueue.sync {
-			let pid = proc.processIdentifier
     		self.stderrBuff.append(inputData)
     	}
     }
@@ -152,8 +149,6 @@ public class InteractiveProcess {
             	try processLaunch.sync {
             		try proc.run()
             	}
-            	let pid = proc.processIdentifier
-            	print(Colors.dim("[LAUNCH]\t\(pid)"))
                 state = .running
             } catch let error {
                 state = .failed
@@ -195,28 +190,16 @@ public class InteractiveProcess {
 	}
 	
 	public func exportStdOut() -> Data {
-//		var dataToReturn:Data? = nil
-//		processQueue.sync {
-//			dataToReturn = stdoutBuff
-//			stdoutBuff.removeAll(keepingCapacity:true)
-//		}
 		return stdoutBuff
 	}
 	
 	public func exportStdErr() -> Data {
-//		var dataToReturn:Data? = nil
-//		processQueue.sync {
-//			dataToReturn = stderrBuff
-//			stderrBuff.removeAll(keepingCapacity:true)
-//		}
 		return stderrBuff
 	}
 
-    
     public func waitForExitCode() -> Int {
 		proc.waitUntilExit()
         let returnCode = proc.terminationStatus
-        let pid = proc.processIdentifier
         return Int(returnCode)
     }
 }
