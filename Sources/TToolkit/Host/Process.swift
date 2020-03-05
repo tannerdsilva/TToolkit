@@ -134,7 +134,6 @@ public class InteractiveProcess {
     fileprivate func appendStdoutData(_ inputData:Data) {
     	processQueue.sync {
 			let pid = proc.processIdentifier
-			print(Colors.dim("[OUTIN]\t\(pid)"))
     		self.stdoutBuff.append(inputData)
     	}
     }
@@ -142,7 +141,6 @@ public class InteractiveProcess {
     fileprivate func appendStderrData(_ inputData:Data) {
     	processQueue.sync {
 			let pid = proc.processIdentifier
-			print(Colors.dim("[ERRIN]\t\(pid)"))
     		self.stderrBuff.append(inputData)
     	}
     }
@@ -197,23 +195,25 @@ public class InteractiveProcess {
 	}
 	
 	public func exportStdOut() -> Data {
-		processQueue.sync {
-			let pid = proc.processIdentifier
-			print(Colors.dim("[OUTX]\t\(pid)"))
-			let stdoutToReturn = stdoutBuff
-			stdoutBuff.removeAll(keepingCapacity:true)
-			return stdoutToReturn
-		}
+		return stdoutBuff
+//		processQueue.sync {
+//			let pid = proc.processIdentifier
+//			print(Colors.dim("[OUTX]\t\(pid)"))
+//			let stdoutToReturn = stdoutBuff
+//			stdoutBuff.removeAll(keepingCapacity:true)
+//			return stdoutToReturn
+//		}
 	}
 	
 	public func exportStdErr() -> Data {
-		processQueue.sync {
-			let pid = proc.processIdentifier
-			print(Colors.dim("[OUTE]\t\(pid)"))
-			let stdoutToReturn = stderrBuff
-			stderrBuff.removeAll(keepingCapacity:true)
-			return stdoutToReturn
-		}
+		return stderrBuff
+//		processQueue.sync {
+//			let pid = proc.processIdentifier
+//			print(Colors.dim("[OUTE]\t\(pid)"))
+//			let stdoutToReturn = stderrBuff
+//			stderrBuff.removeAll(keepingCapacity:true)
+//			return stdoutToReturn
+//		}
 	}
 
     
