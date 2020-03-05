@@ -195,21 +195,21 @@ public class InteractiveProcess {
 	}
 	
 	public func exportStdOut() -> Data {
-		var dataToReturn:Data? = nil
-		processQueue.sync {
-			dataToReturn = stdoutBuff
-			stdoutBuff.removeAll(keepingCapacity:true)
-		}
-		return dataToReturn ?? stdoutBuff
+//		var dataToReturn:Data? = nil
+//		processQueue.sync {
+//			dataToReturn = stdoutBuff
+//			stdoutBuff.removeAll(keepingCapacity:true)
+//		}
+		return stdoutBuff
 	}
 	
 	public func exportStdErr() -> Data {
-		var dataToReturn:Data? = nil
-		processQueue.sync {
-			dataToReturn = stderrBuff
-			stderrBuff.removeAll(keepingCapacity:true)
-		}
-		return dataToReturn ?? stderrBuff
+//		var dataToReturn:Data? = nil
+//		processQueue.sync {
+//			dataToReturn = stderrBuff
+//			stderrBuff.removeAll(keepingCapacity:true)
+//		}
+		return stderrBuff
 	}
 
     
