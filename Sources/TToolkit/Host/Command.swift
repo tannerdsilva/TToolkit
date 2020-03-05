@@ -61,7 +61,6 @@ public enum Priority:UInt8 {
 public protocol Shell {
 	static var path:URL { get }
     static func executableAndArguments(_:String) -> (executable:URL, arguments:[String])
-
 }
 
 //MARK: Shell Implementations
