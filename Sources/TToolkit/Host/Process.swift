@@ -195,40 +195,28 @@ public class InteractiveProcess {
 	}
 	
 	public func exportStdOut() -> Data {
-		return stdoutBuff
-//		processQueue.sync {
-//			let pid = proc.processIdentifier
-//			print(Colors.dim("[OUTX]\t\(pid)"))
-//			let stdoutToReturn = stdoutBuff
-//			stdoutBuff.removeAll(keepingCapacity:true)
-//			return stdoutToReturn
-//		}
+		var dataToReturn:Data? = nil
+		processQueue.sync {
+			dataToReturn = stdoutBuff
+			stdoutBuff.removeAll(keepingCapacity:true)
+		}
+		return dataToReturn ?? stdoutBuff
 	}
 	
 	public func exportStdErr() -> Data {
-		return stderrBuff
-//		processQueue.sync {
-//			let pid = proc.processIdentifier
-//			print(Colors.dim("[OUTE]\t\(pid)"))
-//			let stdoutToReturn = stderrBuff
-//			stderrBuff.removeAll(keepingCapacity:true)
-//			return stdoutToReturn
-//		}
+		var dataToReturn:Data? = nil
+		processQueue.sync {
+			dataToReturn = stderrBuff
+			stderrBuff.removeAll(keepingCapacity:true)
+		}
+		return dataToReturn ?? stderrBuff
 	}
 
     
     public func waitForExitCode() -> Int {
-//    	var shouldWait:Bool = false
-//    	processQueue.sync {
-//    		if state == .suspended || state == .running {
-//    			shouldWait = true
-//    		}
-//    	}
-//    	if shouldWait {
 		proc.waitUntilExit()
         let returnCode = proc.terminationStatus
         let pid = proc.processIdentifier
-        print(Colors.dim("[EXIT]\t\(pid)"))
         return Int(returnCode)
     }
 }
