@@ -122,7 +122,6 @@ extension Context {
         let commandToRun = build(thisCommand)
         let process = try InteractiveProcess(command:commandToRun, workingDirectory:workingDirectory, run:false)
         try process.run()
-        let pidString = String(process.proc.processIdentifier)
         let exitCode = process.waitForExitCode()
         let stderrData = process.exportStdErr()
         let stdoutData = process.exportStdOut()
