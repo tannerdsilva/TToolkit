@@ -93,8 +93,7 @@ public class Journal {
     }
     
     //Enumeration types for the journal
-    fileprivate typealias InternalJournalEnumerator = (URL, TimeStruct) throws -> JournalEnumerationResponse
-    public typealias JournalEnumerator = (URL, TimePath) throws -> JournalEnumerationResponse
+    public typealias JournalEnumerator = (URL, JournalFrame) throws -> JournalEnumerationResponse
     
     //two primary variables for this structure
     public let directory:URL
@@ -111,7 +110,7 @@ public class Journal {
 	
     //MARK: Private Functions
     //This function assumes the input TimeStruct has a theoretical timepath that exists given the journalers directory and precision
-    fileprivate func enumerateBackwards(from thisTime:TimeStruct, using enumeratorFunction:InternalJournalEnumerator) throws -> TimeStruct {
+    public func enumerateBackwards(from thisTime:TimeStruct, using enumeratorFunction:JournalEnumerator) throws -> JournalFrame {
     	var dateToTarget:TimeStruct = thisTime
     	var fileToCheck:URL? = nil
     	var i:UInt = 0
@@ -121,13 +120,20 @@ public class Journal {
     			dateToTarget = try JSONDecoder.decodeBinaryJSON(file:fileToCheck!, type:TimeStruct.self)
     		}
     		fileToCheck = try dateToTarget.theoreticalTimePath(precision:precision, for:directory).appendingPathComponent(Journal.previousTimeRepName)			
-    		response = try enumeratorFunction(fileToCheck!.deletingLastPathComponent(), dateToTarget)
+    		response = try enumeratorFunction(fileToCheck!.deletingLastPathComponent(), JournalFrame(time:dateToTarget, journal:self))
     		if (response == .terminate) { 
-    			return dateToTarget
+    			return JournalFrame(time:dateToTarget, journal:self)
     		}
     		i += 1
     	} while (FileManager.default.fileExists(atPath:fileToCheck!.path) == true)
     	throw JournalerError.journalTailReached(dateToTarget.theoreticalTimePath(precision:precision, for:directory))
+    }
+    
+    public func enumerateBackwards(using enumeratorFunction:JournalEnumerator) throws -> JournalFrame {
+    	guard let ch = currentHead else {
+    		throw JournalerError.missingHead
+    	}
+    	return try enumerateBackwards(from:ch, using:enumeratorFunction)
     }
         
     //Progresses the journal with a new directory representing current time
@@ -150,12 +156,7 @@ public class Journal {
 			throw JournalerError.headAlreadyExists
 		}
     }
-    
-//    fileprivate func indexedLoad(_ targetTime:TimePath) throws -> JournalFrame {
-//    	
-//    	
-//    }
-    
+        
 	//For searching x number of directory iterations before the present head
     fileprivate func loadFrame(backFromHead foldersBack:UInt = 0) throws -> JournalFrame {
     	guard let headStruct = currentHead else {
@@ -163,7 +164,7 @@ public class Journal {
     	}
     	
     	var i = 0
-    	let terminatedStruct = try enumerateBackwards(from:headStruct, using: { path, time -> JournalEnumerationResponse in
+    	let terminatedFrame = try enumerateBackwards(from:headStruct, using: { path, time -> JournalEnumerationResponse in
     		if (foldersBack <= i) {
     			return .terminate
     		} else {
@@ -171,7 +172,7 @@ public class Journal {
     			return .proceed
     		}
     	})
-    	return try JournalFrame(time:terminatedStruct, journal:self)
+    	return terminatedFrame
     }
     
 	//For searching for a particular timepath closest to a particular head
@@ -181,14 +182,14 @@ public class Journal {
     	}
     	
     	let inputAsTimeStruct = TimeStruct(date)
-    	let terminatedStruct = try enumerateBackwards(from: headStruct, using: { path, thisTime -> JournalEnumerationResponse in
-    		if (thisTime <= inputAsTimeStruct) {
+    	let terminatedFrame = try enumerateBackwards(from: headStruct, using: { path, thisTime -> JournalEnumerationResponse in
+    		if (thisTime.time <= inputAsTimeStruct) {
     			return .terminate
     		} else {
     			return .proceed
     		}
     	})
-    	return try JournalFrame(time:terminatedStruct, journal:self)
+    	return terminatedFrame
     }
     
     //MARK: Public Functions
@@ -229,12 +230,5 @@ public class Journal {
     			throw error
     		}
     	}
-    }
-    
-    public func enumerateBackwards(using enumFunction:JournalEnumerator) throws -> URL {
-    	guard let headStruct = currentHead else {
-    		throw JournalerError.missingHead
-    	}
-    	return try enumerateBackwards(from:headStruct, using:enumFunction).theoreticalTimePath(precision:precision, for:directory)
     }
 }
