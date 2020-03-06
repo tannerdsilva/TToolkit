@@ -16,7 +16,6 @@ public class InteractiveProcess {
     public let processQueue:DispatchQueue
     private let callbackQueue:DispatchQueue
     private let runGroup:DispatchGroup
-    private let runSem:DispatchSemaphore
     
 	public enum State:UInt8 {
 		case initialized = 0
@@ -73,7 +72,6 @@ public class InteractiveProcess {
 		processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
 		callbackQueue = DispatchQueue.global(qos:qos.asDispatchQoS())
 		runGroup = DispatchGroup()
-		runSem = DispatchSemaphore(value:0)
 		
 		env = command.environment
 		let inPipe = Pipe()
@@ -94,9 +92,9 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
-			self.runSem.wait()
-			let pid = self.proc.processIdentifier
-			self.state = .exited
+			self.processQueue.sync {
+				self.state = .exited
+			}
 			if #available(macOS 10.15, *) {
 				try? self.stdin.close()
 				try? self.stdout.close()
@@ -110,12 +108,12 @@ public class InteractiveProcess {
                 return
             }
             self.runGroup.enter()
-            self.runSem.wait()
             let readData = self.stdout.availableData
             let bytesCount = readData.count
-            let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-            self.appendStdoutData(bytesCopy)
-            self.runSem.signal()
+            if bytesCount > 0 {
+				let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+				self.appendStdoutData(bytesCopy)
+            }
             self.runGroup.leave()
         }
         
@@ -124,12 +122,12 @@ public class InteractiveProcess {
                 return
             }
             self.runGroup.enter()
-            self.runSem.wait()
             let readData = self.stderr.availableData
             let bytesCount = readData.count
-            let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-            self.appendStderrData(bytesCopy)   
-            self.runSem.signal()
+            if bytesCount > 0 {
+				let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+				self.appendStderrData(bytesCopy)   
+            }
             self.runGroup.leave()         
         }
         
@@ -143,12 +141,14 @@ public class InteractiveProcess {
     }
     
     fileprivate func appendStdoutData(_ inputData:Data) {
-		self.stdoutBuff.append(inputData)
+    	processQueue.sync {
+    		stdoutBuff.append(inputData)
+    	}
     }
     
     fileprivate func appendStderrData(_ inputData:Data) {
-    	processQueue.async {
-    		self.stderrBuff.append(inputData)
+    	processQueue.sync {
+    		stderrBuff.append(inputData)
     	}
     }
     
@@ -160,9 +160,9 @@ public class InteractiveProcess {
             	try processLaunch.sync {
             		try proc.run()
             	}
-            	runSem.signal()
                 state = .running
             } catch let error {
+            	runGroup.leave()
                 state = .failed
                 throw error
             }
