@@ -15,6 +15,7 @@ public class InteractiveProcess {
     
     public let processQueue:DispatchQueue
     private let callbackQueue:DispatchQueue
+    private let runGroup:DispatchGroup
     
 	public enum State:UInt8 {
 		case initialized = 0
@@ -70,6 +71,7 @@ public class InteractiveProcess {
     public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
 		processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
 		callbackQueue = DispatchQueue.global(qos:qos.asDispatchQoS())
+		runGroup = DispatchGroup()
 		
 		env = command.environment
 		let inPipe = Pipe()
@@ -99,26 +101,31 @@ public class InteractiveProcess {
 					try? self.stderr.close()
 				}
 			}
+			self.runGroup.leave()
 		}
         
         stdout.readabilityHandler = { [weak self] _ in
             guard let self = self else {
                 return
             }
+            self.runGroup.enter()
             let readData = self.stdout.availableData
             let bytesCount = readData.count
             let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
             self.appendStdoutData(bytesCopy)
+            self.runGroup.leave()
         }
         
         stderr.readabilityHandler = { [weak self] _ in
             guard let self = self else {
                 return
             }
+            self.runGroup.enter()
             let readData = self.stderr.availableData
             let bytesCount = readData.count
             let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-            self.appendStderrData(bytesCopy)            
+            self.appendStderrData(bytesCopy)   
+            self.runGroup.leave()         
         }
         
 		if run {
@@ -145,6 +152,7 @@ public class InteractiveProcess {
     public func run() throws {
         try processQueue.sync {
             do {
+            	runGroup.enter()
             	//framework must launch processes serially for complete thread safety
             	try processLaunch.sync {
             		try proc.run()
@@ -198,7 +206,7 @@ public class InteractiveProcess {
 	}
 
     public func waitForExitCode() -> Int {
-		proc.waitUntilExit()
+		runGroup.wait()
         let returnCode = proc.terminationStatus
         return Int(returnCode)
     }
