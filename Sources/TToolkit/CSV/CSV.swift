@@ -130,8 +130,15 @@ extension String {
 }
 
 extension Collection where Element: CSVEncodable {
+
+	//single threaded export
     public func toCSV() throws -> Data {
-        //enumerate over self to collect all of the keys for every child
+		return try toCSV(explode:false)
+    }
+    
+    //export a CSV with the option of some added computational *firepower*
+    public func toCSV(explode:Bool) throws -> Data {
+    	//enumerate over self to collect all of the keys for every child
         var buildAllColumns = Set<String>()
         for (_, row) in self.enumerated() {
             buildAllColumns = buildAllColumns.union(row.csvColumns)
@@ -154,19 +161,34 @@ extension Collection where Element: CSVEncodable {
             let lineString = thisLine.joined(separator:",") + "\n"
             let didConvertToData = try lineString.safeData(using:.utf8)
         }
-        self.explode(lanes:2, using:{ n, curRow in
-            var thisLine = Array<String>(repeating:"", count:allColumns.count)
-            for(_, kv) in allColumns.enumerated() {
-                if let hasIndex = allColumns.firstIndex(of:kv), let hasValue = curRow.csvValue(columnName:kv) {
-                    thisLine[hasIndex] = hasValue.csvEncodedString()
-                }
-            }
-            let lineString = thisLine.joined(separator:",") + "\n"
-            let didConvertToData = try lineString.safeData(using:.utf8)
-            return didConvertToData
-        }, merge: { n, curItem in
-            dataLines.append(curItem)
-        })
+        
+    	if explode {
+			self.explode(using:{ n, curRow in
+				var thisLine = Array<String>(repeating:"", count:allColumns.count)
+				for(_, kv) in allColumns.enumerated() {
+					if let hasIndex = allColumns.firstIndex(of:kv), let hasValue = curRow.csvValue(columnName:kv) {
+						thisLine[hasIndex] = hasValue.csvEncodedString()
+					}
+				}
+				let lineString = thisLine.joined(separator:",") + "\n"
+				let didConvertToData = try lineString.safeData(using:.utf8)
+				return didConvertToData
+			}, merge: { n, curItem in
+				dataLines.append(curItem)
+			})
+		} else {
+			for (n, curRow) in enumerated() {
+				var thisLine = Array<String>(repeating:"", count:allColumns.count)
+				for(_, kv) in allColumns.enumerated() {
+					if let hasIndex = allColumns.firstIndex(of:kv), let hasValue = curRow.csvValue(columnName:kv) {
+						thisLine[hasIndex] = hasValue.csvEncodedString()
+					}
+				}
+				let lineString = thisLine.joined(separator:",") + "\n"
+				let didConvertToData = try lineString.safeData(using:.utf8)
+				dataLines.append(didConvertToData)
+			}
+		}
         return dataLines
     }
     
