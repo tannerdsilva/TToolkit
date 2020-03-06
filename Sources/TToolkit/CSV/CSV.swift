@@ -148,20 +148,8 @@ extension Collection where Element: CSVEncodable {
         let allColumns = buildAllColumns.sorted(by:{ $0 > $1 })
         
         let headerString = allColumns.map({ $0.csvEncodedString() }).joined(separator: ",") + "\n"
-        let headerData = try headerString.safeData(using:.utf8)
         
-        var dataLines = headerData
-        for (n, curRow) in enumerated() {
-        	var thisLine = Array<String>(repeating:"", count:allColumns.count)
-            for(_, kv) in allColumns.enumerated() {
-                if let hasIndex = allColumns.firstIndex(of:kv), let hasValue = curRow.csvValue(columnName:kv) {
-                    thisLine[hasIndex] = hasValue.csvEncodedString()
-                }
-            }
-            let lineString = thisLine.joined(separator:",") + "\n"
-            let didConvertToData = try lineString.safeData(using:.utf8)
-        }
-        
+        var dataLines = try headerString.safeData(using:.utf8)
     	if explode {
 			self.explode(using:{ n, curRow in
 				var thisLine = Array<String>(repeating:"", count:allColumns.count)
