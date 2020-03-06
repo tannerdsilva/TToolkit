@@ -17,9 +17,9 @@ extension Collection {
 
         for (n, curItem) in enumerated() {
             queueingGroup.enter()
-			semaphore.wait()
             computeThread.async {
                 flightGroup.enter()
+				semaphore.wait()
                 queueingGroup.leave()
                 do {
                     try thisFunction(n, curItem)
@@ -35,16 +35,16 @@ extension Collection {
     //explode a collection - allows the user to handle the merging of data themselves
     public func explode<T>(lanes:Int = ProcessInfo.processInfo.activeProcessorCount, qos:Priority = .`default`, using thisFunction:@escaping (Int, Element) throws -> T?, merge mergeFunction:@escaping (Int, T) throws -> Void) {
         let semaphore = DispatchSemaphore(value:lanes)
-        let mergeQueue = DispatchQueue(label:"com.ttoolkit.explode-merge", qos:qos.asDispatchQoS())
+        let mergeQueue = DispatchQueue(label:"com.ttoolkit.explode-serial", qos:qos.asDispatchQoS())
         let computeThread = DispatchQueue.global(qos:qos.asDispatchQoS())
         let queueingGroup = DispatchGroup()
         let flightGroup = DispatchGroup()
 
         for (n, curItem) in enumerated() {
             queueingGroup.enter()
-			semaphore.wait()
             computeThread.async {
                 flightGroup.enter()
+                semaphore.wait()
                 queueingGroup.leave()
                 do {
                     if let returnedValue = try thisFunction(n, curItem) {
@@ -64,7 +64,7 @@ extension Collection {
     //explode a collection - returns a set of hashable objects
     public func explode<T>(lanes:Int = ProcessInfo.processInfo.activeProcessorCount, qos:Priority = .`default`, using thisFunction:@escaping (Int, Element) throws -> T?) -> Set<T> where T:Hashable {
         let semaphore = DispatchSemaphore(value:lanes)
-        let mergeQueue = DispatchQueue(label:"com.ttoolkit.explode-merge", qos:qos.asDispatchQoS())
+        let mergeQueue = DispatchQueue(label:"com.ttoolkit.explode-serial", qos:qos.asDispatchQoS())
         let computeThread = DispatchQueue.global(qos:qos.asDispatchQoS())
         let queueingGroup = DispatchGroup()
         let flightGroup = DispatchGroup()
@@ -73,9 +73,9 @@ extension Collection {
         
         for (n, curItem) in enumerated() {
             queueingGroup.enter()
-			semaphore.wait()
             computeThread.async {
                 flightGroup.enter()
+                semaphore.wait()
                 queueingGroup.leave()
                 
                 do {
@@ -99,7 +99,7 @@ extension Collection {
     //explode a collection - returns a dictionary
     public func explode<T, U>(lanes:Int = ProcessInfo.processInfo.activeProcessorCount, qos:Priority = .`default`, using thisFunction:@escaping (Int, Element) throws -> (key:T, value:U)) -> [T:U] where T:Hashable {
         let semaphore = DispatchSemaphore(value:lanes)
-        let mergeQueue = DispatchQueue(label:"com.ttoolkit.explode-merge", qos:qos.asDispatchQoS())
+        let mergeQueue = DispatchQueue(label:"com.ttoolkit.explode-serial", qos:qos.asDispatchQoS())
         let computeThread = DispatchQueue.global(qos:qos.asDispatchQoS())
         let queueingGroup = DispatchGroup()
         let flightGroup = DispatchGroup()
@@ -107,9 +107,9 @@ extension Collection {
         var buildData = [T:U]()
         for (n, curItem) in enumerated() {
             queueingGroup.enter()
-			semaphore.wait()
             computeThread.async {
                 flightGroup.enter()
+                semaphore.wait()
                 queueingGroup.leave()
                 
                 do {
