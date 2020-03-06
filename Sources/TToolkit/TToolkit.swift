@@ -55,7 +55,6 @@ public struct StringStreamGuard {
 	}
 }
 
-
 public func promptLoop(with promptingString:String, terminator:String) -> [String] {
 	var promptString:String? = nil
 	var arrayToReturn = [String]()
@@ -73,9 +72,7 @@ public func prompt(with promptingString:String) -> String {
 		if (i > 0) {
 			print(Colors.Red("[ERROR]\tInvalid input. Please try again."))
 		}
-		
 		print(Colors.Yellow(promptingString + ": "), terminator:"")
-		
 		i += 1
 	} while ((inputVariable = readLine()) == nil || inputVariable == "")
 	return inputVariable!
@@ -87,21 +84,17 @@ public func prompt(with promptingString:String, validChoices:[String], displayVa
 			print(Colors.Magenta(" ->\t\(curChoice)"))
 		}
 	}
-
 	var inputVariable:String? = nil
 	var i = 0
 	repeat {
 		if (i > 0) {
 			print(Colors.Red("[ERROR]\tInvalid input. Please try again."))
 		}
-		
-		print(Colors.Yellow(promptingString + ": "), terminator:"")
-		
+		print(Colors.Yellow(promptingString + ": "), terminator:"")		
 		i += 1
 	} while ((inputVariable = readLine()) == nil || inputVariable == "" || validChoices.contains(inputVariable!) == false)
 	return inputVariable!
 }
-
 
 //MARK: JSON serialization
 public func serializeJSON(object:Any, file:URL) throws {
