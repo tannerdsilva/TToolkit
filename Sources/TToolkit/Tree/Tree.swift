@@ -47,11 +47,9 @@ class Tree<T> where T:Comparable {
 		if val != nil {
 			try doThisWork(val!)
 		}
-		
 		if left != nil {
 			try left!.forEveryValue(doThisWork)
 		}
-		
 		if right != nil {
 			try right!.forEveryValue(doThisWork)
 		}
@@ -94,25 +92,7 @@ class Tree<T> where T:Comparable {
 		}
 		childCount += 1
 	}
-	
-	//public func remove(_ removeThis:T) {
-//		if val = nil {
-//			val = newValue
-//		} else if val! > newValue {
-//			if left != nil {
-//				left!.insert(newValue)
-//			} else {
-//				left = Tree<T>(newValue)
-//			}
-//		} else {
-//			if right != nil {
-//				right!.remove(newValue)
-//			} else {
-//				right = Tree<T>(newValue)
-//			}
-//		}
-//	}
-	
+		
 	//build the child values of the tree into the given array pointer
 	internal func childValues(_ buildArray:inout Array<T>) {
 		if val != nil {
@@ -178,108 +158,3 @@ class Tree<T> where T:Comparable {
 		}
 	}
 }
-
-//class Tree<T> where T:Hashable, T:Comparable {
-//	public var val:T
-//	
-//	public var left:Tree<T>? = nil
-//	public var right:Tree<T>? = nil
-//	
-//	public var depth:Int {
-//		var depthToBuild = 0
-//		if left == nil && right == nil {
-//			return 0
-//		}
-//		
-//		var leftDepth = 0
-//		if let hasLeft = left {
-//			leftDepth = hasLeft.depth
-//		}
-//		
-//		var rightDepth = 0
-//		if let hasRight = right {
-//			rightDepth = hasRight.depth
-//		}
-//		
-//		//return the deeper of the two depths
-//		if leftDepth < rightDepth {
-//			return rightDepth
-//		} else if leftDepth > rightDepth {
-//			return leftDepth
-//		} else {
-//			return leftDepth
-//		}
-//	}
-//	
-//	public var children:[T]? {
-//		get { 
-//			var leftChildren = left?.children
-//			var rightChildren = right?.children
-//			if leftChildren != nil && rightChildren != nil { 
-//				var childrenToBuild = leftChildren!
-//				childrenToBuild.append(contentsOf:rightChildren!)
-//				return childrenToBuild
-//			} else if leftChildren != nil {
-//				return leftChildren!
-//			} else if rightChildren != nil {
-//				return rightChildren!
-//			}
-//			return nil
-//		}
-//	}
-//	
-//	init?<U>(_ input:U) where U:Collection, U.Element == T, U.Element:Hashable, U.Element:Comparable {
-//		guard input.count > 0 else {
-//			return nil
-//		}
-//		var inputCopy = input
-//		let myElement = inputCopy.dropLast()
-//		val = myElement
-//		
-//		let splitInput = inputCopy.splitInHalf()
-//		if let continueSequenceLeft = splitInput.left {
-//			left = Tree<T>(continueSequenceLeft)
-//		}
-//		
-//		if let continueSequenceRight = splitInput.right {
-//			right = Tree<T>(continueSequenceRight)
-//		}
-//	}
-//	
-//	init?<V>(_ input:V) where V:Slice, V.Element == T, V.Element:Hashable, V.Element:Comparable {
-//		guard input.count > 0 else {
-//			return nil
-//		}
-//		
-//		var inputCopy = input
-//		let myElement = inputCopy.dropLast()
-//		val = myElement
-//		
-//		let splitInput = inputCopy.splitInHalf()
-//		if let continueSequenceLeft = splitInput.left {
-//			left = Tree<T>(continueSequenceLeft)
-//		}
-//		
-//		if let continueSequenceRight = splitInput.right {
-//			right = Tree<T>(continueSequenceRight)
-//		}
-//	}
-//	
-//class func swap(_ t1:Tree<T>, t2:Tree<T>) {
-//	let oneVal = t1.val
-//	let oneLeft = t1.left
-//	let oneRight = t1.right
-//	
-//	let twoVal = t2.val
-//	let twoLeft = t2.left
-//	let twoRight = t2.right
-//	
-//	t2.val = oneVal
-//	t2.left = oneLeft
-//	t2.right = oneRight
-//	
-//	t1.val = twoVal
-//	t1.left = twoLeft
-//	t1.right = twoRight
-//}
-//}
