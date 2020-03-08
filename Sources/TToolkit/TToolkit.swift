@@ -6,6 +6,7 @@ public func dprint(_ input:String) {
 	#endif
 }
 
+//StringStopwatch is a tool for measuring process time. It is currently only used as a debugging tool.
 public struct StringStopwatch {
 	private var _startDate = Date()
 	public init() {}
@@ -19,42 +20,7 @@ public struct StringStopwatch {
 	}
 }
 
-public struct StringStreamGuard {
-//takes a data stream and returns it as whole lines. protects objects downstream from encountering incomplete character sequences.
-	private var inputBuffer = Data()
-	private var inputString = String()
-	
-	public mutating func processData(_ newData:Data) -> Bool {
-		let dataToMap = (inputBuffer.count > 0) ? (inputBuffer + newData) : newData
-		if let utfTest = String(data:dataToMap, encoding:.utf8) {
-			inputString += utfTest
-			inputBuffer.removeAll(keepingCapacity:true)
-			return utfTest.contains(where:{ $0.isNewline })
-		} else {
-			inputBuffer.append(newData)
-			return false
-		}
-	}
-	
-	public mutating func flushLines() -> [String]? {
-		let start = inputString.startIndex
-		let end = inputString.endIndex
-		if let lastTerm = inputString.lastIndex(where:{ (someChar:Character) in
-			return someChar.isNewline 
-		}) {
-			let newlines = String(inputString[start..<lastTerm]).split { $0.isNewline }
-			if (inputString.distance(from:lastTerm, to:end) > 0) {
-				inputString = String(inputString[lastTerm..<end])
-			} else {
-				inputString.removeAll(keepingCapacity:true)
-			}
-			return newlines.map { String($0) }
-		} else {
-			return nil
-		}
-	}
-}
-
+//prompt the user for input repeatedly until a terminating sequence is found.
 public func promptLoop(with promptingString:String, terminator:String) -> [String] {
 	var promptString:String? = nil
 	var arrayToReturn = [String]()
@@ -65,6 +31,7 @@ public func promptLoop(with promptingString:String, terminator:String) -> [Strin
 	return arrayToReturn
 }
 
+//prompt the user for input, repeat until valid input is received
 public func prompt(with promptingString:String) -> String {
 	var inputVariable:String? = nil
 	var i = 0
@@ -78,6 +45,7 @@ public func prompt(with promptingString:String) -> String {
 	return inputVariable!
 }
 
+//prompt the user with a set of choices. The user must select one of these choices
 public func prompt(with promptingString:String, validChoices:[String], displayValidChoices:Bool = false) -> String {
 	if (displayValidChoices == true) {
 		for (_, curChoice) in validChoices.enumerated() {
