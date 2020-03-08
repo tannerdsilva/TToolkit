@@ -1,13 +1,16 @@
 import Foundation
 
+//when a CSV file is broken into lines, the lines are converted into strings and passed into this function.
+//this function is responsible for parsing the relevant quotes and escape sequences, and returning the result as an array of strings
 fileprivate func csvBreakdown(line:String) -> [String] {
-    var isTerminated = true
+    var isTerminated = true	//as `line` is parsed, 
     var isQuoted = false
     var possibleQuoteEscape = false
     var buffer = ""
     var elements = [String]()
     var visibleBegan = false
     
+    //terminate a column
     func terminate() {
         elements.append(buffer)
         possibleQuoteEscape = false
@@ -16,6 +19,7 @@ fileprivate func csvBreakdown(line:String) -> [String] {
         buffer = ""
     }
     
+    //itterate through the string. the result can be produced by watching for only a few key characters.
     for (_, curChar) in line.enumerated() {
     	if (isTerminated == false) {
 			switch curChar {
