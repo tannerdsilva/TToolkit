@@ -19,7 +19,7 @@ extension Collection {
             queueingGroup.enter()
             computeThread.async {
                 flightGroup.enter()
-				semaphore.wait()
+                semaphore.wait()
                 queueingGroup.leave()
                 do {
                     try thisFunction(n, curItem)
