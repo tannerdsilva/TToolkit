@@ -8,7 +8,7 @@
 import Foundation
 
 extension Collection {
-	//explode a collection - no return values
+    //explode a collection - no return values
     public func explode(lanes:Int = ProcessInfo.processInfo.activeProcessorCount, qos:Priority = .`default`, using thisFunction:@escaping (Int, Element) throws -> Void) {
         let semaphore = DispatchSemaphore(value:lanes)
         let computeThread = DispatchQueue.global(qos: qos.asDispatchQoS())
