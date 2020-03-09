@@ -8,14 +8,16 @@ fileprivate func bashEscape(string:String) -> String {
 	return "'" + string.replacingOccurrences(of:"'", with:"\'") + "'"
 }
 
-fileprivate let processLaunch = DispatchQueue(label:"com.tannersilva.process-interactive.launch", qos:Priority.highest.asDispatchQoS())
+//InteractiveProcess must be launched and destroyed on a serial thread for stability.
+//This is the internal run thread that TToolkit uses to launch new InteractiveProcess instances
+fileprivate let serialProcess = DispatchQueue(label:"com.tannersilva.process-interactive.launch", qos:Priority.highest.asDispatchQoS())
 
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     
-    public let processQueue:DispatchQueue
-    private let callbackQueue:DispatchQueue
-    private let runGroup:DispatchGroup
+    public let processQueue:DispatchQueue		//what serial thread is going to be used to process the data for each class instance?
+    private let callbackQueue:DispatchQueue		//what global concurrent thread is going to be used to call back the handlers
+    private let runGroup:DispatchGroup			//used to signify that the object is still "working"
     
 	public enum State:UInt8 {
 		case initialized = 0
@@ -94,11 +96,13 @@ public class InteractiveProcess {
 			}
 			self.processQueue.sync {
 				self.state = .exited
-			}
-			if #available(macOS 10.15, *) {
-				try? self.stdin.close()
-				try? self.stdout.close()
-				try? self.stderr.close()
+				serialProcess.sync {
+					if #available(macOS 10.15, *) {
+						try? self.stdin.close()
+						try? self.stdout.close()
+						try? self.stderr.close()
+					}
+				}
 			}
 			self.runGroup.leave()
 		}
@@ -157,7 +161,7 @@ public class InteractiveProcess {
             do {
             	runGroup.enter()
             	//framework must launch processes serially for complete thread safety
-            	try processLaunch.sync {
+            	try serialProcess.sync {
             		try proc.run()
             	}
                 state = .running
