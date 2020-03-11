@@ -53,7 +53,7 @@ manyImages.explode(using: { (n, curImageURL) -> Data in
 
 TToolkit defines a protocol `CSVEncodable` for making any structure or class codable to a CSV format.
 
-### Data Line Slicing
+### Data Struct Line Slicing
 
 Automatically detects the three common types of line breaks used in a data variable and splits accordingly.
 
@@ -63,6 +63,6 @@ The data line slicing functions also have the ability to detect and stip the byt
 
 ### Interactive Process Interface
 
-Do you need to write a process that can launch and interact with other processes safely? The `InteractiveProcess` class has you covered! With this object (and the help of `explode`), you can easily spin up thousands of processes to import, process, and build data very quickly.
+Do you need to write a process that can launch and interact with other processes safely? Or perhaps you need to execute shell commands? The `InteractiveProcess` class has you covered! With this object (and the help of `explode`), you can easily spin up thousands of processes to import, process, and build data very quickly with complete thread safety.
 
-With the `InteractiveProcess` class, you can not only read stderr and stdout from a process in real time. Unlike other shell interfaces, `InteractiveProcess` allows you to write to a process while also reading from it. This makes it very helpful for executing against interactive shells and processes.
+With the `InteractiveProcess` class allows for dynamic access to stderr, stdout, and stdin with full thread safety. Unlike other shell interfaces, `InteractiveProcess` allows you to write to a process while also reading from it. This makes it very helpful for executing against interactive shells and processes.
