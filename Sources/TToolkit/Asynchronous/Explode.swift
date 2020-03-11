@@ -35,8 +35,7 @@ extension Collection {
     }
     
     //explode a collection - allows the user to handle the merging of data themselves.
-    //return values of the primary `explode` block are passed to a serial thread where the user can handle the data as necessary
-    
+    //return values of the primary `explode` block are passed to a serial thread where the user can handle the data as necessary    
     public func explode<T>(lanes:Int = ProcessInfo.processInfo.activeProcessorCount, qos:Priority = .`default`, using thisFunction:@escaping (Int, Element) throws -> T?, merge mergeFunction:@escaping (Int, T) throws -> Void) {
         let semaphore = DispatchSemaphore(value:lanes)
         let mergeQueue = DispatchQueue(label:"com.ttoolkit.explode-serial", qos:qos.asDispatchQoS())
