@@ -145,7 +145,12 @@ public class Journal {
     	let journalFrameTransform = suspectedDates.explode(using: { (n, curItemURL) -> JournalFrame in
     		let timeData = try Data(contentsOf:curItemURL)
     		let dataToString = String(data:timeData, encoding:.utf8)
-            if let hasString = dataToString, let dateObj = Date.fromISOString(hasString) {
+    		let dateFormatter = ISO8601DateFormatter()
+            if let hasString = dataToString, let dateObj = dateFormatter.date(from:hasString) {
+            	print(Colors.magenta("\(hasString)\t"), terminator:"")
+            	print(Colors.dim("->\t"), terminator:"")
+            	print(Colors.cyan("\(dateObj)"))
+            	
                 let timeStructFromDate = TimeStruct(dateObj)
                 let jf = JournalFrame(time:timeStructFromDate, journal:self)
                 return jf
