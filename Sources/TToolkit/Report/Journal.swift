@@ -142,15 +142,18 @@ public class Journal {
     public func loadAllHeads() throws -> [JournalFrame] {
     	let suspectedDates = try findAllCreationDates()
     	
+    	let serialPrint = DispatchQueue(label:"com.tannersilva.com.serialPrint")
+    	
     	let journalFrameTransform = suspectedDates.explode(using: { (n, curItemURL) -> JournalFrame in
     		let timeData = try Data(contentsOf:curItemURL)
     		let dataToString = String(data:timeData, encoding:.utf8)
     		let dateFormatter = ISO8601DateFormatter()
             if let hasString = dataToString, let dateObj = dateFormatter.date(from:hasString) {
-            	print(Colors.magenta("\(hasString)\t"), terminator:"")
-            	print(Colors.dim("->\t"), terminator:"")
-            	print(Colors.cyan("\(dateObj)"))
-            	
+            	serialPrint.sync {
+					print(Colors.magenta("\(hasString)\t"), terminator:"")
+					print(Colors.dim("->\t"), terminator:"")
+					print(Colors.cyan("\(dateObj)"))
+            	}
                 let timeStructFromDate = TimeStruct(dateObj)
                 let jf = JournalFrame(time:timeStructFromDate, journal:self)
                 return jf
