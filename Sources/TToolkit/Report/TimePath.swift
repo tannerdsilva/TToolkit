@@ -191,7 +191,7 @@ public struct TimeStruct: TimePath, Codable, Hashable, Comparable {
         if (lhs.yearElement > rhs.yearElement) {
 			print(Colors.Green("-> Eval (year): TRUE >"))
             return true
-        } else if (lhs.yearElement < rhs.monthElement) {
+        } else if (lhs.yearElement < rhs.yearElement) {
         	print(Colors.Green("-> Eval (year): FALSE >"))
             return false
         } else if lhs.yearElement == rhs.yearElement {
