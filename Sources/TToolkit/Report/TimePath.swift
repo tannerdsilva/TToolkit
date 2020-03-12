@@ -181,7 +181,7 @@ public struct TimeStruct: TimePath, Codable, Hashable, Comparable {
     }
     
     static public func > (lhs:TimeStruct, rhs:TimeStruct) -> Bool {
-		print(Colors.yellow("Comparing two TimeStructs using < operator."))
+		print(Colors.yellow("Comparing two TimeStructs using > operator."))
 		print(Colors.dim("\(lhs.described())\t\(rhs.described())"))
 		print(Colors.green("y:\(lhs.yearElement)\t\(rhs.yearElement)"))
 		print(Colors.green("m:\(lhs.monthElement)\t\(rhs.monthElement)"))
@@ -216,7 +216,7 @@ public struct TimeStruct: TimePath, Codable, Hashable, Comparable {
         	print(Colors.Green("-> Eval (hour): TRUE >"))
             return true
         }
-        print(Colors.Green("-> Eval (fallback): FALSE <"))
+        print(Colors.Green("-> Eval (fallback): FALSE >"))
 		return false
     }
     
