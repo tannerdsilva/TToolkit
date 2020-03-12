@@ -134,41 +134,27 @@ public struct TimeStruct: TimePath, Codable, Hashable, Comparable {
     }
     
 	static public func < (lhs:TimeStruct, rhs:TimeStruct) -> Bool {
-		print(Colors.yellow("Comparing two TimeStructs using < operator."))
-		print(Colors.dim("\(lhs.described())\t\(rhs.described())"))
-		print(Colors.green("y:\(lhs.yearElement)\t\(rhs.yearElement)"))
-		print(Colors.green("m:\(lhs.monthElement)\t\(rhs.monthElement)"))
-		print(Colors.green("d:\(lhs.dayElement)\t\(rhs.dayElement)"))
-		print(Colors.green("h:\(lhs.hourElement)\t\(rhs.hourElement)"))
         if (lhs.yearElement < rhs.yearElement) {
-        	print(Colors.Green("-> Eval (year): TRUE <"))
             return true
         } else if (lhs.yearElement > rhs.yearElement) {
-            print(Colors.Green("-> Eval (year): FALSE <"))
             return false
         }
         
         if (lhs.monthElement < rhs.monthElement) {
-			print(Colors.Green("-> Eval (month): TRUE <"))
             return true
         } else if (lhs.monthElement > rhs.monthElement) {
-			print(Colors.Green("-> Eval (month): FALSE <"))
             return false
         }
         
         if (lhs.dayElement < rhs.dayElement) {
-            print(Colors.Green("-> Eval (day): TRUE <"))
         	return true
         } else if (lhs.dayElement > rhs.dayElement) {
-            print(Colors.Green("-> Eval (day): FALSE <"))
         	return false
         }
         
         if (lhs.hourElement < rhs.hourElement) {
-            print(Colors.Green("-> Eval (hour): FALSE <"))
             return true
         }
-        print(Colors.cyan("-> Eval (fallback): FALSE <"))
 		return false
     }
 
@@ -181,54 +167,27 @@ public struct TimeStruct: TimePath, Codable, Hashable, Comparable {
     }
     
     static public func > (lhs:TimeStruct, rhs:TimeStruct) -> Bool {
-		print(Colors.yellow("Comparing two TimeStructs using > operator."))
-		print(Colors.dim("\(lhs.described())\t\(rhs.described())"))
-		print(Colors.green("y:\(lhs.yearElement)\t\(rhs.yearElement)"))
-		print(Colors.green("m:\(lhs.monthElement)\t\(rhs.monthElement)"))
-		print(Colors.green("d:\(lhs.dayElement)\t\(rhs.dayElement)"))
-		print(Colors.green("h:\(lhs.hourElement)\t\(rhs.hourElement)"))
-		
         if (lhs.yearElement > rhs.yearElement) {
-			print(Colors.Green("-> Eval (year): TRUE >"))
             return true
         } else if (lhs.yearElement < rhs.yearElement) {
-        	print(Colors.Green("-> Eval (year): FALSE >"))
             return false
-        } else if lhs.yearElement == rhs.yearElement {
-        	print(Colors.dim("*punting* (year)"), terminator:"")
-        } else {
-        	print(Colors.red("What the fuck bro! (year)"))
         }
         
         if (lhs.monthElement > rhs.monthElement) {
-			print(Colors.Green("-> Eval (month): TRUE >"))
             return true
         } else if (lhs.monthElement < rhs.monthElement) {
-        	print(Colors.Green("-> Eval (month): FALSE >"))
             return false
-        } else if (lhs.monthElement == rhs.monthElement) {
-        	print(Colors.dim("*punting* (month)"), terminator:"")
-        } else {
-        	print(Colors.red("What the fuck bro! (month)"))
         }
         
         if (lhs.dayElement > rhs.dayElement) {
-        	print(Colors.Green("-> Eval (day): TRUE >"))
         	return true
         } else if (lhs.dayElement < rhs.dayElement) {
-        	print(Colors.Green("-> Eval (day): FLASE >"))
         	return false
-        } else if lhs.dayElement == rhs.dayElement {
-        	print(Colors.dim("*punting* (day)"), terminator:"")
-		} else {
-			print(Colors.red("What the fuck bro! (day)"))
-		}
+        }
         
         if (lhs.hourElement > rhs.hourElement) {
-        	print(Colors.Green("-> Eval (hour): TRUE >"))
             return true
         }
-        print(Colors.Green("-> Eval (fallback): FALSE >"))
 		return false
     }
     
