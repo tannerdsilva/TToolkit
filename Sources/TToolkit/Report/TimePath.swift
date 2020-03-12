@@ -237,22 +237,25 @@ public struct TimeStruct: TimePath, Codable, Hashable, Comparable {
     }
 }
 
-fileprivate let calendar = Calendar.current
 extension Date: TimePath {
 	public var yearElement:Int {
-		return calendar.component(.year, from:self)
+		let calendarObject = Calendar.current
+		return calendarObject.component(.year, from:self)
 	}
 	
 	public var monthElement:Int {
-		return calendar.component(.month, from:self)
+		let calendarObject = Calendar.current
+		return calendarObject.component(.month, from:self)
 	}
 	
 	public var dayElement:Int {
-		return calendar.component(.day, from:self)
+		let calendarObject = Calendar.current
+		return calendarObject.component(.day, from:self)
 	}
 	
 	public var hourElement:Int {
-		return calendar.component(.hour, from:self)
+		let calendarObject = Calendar.current
+		return calendarObject.component(.hour, from:self)
 	}
     
     public var preciseGMTISO: String {
