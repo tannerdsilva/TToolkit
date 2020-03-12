@@ -187,7 +187,7 @@ public struct TimeStruct: TimePath, Codable, Hashable, Comparable {
 		print(Colors.green("m:\(lhs.monthElement)\t\(rhs.monthElement)"))
 		print(Colors.green("d:\(lhs.dayElement)\t\(rhs.dayElement)"))
 		print(Colors.green("h:\(lhs.hourElement)\t\(rhs.hourElement)"))
-
+		
         if (lhs.yearElement > rhs.yearElement) {
 			print(Colors.Green("-> Eval (year): TRUE >"))
             return true
@@ -196,6 +196,8 @@ public struct TimeStruct: TimePath, Codable, Hashable, Comparable {
             return false
         } else if lhs.yearElement == rhs.yearElement {
         	print(Colors.dim("*punting* (year)"), terminator:"")
+        } else {
+        	print(Colors.red("What the fuck bro! (year)"))
         }
         
         if (lhs.monthElement > rhs.monthElement) {
@@ -205,7 +207,9 @@ public struct TimeStruct: TimePath, Codable, Hashable, Comparable {
         	print(Colors.Green("-> Eval (month): FALSE >"))
             return false
         } else if (lhs.monthElement == rhs.monthElement) {
-        	print(Colors.dim("*punting* (month)"))
+        	print(Colors.dim("*punting* (month)"), terminator:"")
+        } else {
+        	print(Colors.red("What the fuck bro! (month)"))
         }
         
         if (lhs.dayElement > rhs.dayElement) {
@@ -214,8 +218,10 @@ public struct TimeStruct: TimePath, Codable, Hashable, Comparable {
         } else if (lhs.dayElement < rhs.dayElement) {
         	print(Colors.Green("-> Eval (day): FLASE >"))
         	return false
-        } else {
-        	print(Colors.dim("*punting* (day)"))
+        } else if lhs.dayElement == rhs.dayElement {
+        	print(Colors.dim("*punting* (day)"), terminator:"")
+		} else {
+			print(Colors.red("What the fuck bro! (day)"))
 		}
         
         if (lhs.hourElement > rhs.hourElement) {
