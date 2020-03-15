@@ -2,15 +2,13 @@ import Foundation
 
 
 @available(macOS 10.12, *)
-fileprivate let isoDateFormatter = ISO8601DateFormatter()
-@available(macOS 10.12, *)
 public extension Date {
     var isoString: String {
-        return isoDateFormatter.string(from:self)
+        return ISO8601DateFormatter().string(from:self)
     }
     
     static func fromISOString(_ isoString:String) -> Date? {
-        return isoDateFormatter.date(from: isoString)
+        return ISO8601DateFormatter().date(from: isoString)
     }
 }
 

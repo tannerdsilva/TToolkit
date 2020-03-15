@@ -84,6 +84,15 @@ public protocol Command {
 }
 
 public struct CommandResult {
+	public var succeeded:Bool {
+		get {
+			if exitCode == 0 {
+				return true
+			} else {
+				return false
+			}
+		}
+	}
 	public let exitCode:Int
 	public let stdout:[Data]
 	public let stderr:[Data]

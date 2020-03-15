@@ -86,6 +86,8 @@ public class Journal {
         case journalTailReached(URL)
         case headAlreadyExists
         case missingHead
+        case unableToEnumerate
+        case internalError
     }
     public enum JournalEnumerationResponse:UInt8 {
     	case proceed
@@ -134,6 +136,47 @@ public class Journal {
     		throw JournalerError.missingHead
     	}
     	return try enumerateBackwards(from:ch, using:enumeratorFunction)
+    }
+
+    
+    public func loadAllHeads() throws -> Set<JournalFrame> {
+    	let suspectedDates = try findAllCreationDates()
+    	
+    	let journalFrameTransform = suspectedDates.explode(using: { (n, curItemURL) -> JournalFrame in
+    		let timeData = try Data(contentsOf:curItemURL)
+    		let dataToString = String(data:timeData, encoding:.utf8)
+            if let hasString = dataToString, let dateObj = Date.fromISOString(hasString) {
+                let timeStructFromDate = TimeStruct(dateObj)
+                let jf = JournalFrame(time:timeStructFromDate, journal:self)
+                return jf
+            } else {
+                throw JournalerError.internalError
+            }
+    	})
+    	
+    	return journalFrameTransform
+    }
+        
+    internal func findAllCreationDates() throws -> [URL] {
+    	let directoryPath = directory.path
+    	guard let pathsToSearch = FileManager.default.enumerator(atPath:directoryPath) else {
+    		throw JournalerError.unableToEnumerate
+    	}
+    	
+    	var urlsToReturn = [URL]()
+    	
+    	for currentPath in pathsToSearch {
+    		if let cpValidate = currentPath as? String {
+				let elementURL = URL(fileURLWithPath:directoryPath + "/" + cpValidate).standardizedFileURL
+                if elementURL.lastPathComponent == Self.creationTimestamp {
+					urlsToReturn.append(elementURL)
+				}
+    		} else {
+    			print(Colors.red("[DEBUG]\tJournal enumerated through a value that was considered to not be a string. This element was skipped."))
+    		}
+    	}
+    	
+    	return urlsToReturn
     }
         
     //Progresses the journal with a new directory representing current time
