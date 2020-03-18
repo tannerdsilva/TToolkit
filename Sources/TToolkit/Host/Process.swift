@@ -102,12 +102,6 @@ public class InteractiveProcess {
 		stdout = pipesAndStuff.stdout.fileHandleForReading
 		stderr = pipesAndStuff.stderr.fileHandleForReading
 		
-		if #available(macOS 10.15, *) {
-			try pipesAndStuff.stdin.fileHandleForReading.close()
-			try pipesAndStuff.stdout.fileHandleForWriting.close()
-			try pipesAndStuff.stderr.fileHandleForWriting.close()
-		}
-				
 		workingDirectory = wd
 		proc.arguments = command.arguments
 		proc.executableURL = command.executable
