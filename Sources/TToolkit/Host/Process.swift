@@ -142,6 +142,7 @@ public class InteractiveProcess {
             guard let self = self else {
                 return
             }
+            print("readabilities called")
             self.runGroup.enter()
             let readData = self.stdout.availableData
             let bytesCount = readData.count
@@ -194,6 +195,7 @@ public class InteractiveProcess {
             	//framework must launch processes serially for complete thread safety
             	try serialProcess.sync {
             		try proc.run()
+            		print("Run command successfully executed")
             	}
                 state = .running
             } catch let error {
