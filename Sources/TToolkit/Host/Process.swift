@@ -174,14 +174,24 @@ public class InteractiveProcess {
     }
     
     fileprivate func appendStdoutData(_ inputData:Data) {
-    	processQueue.sync {
-    		stdoutBuff.append(inputData)
+    	runGroup.enter()
+    	processQueue.async { [weak self] in
+			guard let self = self else {
+				return
+			}
+    		self.stdoutBuff.append(inputData)
+    		self.runGroup.leave()
     	}
     }
     
     fileprivate func appendStderrData(_ inputData:Data) {
-    	processQueue.sync {
-    		stderrBuff.append(inputData)
+    	runGroup.enter()
+    	processQueue.async { [weak self] in
+    		guard let self = self else {
+    			return
+    		}
+    		self.stderrBuff.append(inputData)
+    		self.runGroup.leave()
     	}
     }
     
