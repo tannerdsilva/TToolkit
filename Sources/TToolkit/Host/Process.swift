@@ -175,7 +175,7 @@ public class InteractiveProcess {
 			if bytesCount > 0 {
 				self.callbackQueue.async { [weak self] in
 					guard let self = self else {
-						print("error returned 2")
+						print("exiting layer 2 error")
 						return
 					}
 					let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
