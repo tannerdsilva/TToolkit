@@ -86,6 +86,7 @@ public class InteractiveProcess {
     
 
     public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
+    	print("Initializing new pipe")
 		processQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:qos.asDispatchQoS())
 		callbackQueue = DispatchQueue.global(qos:qos.asDispatchQoS())
 		runGroup = DispatchGroup()
