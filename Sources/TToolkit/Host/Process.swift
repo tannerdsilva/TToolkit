@@ -12,12 +12,19 @@ fileprivate func bashEscape(string:String) -> String {
 //This is the internal run thread that TToolkit uses to launch new InteractiveProcess instances
 fileprivate let serialProcess = DispatchQueue(label:"com.tannersilva.global.process-interactive.launch", qos:Priority.highest.asDispatchQoS())
 
-public class InteractiveProcess {
-	public enum InteractiveProcessError:Error {
-		case pipeInitializationError
-		case processInitializationError
+//InteractiveProcess calls on this function to serially initialize the pipes and process objects that it needs to operate
+fileprivate func initializePipesAndProcessesSerially() -> (stdin:Pipe, stdout:Pipe, stderr:Pipe, process:Process) {
+	return serialProcess.sync {
+		let stdinputPipe = Pipe()
+		let stdoutputPipe = Pipe()
+		let stderrorPipe = Pipe()
+		let processObject = Process()
+		return (stdin:stdinputPipe, stdout:stdoutputPipe, stderr:stderrorPipe, process:processObject)
 	}
-	
+}
+
+
+public class InteractiveProcess {	
     public typealias OutputHandler = (Data) -> Void
     
     public let processQueue:DispatchQueue		//what serial thread is going to be used to process the data for each class instance?
@@ -82,37 +89,20 @@ public class InteractiveProcess {
 		
 		env = command.environment
 		
-		var inPipe:Pipe? = nil
-		var outPipe:Pipe? = nil
-		var errPipe:Pipe? = nil
-		var processObject:Process? = nil
+		let pipesAndStuff = initializePipesAndProcessesSerially()
 		
-		serialProcess.sync {
-			processObject = Process()
-			inPipe = Pipe()
-			outPipe = Pipe()
-			errPipe = Pipe()
-		}
+		proc = pipesAndStuff.process
+		stdin = pipesAndStuff.stdin.fileHandleForWriting
+		stdout = pipesAndStuff.stdout.fileHandleForReading
+		stderr = pipesAndStuff.stderr.fileHandleForReading
 		
-		guard processObject != nil else {
-			throw InteractiveProcessError.processInitializationError
-		}
-		
-		guard inPipe != nil && outPipe != nil && errPipe != nil else {
-			throw InteractiveProcessError.pipeInitializationError
-		}
-		
-		proc = processObject!
-		stdin = inPipe!.fileHandleForWriting
-		stdout = outPipe!.fileHandleForReading
-		stderr = errPipe!.fileHandleForReading
 		workingDirectory = wd
 		proc.arguments = command.arguments
 		proc.executableURL = command.executable
 		proc.currentDirectoryURL = wd
-		proc.standardInput = inPipe
-		proc.standardOutput = outPipe
-		proc.standardError = errPipe
+		proc.standardInput = pipesAndStuff.stdin
+		proc.standardOutput = pipesAndStuff.stdout
+		proc.standardError = pipesAndStuff.stderr
 		proc.qualityOfService = qos.asProcessQualityOfService()
 		proc.terminationHandler = { [weak self] someItem in
 			guard let self = self else {
