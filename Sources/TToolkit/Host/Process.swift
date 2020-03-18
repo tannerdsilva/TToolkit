@@ -89,7 +89,6 @@ public class InteractiveProcess {
     
 
     public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
-    	print("Initializing new pipe")
 		processQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:qos.asDispatchQoS())
 		callbackQueue = DispatchQueue.global(qos:qos.asDispatchQoS())
 		runGroup = DispatchGroup()
@@ -97,7 +96,6 @@ public class InteractiveProcess {
 		env = command.environment
 		
 		let pipesAndStuff = initializePipesAndProcessesSerially()
-		print("We got the pipes and stuff.")
 		
 		proc = pipesAndStuff.process
 		stdin = pipesAndStuff.stdin.fileHandleForWriting
@@ -128,7 +126,7 @@ public class InteractiveProcess {
 							try self.stdout.close()
 							try self.stderr.close()
 						} catch let error {
-							print(Colors.Red("[ ERROR ] Pipes are failing to close."))
+							print(Colors.Red("[ INTERACTIVE PROCESS ] Pipes are failing to close."))
 						}
 					}
 				} else {
@@ -142,35 +140,39 @@ public class InteractiveProcess {
             guard let self = self else {
                 return
             }
-            self.runGroup.enter()
-            let readData = self.stdout.availableData
-            let bytesCount = readData.count
-            if bytesCount > 0 {
-				let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-				self.callbackQueue.async { [weak self] in
-					guard let self = self else {
-						return
-					}
-					self.appendStdoutData(bytesCopy)
-				}
+            self.callbackQueue.async { [weak self] in
+            	guard let self = self else {
+            		return
+            	}
+            	self.runGroup.enter()
+            	let readData = self.stdout.availableData
+            	let bytesCount = readData.count
+            	if bytesCount > 0 {
+            		let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+            		self.appendStdoutData(bytesCopy)
+            	}
+				self.runGroup.leave()
             }
-            self.runGroup.leave()
         }
         
         stderr.readabilityHandler = { [weak self] _ in
             guard let self = self else {
                 return
             }
-            self.runGroup.enter()
-            let readData = self.stderr.availableData
-            let bytesCount = readData.count
-            if bytesCount > 0 {
-				let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-				self.appendStderrData(bytesCopy)   
+            self.callbackQueue.async { [weak self] in
+            	guard let self = self else {
+            		return
+            	}
+            	self.runGroup.enter()
+            	let readData = self.stderr.availableData
+            	let bytesCount = readData.count
+            	if bytesCount > 0 {
+            		let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+            		self.appendStderrData(bytesCopy)
+            	}
+            	self.runGroup.leave()
             }
-            self.runGroup.leave()         
         }
-        print("Hooray initialized")
 		if run {
             do {
                 try self.run()
@@ -199,7 +201,6 @@ public class InteractiveProcess {
             	//framework must launch processes serially for complete thread safety
             	try serialProcess.sync {
             		try proc.run()
-            		print("Run command successfully executed")
             	}
                 state = .running
             } catch let error {
