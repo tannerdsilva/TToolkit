@@ -143,6 +143,7 @@ public class InteractiveProcess {
 						try? self.stdinPipe.fileHandleForWriting.close()
 						try? self.stdoutPipe.fileHandleForWriting.close()
 						try? self.stderrPipe.fileHandleForWriting.close()
+						print(Colors.Yellow("[ CLOSED ]"))
 					}
 				}
 			}
@@ -269,5 +270,9 @@ public class InteractiveProcess {
 		runGroup.wait()
         let returnCode = proc.terminationStatus
         return Int(returnCode)
+    }
+    
+    deinit {
+    	print(Colors.yellow("{ deinit }"))
     }
 }
