@@ -95,11 +95,11 @@ public class InteractiveProcess {
 		}
 		
 		guard processObject != nil else {
-			throw InteracriveProcessError.processInitializationError
+			throw InteractiveProcessError.processInitializationError
 		}
 		
 		guard inPipe != nil && outPipe != nil && errPipe != nil else {
-			throw InteracriveProcessError.pipeInitializationError
+			throw InteractiveProcessError.pipeInitializationError
 		}
 		
 		proc = processObject!
@@ -118,17 +118,20 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
-			self.processQueue.sync {
+			self.processQueue.async { [weak self] in
+				guard let self = self else {
+					return
+				}
 				self.state = .exited
-				serialProcess.sync {
-					if #available(macOS 10.15, *) {
+				if #available(macOS 10.15, *) {
+					serialProcess.sync {
 						try? self.stdin.close()
 						try? self.stdout.close()
 						try? self.stderr.close()
 					}
 				}
+				self.runGroup.leave()
 			}
-			self.runGroup.leave()
 		}
         
         stdout.readabilityHandler = { [weak self] _ in
