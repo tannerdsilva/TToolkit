@@ -10,7 +10,22 @@ fileprivate func bashEscape(string:String) -> String {
 
 //InteractiveProcess must be launched and destroyed on a serial thread for stability.
 //This is the internal run thread that TToolkit uses to launch new InteractiveProcess instances
-fileprivate let serialProcess = DispatchQueue(label:"com.tannersilva.process-interactive.launch", qos:Priority.highest.asDispatchQoS())
+fileprivate let serialProcess = DispatchQueue(label:"com.tannersilva.global.process-interactive.launch", qos:Priority.highest.asDispatchQoS())
+
+//InteractiveProcess calls on this function to serially initialize the pipes and process objects that it needs to operate
+fileprivate typealias ProcessAndPipes = (stdin:Pipe, stdout:Pipe, stderr:Pipe, process:Process)
+fileprivate func initializePipesAndProcessesSerially(queue:DispatchQueue) -> ProcessAndPipes {
+	var procsAndPipes:ProcessAndPipes? = nil
+	queue.sync {
+		let stdinputPipe = Pipe()
+		let stdoutputPipe = Pipe()
+		let stderrorPipe = Pipe()
+		let processObject = Process()
+		procsAndPipes = (stdin:stdinputPipe, stdout:stdoutputPipe, stderr:stderrorPipe, process:processObject)
+	}
+	return procsAndPipes!
+}
+
 
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
@@ -37,7 +52,7 @@ public class InteractiveProcess {
 	public var stderrBuff = Data()
 
 	public var workingDirectory:URL
-	internal var proc = Process()
+	internal var proc:Process
 	public var state:State = .initialized
     
     private var _stdoutHandler:OutputHandler? = nil
@@ -71,24 +86,38 @@ public class InteractiveProcess {
     
 
     public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
-		processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
-		callbackQueue = DispatchQueue.global(qos:qos.asDispatchQoS())
+		processQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:qos.asDispatchQoS())
+		
+		let concurrentGlobal = DispatchQueue.global(qos:qos.asDispatchQoS())
+		callbackQueue = concurrentGlobal
+		
 		runGroup = DispatchGroup()
 		
 		env = command.environment
-		let inPipe = Pipe()
-		let outPipe = Pipe()
-		let errPipe = Pipe()
-		stdin = inPipe.fileHandleForWriting
-		stdout = outPipe.fileHandleForReading
-		stderr = errPipe.fileHandleForReading
+		
+		let pipesAndStuff = initializePipesAndProcessesSerially(queue:concurrentGlobal)
+		
+		proc = pipesAndStuff.process
+		
+		stdin = pipesAndStuff.stdin.fileHandleForWriting
+		
+		stdout = pipesAndStuff.stdout.fileHandleForReading
+		
+		stderr = pipesAndStuff.stderr.fileHandleForReading
+		
+//		if #available(macOS 10.15, *) {
+//			try pipesAndStuff.stdin.fileHandleForReading.close()
+//			try pipesAndStuff.stdout.fileHandleForWriting.close()
+//			try pipesAndStuff.stderr.fileHandleForWriting.close()
+//		}
+				
 		workingDirectory = wd
 		proc.arguments = command.arguments
 		proc.executableURL = command.executable
 		proc.currentDirectoryURL = wd
-		proc.standardInput = inPipe
-		proc.standardOutput = outPipe
-		proc.standardError = errPipe
+		proc.standardInput = pipesAndStuff.stdin
+		proc.standardOutput = pipesAndStuff.stdout
+		proc.standardError = pipesAndStuff.stderr
 		proc.qualityOfService = qos.asProcessQualityOfService()
 		proc.terminationHandler = { [weak self] someItem in
 			guard let self = self else {
