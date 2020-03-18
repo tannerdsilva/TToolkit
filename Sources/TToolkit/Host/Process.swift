@@ -44,9 +44,24 @@ public class InteractiveProcess {
     
 	public var env:[String:String]
 	
-	public var stdin:FileHandle
-	public var stdout:FileHandle
-	public var stderr:FileHandle
+	public var stdinPipe:Pipe
+	public var stdoutPipe:Pipe
+	public var stderrPipe:Pipe
+	public var stdin:FileHandle { 
+		get {
+			return stdinPipe.fileHandleForWriting
+		}
+	}
+	public var stdout:FileHandle {
+		get {
+			return stdoutPipe.fileHandleForReading
+		}
+	}
+	public var stderr:FileHandle {
+		get {
+			return stderrPipe.fileHandleForReading
+		}
+	}
 	
 	public var stdoutBuff = Data()
 	public var stderrBuff = Data()
@@ -97,10 +112,14 @@ public class InteractiveProcess {
 		
 		let pipesAndStuff = initializePipesAndProcessesSerially(queue:concurrentGlobal)
 		
+		stdinPipe = pipesAndStuff.stdin
+		stdoutPipe = pipesAndStuff.stdout
+		stderrPipe = pipesAndStuff.stderr
+		
 		proc = pipesAndStuff.process
-		stdin = pipesAndStuff.stdin.fileHandleForWriting
-		stdout = pipesAndStuff.stdout.fileHandleForReading
-		stderr = pipesAndStuff.stderr.fileHandleForReading
+//		stdin = pipesAndStuff.stdin.fileHandleForWriting
+//		stdout = pipesAndStuff.stdout.fileHandleForReading
+//		stderr = pipesAndStuff.stderr.fileHandleForReading
 		
 		workingDirectory = wd
 		proc.arguments = command.arguments
@@ -118,9 +137,13 @@ public class InteractiveProcess {
 				self.state = .exited
 				serialProcess.sync {
 					if #available(macOS 10.15, *) {
-						try? self.stdin.close()
-						try? self.stdout.close()
-						try? self.stderr.close()
+						try? self.stdinPipe.fileHandleForReading.close()
+						try? self.stdoutPipe.fileHandleForReading.close()
+						try? self.stderrPipe.fileHandleForReading.close()
+						
+						try? self.stdinPipe.fileHandleForWriting.close()
+						try? self.stdoutPipe.fileHandleForWriting.close()
+						try? self.stderrPipe.fileHandleForWriting.close()
 					}
 				}
 			}
