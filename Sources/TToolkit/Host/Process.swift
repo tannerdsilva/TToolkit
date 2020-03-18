@@ -16,13 +16,16 @@ fileprivate let serialProcess = DispatchQueue(label:"com.tannersilva.global.proc
 fileprivate typealias ProcessAndPipes = (stdin:Pipe, stdout:Pipe, stderr:Pipe, process:Process)
 fileprivate func initializePipesAndProcessesSerially() -> ProcessAndPipes {
 	var procsAndPipes:ProcessAndPipes? = nil
+	print("Pipes and stuff called")
 	serialProcess.sync {
+		print("Pipes and stuff successfully threaded")
 		let stdinputPipe = Pipe()
 		let stdoutputPipe = Pipe()
 		let stderrorPipe = Pipe()
 		let processObject = Process()
 		procsAndPipes = (stdin:stdinputPipe, stdout:stdoutputPipe, stderr:stderrorPipe, process:processObject)
 	}
+	print("pns -> returning")
 	return procsAndPipes!
 }
 
@@ -94,6 +97,7 @@ public class InteractiveProcess {
 		env = command.environment
 		
 		let pipesAndStuff = initializePipesAndProcessesSerially()
+		print("We got the pipes and stuff.")
 		
 		proc = pipesAndStuff.process
 		stdin = pipesAndStuff.stdin.fileHandleForWriting
@@ -161,7 +165,7 @@ public class InteractiveProcess {
             }
             self.runGroup.leave()         
         }
-        
+        print("Hooray initialized")
 		if run {
             do {
                 try self.run()
