@@ -137,38 +137,38 @@ public class InteractiveProcess {
             guard let self = self else {
                 return
             }
-            self.callbackQueue.async { [weak self] in
-            	guard let self = self else {
-            		return
-            	}
-            	self.runGroup.enter()
-            	let readData = self.stdout.availableData
-            	let bytesCount = readData.count
-            	if bytesCount > 0 {
-            		let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-            		self.appendStdoutData(bytesCopy)
-            	}
-				self.runGroup.leave()
-            }
+			self.runGroup.enter()
+			let readData = self.stdout.availableData
+			let bytesCount = readData.count
+			if bytesCount > 0 {
+				self.callbackQueue.async { [weak self] in
+					guard let self = self else {
+						return
+					}
+					let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+					self.appendStdoutData(bytesCopy)
+					self.runGroup.leave()
+				}
+			}
         }
         
         stderr.readabilityHandler = { [weak self] _ in
             guard let self = self else {
                 return
             }
-            self.callbackQueue.async { [weak self] in
-            	guard let self = self else {
-            		return
-            	}
-            	self.runGroup.enter()
-            	let readData = self.stderr.availableData
-            	let bytesCount = readData.count
-            	if bytesCount > 0 {
-            		let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-            		self.appendStderrData(bytesCopy)
-            	}
-            	self.runGroup.leave()
-            }
+			self.runGroup.enter()
+			let readData = self.stderr.availableData
+			let bytesCount = readData.count
+			if bytesCount > 0 {
+				self.callbackQueue.async { [weak self] in
+					guard let self = self else {
+						return
+					}
+					let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+					self.appendStderrData(bytesCopy)
+					self.runGroup.leave()
+				}
+			}
         }
 		if run {
             do {
