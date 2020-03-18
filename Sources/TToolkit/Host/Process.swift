@@ -142,13 +142,17 @@ public class InteractiveProcess {
             guard let self = self else {
                 return
             }
-            print("readabilities called")
             self.runGroup.enter()
             let readData = self.stdout.availableData
             let bytesCount = readData.count
             if bytesCount > 0 {
 				let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-				self.appendStdoutData(bytesCopy)
+				self.callbackQueue.async { [weak self] in
+					guard let self = self else {
+						return
+					}
+					self.appendStdoutData(bytesCopy)
+				}
             }
             self.runGroup.leave()
         }
