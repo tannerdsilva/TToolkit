@@ -169,6 +169,7 @@ public class InteractiveProcess {
             print("error called")
 			self.runGroup.enter()
 			let readData = self.stderr.availableData
+			print("yay we got the data")
 			let bytesCount = readData.count
 			if bytesCount > 0 {
 				self.callbackQueue.async { [weak self] in
