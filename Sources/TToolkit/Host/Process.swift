@@ -10,9 +10,14 @@ fileprivate func bashEscape(string:String) -> String {
 
 //InteractiveProcess must be launched and destroyed on a serial thread for stability.
 //This is the internal run thread that TToolkit uses to launch new InteractiveProcess instances
-fileprivate let serialProcess = DispatchQueue(label:"com.tannersilva.process-interactive.launch", qos:Priority.highest.asDispatchQoS())
+fileprivate let serialProcess = DispatchQueue(label:"com.tannersilva.global.process-interactive.launch", qos:Priority.highest.asDispatchQoS())
 
 public class InteractiveProcess {
+	public enum InteractiveProcessError:Error {
+		case pipeInitializationError
+		case processInitializationError
+	}
+	
     public typealias OutputHandler = (Data) -> Void
     
     public let processQueue:DispatchQueue		//what serial thread is going to be used to process the data for each class instance?
@@ -37,7 +42,7 @@ public class InteractiveProcess {
 	public var stderrBuff = Data()
 
 	public var workingDirectory:URL
-	internal var proc = Process()
+	internal var proc:Process
 	public var state:State = .initialized
     
     private var _stdoutHandler:OutputHandler? = nil
@@ -71,17 +76,36 @@ public class InteractiveProcess {
     
 
     public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
-		processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
+		processQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:qos.asDispatchQoS())
 		callbackQueue = DispatchQueue.global(qos:qos.asDispatchQoS())
 		runGroup = DispatchGroup()
 		
 		env = command.environment
-		let inPipe = Pipe()
-		let outPipe = Pipe()
-		let errPipe = Pipe()
-		stdin = inPipe.fileHandleForWriting
-		stdout = outPipe.fileHandleForReading
-		stderr = errPipe.fileHandleForReading
+		
+		var inPipe:Pipe? = nil
+		var outPipe:Pipe? = nil
+		var errPipe:Pipe? = nil
+		var processObject:Process? = nil
+		
+		serialProcess.sync {
+			processObject = Process()
+			inPipe = Pipe()
+			outPipe = Pipe()
+			errPipe = Pipe()
+		}
+		
+		guard processObject != nil else {
+			throw InteracriveProcessError.processInitializationError
+		}
+		
+		guard inPipe != nil && outPipe != nil && errPipe != nil else {
+			throw InteracriveProcessError.pipeInitializationError
+		}
+		
+		proc = processObject!
+		stdin = inPipe!.fileHandleForWriting
+		stdout = outPipe!.fileHandleForReading
+		stderr = errPipe!.fileHandleForReading
 		workingDirectory = wd
 		proc.arguments = command.arguments
 		proc.executableURL = command.executable
