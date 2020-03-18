@@ -33,6 +33,7 @@ public class InteractiveProcess {
     public let processQueue:DispatchQueue		//what serial thread is going to be used to process the data for each class instance?
     private let callbackQueue:DispatchQueue		//what global concurrent thread is going to be used to call back the handlers
     private let runGroup:DispatchGroup			//used to signify that the object is still "working"
+    private let dataGroup:DispatchGroup
     
 	public enum State:UInt8 {
 		case initialized = 0
@@ -102,11 +103,11 @@ public class InteractiveProcess {
 
     public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
 		processQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:qos.asDispatchQoS())
-		
 		let concurrentGlobal = DispatchQueue.global(qos:qos.asDispatchQoS())
 		callbackQueue = concurrentGlobal
 		
 		runGroup = DispatchGroup()
+		dataGroup = DispatchGroup()
 		
 		env = command.environment
 		
@@ -117,10 +118,7 @@ public class InteractiveProcess {
 		stderrPipe = pipesAndStuff.stderr
 		
 		proc = pipesAndStuff.process
-//		stdin = pipesAndStuff.stdin.fileHandleForWriting
-//		stdout = pipesAndStuff.stdout.fileHandleForReading
-//		stderr = pipesAndStuff.stderr.fileHandleForReading
-		
+
 		workingDirectory = wd
 		proc.arguments = command.arguments
 		proc.executableURL = command.executable
@@ -133,6 +131,7 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
+			self.dataGroup.wait()
 			self.processQueue.sync {
 				self.state = .exited
 				serialProcess.sync {
@@ -154,28 +153,28 @@ public class InteractiveProcess {
             guard let self = self else {
                 return
             }
-            self.runGroup.enter()
+            self.dataGroup.enter()
             let readData = self.stdout.availableData
             let bytesCount = readData.count
             if bytesCount > 0 {
 				let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 				self.appendStdoutData(bytesCopy)
             }
-            self.runGroup.leave()
+            self.dataGroup.leave()
         }
         
         stderr.readabilityHandler = { [weak self] _ in
             guard let self = self else {
                 return
             }
-            self.runGroup.enter()
+            self.dataGroup.enter()
             let readData = self.stderr.availableData
             let bytesCount = readData.count
             if bytesCount > 0 {
 				let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 				self.appendStderrData(bytesCopy)   
             }
-            self.runGroup.leave()         
+            self.dataGroup.leave()         
         }
         
 		if run {
@@ -188,24 +187,24 @@ public class InteractiveProcess {
     }
     
     fileprivate func appendStdoutData(_ inputData:Data) {
-    	runGroup.enter()
+    	dataGroup.enter()
     	processQueue.async { [weak self] in
 			guard let self = self else {
 				return
 			}
     		self.stdoutBuff.append(inputData)
-    		self.runGroup.leave()
+    		self.dataGroup.leave()
     	}
     }
     
     fileprivate func appendStderrData(_ inputData:Data) {
-    	runGroup.enter()
+    	dataGroup.enter()
     	processQueue.async { [weak self] in
     		guard let self = self else {
     			return
     		}
     		self.stderrBuff.append(inputData)
-    		self.runGroup.leave()
+    		self.dataGroup.leave()
     	}
     }
     
