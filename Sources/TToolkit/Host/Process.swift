@@ -173,7 +173,7 @@ public class InteractiveProcess {
             let bytesCount = readData.count
             if bytesCount > 0 {
 				let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-				self.appendStderrData(bytesCopy)   
+				self.appendStderrData(bytesCopy)
             }
             self.dataGroup.leave()         
         }
@@ -213,10 +213,12 @@ public class InteractiveProcess {
         try processQueue.sync {
             do {
             	runGroup.enter()
+            	
             	//framework must launch processes serially for complete thread safety
             	try serialProcess.sync {
 					try proc.run()
             	}
+            	
                 state = .running
             } catch let error {
             	runGroup.leave()
