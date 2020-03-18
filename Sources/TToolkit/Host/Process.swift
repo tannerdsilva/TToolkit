@@ -152,6 +152,7 @@ public class InteractiveProcess {
 			if bytesCount > 0 {
 				self.callbackQueue.async { [weak self] in
 					guard let self = self else {
+						print("exiting layer 2")
 						return
 					}
 					let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
@@ -200,6 +201,7 @@ public class InteractiveProcess {
     		print("\tnope")
     		stdoutBuff.append(inputData)
     	}
+    	print("data append exited")
     }
     
     fileprivate func appendStderrData(_ inputData:Data) {
