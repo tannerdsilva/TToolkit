@@ -15,15 +15,15 @@ fileprivate let serialProcess = DispatchQueue(label:"com.tannersilva.global.proc
 //InteractiveProcess calls on this function to serially initialize the pipes and process objects that it needs to operate
 fileprivate typealias ProcessAndPipes = (stdin:Pipe, stdout:Pipe, stderr:Pipe, process:Process)
 fileprivate func initializePipesAndProcessesSerially() -> ProcessAndPipes {
-	var procsAndPipes:ProcessAndPipes? = nil
-	serialProcess.sync {
+//	var procsAndPipes:ProcessAndPipes? = nil
+//	serialProcess.sync {
 		let stdinputPipe = Pipe()
 		let stdoutputPipe = Pipe()
 		let stderrorPipe = Pipe()
 		let processObject = Process()
-		procsAndPipes = (stdin:stdinputPipe, stdout:stdoutputPipe, stderr:stderrorPipe, process:processObject)
-	}
-	return procsAndPipes!
+		return (stdin:stdinputPipe, stdout:stdoutputPipe, stderr:stderrorPipe, process:processObject)
+//	}
+//	return procsAndPipes!
 }
 
 
@@ -95,10 +95,19 @@ public class InteractiveProcess {
 		let pipesAndStuff = initializePipesAndProcessesSerially()
 		
 		proc = pipesAndStuff.process
+		
 		stdin = pipesAndStuff.stdin.fileHandleForWriting
+		
 		stdout = pipesAndStuff.stdout.fileHandleForReading
+		
 		stderr = pipesAndStuff.stderr.fileHandleForReading
 		
+		if #available(macOS 10.15, *) {
+			try pipesAndStuff.stdin.fileHandleForReading.close()
+			try pipesAndStuff.stdout.fileHandleForWriting.close()
+			try pipesAndStuff.stderr.fileHandleForWriting.close()
+		}
+				
 		workingDirectory = wd
 		proc.arguments = command.arguments
 		proc.executableURL = command.executable
@@ -154,18 +163,23 @@ public class InteractiveProcess {
         
         stderr.readabilityHandler = { [weak self] _ in
             guard let self = self else {
+            	print("error returned 1")
                 return
             }
+            print("error called")
 			self.runGroup.enter()
 			let readData = self.stderr.availableData
 			let bytesCount = readData.count
 			if bytesCount > 0 {
 				self.callbackQueue.async { [weak self] in
 					guard let self = self else {
+						print("error returned 2")
 						return
 					}
 					let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+					print("Bytes copied")
 					self.appendStderrData(bytesCopy)
+					print("stderr called")
 					self.runGroup.leave()
 				}
 			}
@@ -180,7 +194,9 @@ public class InteractiveProcess {
     }
     
     fileprivate func appendStdoutData(_ inputData:Data) {
+    	print("deadlock?")
     	processQueue.sync {
+    		print("\tnope")
     		stdoutBuff.append(inputData)
     	}
     }
