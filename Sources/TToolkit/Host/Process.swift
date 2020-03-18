@@ -191,10 +191,10 @@ public class InteractiveProcess {
             	runGroup.enter()
             	//framework must launch processes serially for complete thread safety
             	try serialProcess.sync {
-            		try callbackQueue.sync {
-						try proc.run()
-						print("yay running")
-            		}
+					try proc.run()
+//            		try callbackQueue.sync {
+//						try proc.run()
+//            		}
             	}
                 state = .running
             } catch let error {
