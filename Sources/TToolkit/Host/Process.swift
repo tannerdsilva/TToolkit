@@ -164,6 +164,7 @@ public class InteractiveProcess {
             	try serialProcess.sync {
             		try callbackQueue.sync {
 						try proc.run()
+						print("yay running")
             		}
             	}
                 state = .running
