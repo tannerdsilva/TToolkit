@@ -98,18 +98,15 @@ public class InteractiveProcess {
 		let pipesAndStuff = initializePipesAndProcessesSerially(queue:concurrentGlobal)
 		
 		proc = pipesAndStuff.process
-		
 		stdin = pipesAndStuff.stdin.fileHandleForWriting
-		
 		stdout = pipesAndStuff.stdout.fileHandleForReading
-		
 		stderr = pipesAndStuff.stderr.fileHandleForReading
 		
-//		if #available(macOS 10.15, *) {
-//			try pipesAndStuff.stdin.fileHandleForReading.close()
-//			try pipesAndStuff.stdout.fileHandleForWriting.close()
-//			try pipesAndStuff.stderr.fileHandleForWriting.close()
-//		}
+		if #available(macOS 10.15, *) {
+			try pipesAndStuff.stdin.fileHandleForReading.close()
+			try pipesAndStuff.stdout.fileHandleForWriting.close()
+			try pipesAndStuff.stderr.fileHandleForWriting.close()
+		}
 				
 		workingDirectory = wd
 		proc.arguments = command.arguments
@@ -202,9 +199,6 @@ public class InteractiveProcess {
             	//framework must launch processes serially for complete thread safety
             	try serialProcess.sync {
 					try proc.run()
-//            		try callbackQueue.sync {
-//						try proc.run()
-//            		}
             	}
                 state = .running
             } catch let error {
