@@ -118,10 +118,16 @@ public class InteractiveProcess {
 				self.state = .exited
 				if #available(macOS 10.15, *) {
 					serialProcess.sync {
-						try? self.stdin.close()
-						try? self.stdout.close()
-						try? self.stderr.close()
+						do {
+							try self.stdin.close()
+							try self.stdout.close()
+							try self.stderr.close()
+						} catch let error {
+							print(Colors.Red("[ ERROR ] Pipes are failing to close."))
+						}
 					}
+				} else {
+					print(Colors.Yellow("[ INTERACTIVE PROCESS ] * warning * :: file handles are not being closed."))
 				}
 				self.runGroup.leave()
 			}
