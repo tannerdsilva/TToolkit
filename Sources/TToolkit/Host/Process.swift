@@ -10,24 +10,9 @@ fileprivate func bashEscape(string:String) -> String {
 
 //InteractiveProcess must be launched and destroyed on a serial thread for stability.
 //This is the internal run thread that TToolkit uses to launch new InteractiveProcess instances
-fileprivate let serialProcess = DispatchQueue(label:"com.tannersilva.global.process-interactive.launch", qos:Priority.highest.asDispatchQoS())
+fileprivate let serialProcess = DispatchQueue(label:"com.tannersilva.process-interactive.launch", qos:Priority.highest.asDispatchQoS())
 
-//InteractiveProcess calls on this function to serially initialize the pipes and process objects that it needs to operate
-fileprivate typealias ProcessAndPipes = (stdin:Pipe, stdout:Pipe, stderr:Pipe, process:Process)
-fileprivate func initializePipesAndProcessesSerially() -> ProcessAndPipes {
-//	var procsAndPipes:ProcessAndPipes? = nil
-//	serialProcess.sync {
-		let stdinputPipe = Pipe()
-		let stdoutputPipe = Pipe()
-		let stderrorPipe = Pipe()
-		let processObject = Process()
-		return (stdin:stdinputPipe, stdout:stdoutputPipe, stderr:stderrorPipe, process:processObject)
-//	}
-//	return procsAndPipes!
-}
-
-
-public class InteractiveProcess {	
+public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     
     public let processQueue:DispatchQueue		//what serial thread is going to be used to process the data for each class instance?
@@ -52,7 +37,7 @@ public class InteractiveProcess {
 	public var stderrBuff = Data()
 
 	public var workingDirectory:URL
-	internal var proc:Process
+	internal var proc = Process()
 	public var state:State = .initialized
     
     private var _stdoutHandler:OutputHandler? = nil
@@ -86,106 +71,70 @@ public class InteractiveProcess {
     
 
     public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
-		processQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:qos.asDispatchQoS())
+		processQueue = DispatchQueue(label:"com.tannersilva.process-interactive.sync", qos:qos.asDispatchQoS())
 		callbackQueue = DispatchQueue.global(qos:qos.asDispatchQoS())
 		runGroup = DispatchGroup()
 		
 		env = command.environment
-		
-		let pipesAndStuff = initializePipesAndProcessesSerially()
-		
-		proc = pipesAndStuff.process
-		
-		stdin = pipesAndStuff.stdin.fileHandleForWriting
-		
-		stdout = pipesAndStuff.stdout.fileHandleForReading
-		
-		stderr = pipesAndStuff.stderr.fileHandleForReading
-		
-//		if #available(macOS 10.15, *) {
-//			try pipesAndStuff.stdin.fileHandleForReading.close()
-//			try pipesAndStuff.stdout.fileHandleForWriting.close()
-//			try pipesAndStuff.stderr.fileHandleForWriting.close()
-//		}
-				
+		let inPipe = Pipe()
+		let outPipe = Pipe()
+		let errPipe = Pipe()
+		stdin = inPipe.fileHandleForWriting
+		stdout = outPipe.fileHandleForReading
+		stderr = errPipe.fileHandleForReading
 		workingDirectory = wd
 		proc.arguments = command.arguments
 		proc.executableURL = command.executable
 		proc.currentDirectoryURL = wd
-		proc.standardInput = pipesAndStuff.stdin
-		proc.standardOutput = pipesAndStuff.stdout
-		proc.standardError = pipesAndStuff.stderr
+		proc.standardInput = inPipe
+		proc.standardOutput = outPipe
+		proc.standardError = errPipe
 		proc.qualityOfService = qos.asProcessQualityOfService()
 		proc.terminationHandler = { [weak self] someItem in
 			guard let self = self else {
 				return
 			}
-			self.processQueue.async { [weak self] in
-				guard let self = self else {
-					return
-				}
+			self.processQueue.sync {
 				self.state = .exited
-				if #available(macOS 10.15, *) {
-					serialProcess.sync {
-						do {
-							try self.stdin.close()
-							try self.stdout.close()
-							try self.stderr.close()
-						} catch let error {
-							print(Colors.Red("[ INTERACTIVE PROCESS ] Pipes are failing to close."))
-						}
+				serialProcess.sync {
+					if #available(macOS 10.15, *) {
+						try? self.stdin.close()
+						try? self.stdout.close()
+						try? self.stderr.close()
 					}
-				} else {
-					print(Colors.Yellow("[ INTERACTIVE PROCESS ] * warning * :: file handles are not being closed."))
 				}
-				self.runGroup.leave()
 			}
+			self.runGroup.leave()
 		}
         
         stdout.readabilityHandler = { [weak self] _ in
             guard let self = self else {
                 return
             }
-			self.runGroup.enter()
-			let readData = self.stdout.availableData
-			let bytesCount = readData.count
-			if bytesCount > 0 {
-				self.callbackQueue.async { [weak self] in
-					guard let self = self else {
-						print("exiting layer 2")
-						return
-					}
-					let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-					self.appendStdoutData(bytesCopy)
-					self.runGroup.leave()
-				}
-			}
+            self.runGroup.enter()
+            let readData = self.stdout.availableData
+            let bytesCount = readData.count
+            if bytesCount > 0 {
+				let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+				self.appendStdoutData(bytesCopy)
+            }
+            self.runGroup.leave()
         }
         
         stderr.readabilityHandler = { [weak self] _ in
             guard let self = self else {
-            	print("error returned 1")
                 return
             }
-            print("error called")
-			self.runGroup.enter()
-			let readData = self.stderr.availableData
-			print("yay we got the data")
-			let bytesCount = readData.count
-			if bytesCount > 0 {
-				self.callbackQueue.async { [weak self] in
-					guard let self = self else {
-						print("exiting layer 2 error")
-						return
-					}
-					let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-					print("Bytes copied")
-					self.appendStderrData(bytesCopy)
-					print("stderr called")
-					self.runGroup.leave()
-				}
-			}
+            self.runGroup.enter()
+            let readData = self.stderr.availableData
+            let bytesCount = readData.count
+            if bytesCount > 0 {
+				let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+				self.appendStderrData(bytesCopy)   
+            }
+            self.runGroup.leave()         
         }
+        
 		if run {
             do {
                 try self.run()
@@ -196,12 +145,9 @@ public class InteractiveProcess {
     }
     
     fileprivate func appendStdoutData(_ inputData:Data) {
-    	print("deadlock?")
     	processQueue.sync {
-    		print("\tnope")
     		stdoutBuff.append(inputData)
     	}
-    	print("data append exited")
     }
     
     fileprivate func appendStderrData(_ inputData:Data) {
@@ -216,7 +162,9 @@ public class InteractiveProcess {
             	runGroup.enter()
             	//framework must launch processes serially for complete thread safety
             	try serialProcess.sync {
-            		try proc.run()
+            		try callbackQueue.sync {
+						try proc.run()
+            		}
             	}
                 state = .running
             } catch let error {
