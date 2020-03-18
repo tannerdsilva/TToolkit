@@ -13,14 +13,17 @@ fileprivate func bashEscape(string:String) -> String {
 fileprivate let serialProcess = DispatchQueue(label:"com.tannersilva.global.process-interactive.launch", qos:Priority.highest.asDispatchQoS())
 
 //InteractiveProcess calls on this function to serially initialize the pipes and process objects that it needs to operate
-fileprivate func initializePipesAndProcessesSerially() -> (stdin:Pipe, stdout:Pipe, stderr:Pipe, process:Process) {
-	return serialProcess.sync {
+fileprivate typealias ProcessAndPipes = (stdin:Pipe, stdout:Pipe, stderr:Pipe, process:Process)
+fileprivate func initializePipesAndProcessesSerially() -> ProcessAndPipes {
+	var procsAndPipes:ProcessAndPipes? = nil
+	serialProcess.sync {
 		let stdinputPipe = Pipe()
 		let stdoutputPipe = Pipe()
 		let stderrorPipe = Pipe()
 		let processObject = Process()
-		return (stdin:stdinputPipe, stdout:stdoutputPipe, stderr:stderrorPipe, process:processObject)
+		procsAndPipes = (stdin:stdinputPipe, stdout:stdoutputPipe, stderr:stderrorPipe, process:processObject)
 	}
+	return procsAndPipes!
 }
 
 
