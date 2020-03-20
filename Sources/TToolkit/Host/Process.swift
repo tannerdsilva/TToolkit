@@ -26,10 +26,7 @@ fileprivate func initializePipesAndProcessesSerially(queue:DispatchQueue) -> Pro
 
 extension Process {
 	fileprivate func signal(_ sign:Int32) -> Int32 {
-		return Darwin.kill(processIdentifier, sign)
-	}
-	fileprivate func kill() {
-		signal(SIGKILL)
+		return kill(processIdentifier, sign)
 	}
 }
 
