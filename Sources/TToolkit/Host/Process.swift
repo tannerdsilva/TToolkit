@@ -154,34 +154,36 @@ public class InteractiveProcess {
 			self.runGroup.leave()
 		}
         
-        stdout.readabilityHandler = { [weak self] _ in
-            guard let self = self else {
-                return
-            }
-            self.dataGroup.enter()
-            let readData = self.stdout.availableData
-            let bytesCount = readData.count
-            if bytesCount > 0 {
-				let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-				self.appendStdoutData(bytesCopy)
-            }
-            self.dataGroup.leave()
-        }
-        
-        stderr.readabilityHandler = { [weak self] _ in
-            guard let self = self else {
-                return
-            }
-            self.dataGroup.enter()
-            let readData = self.stderr.availableData
-            let bytesCount = readData.count
-            if bytesCount > 0 {
-				let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-				self.appendStderrData(bytesCopy)
-            }
-            self.dataGroup.leave()         
-        }
-        
+        serialProcess.sync {
+			stdout.readabilityHandler = { [weak self] _ in
+				guard let self = self else {
+					return
+				}
+				self.dataGroup.enter()
+				let readData = self.stdout.availableData
+				let bytesCount = readData.count
+				if bytesCount > 0 {
+					let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+					self.appendStdoutData(bytesCopy)
+				}
+				self.dataGroup.leave()
+			}
+		
+			stderr.readabilityHandler = { [weak self] _ in
+				guard let self = self else {
+					return
+				}
+				self.dataGroup.enter()
+				let readData = self.stderr.availableData
+				let bytesCount = readData.count
+				if bytesCount > 0 {
+					let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+					self.appendStderrData(bytesCopy)
+				}
+				self.dataGroup.leave()         
+			}
+		}
+		        
 		if run {
             do {
                 try self.run()
@@ -293,6 +295,7 @@ public class InteractiveProcess {
     }
     
     deinit {
-    	print(Colors.yellow("{ deinit }"))
+    	stdout.readabilityHandler = nil
+    	stderr.readabilityHandler = nil
     }
 }
