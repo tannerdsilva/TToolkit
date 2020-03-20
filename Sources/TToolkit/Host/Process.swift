@@ -115,7 +115,7 @@ public class InteractiveProcess {
 		
 		env = command.environment
 		
-		let pipesAndStuff = initializePipesAndProcessesSerially(queue:serialProcess)
+		let pipesAndStuff = initializePipesAndProcessesSerially(queue:processQueue)
 		
 		stdinPipe = pipesAndStuff.stdin
 		stdoutPipe = pipesAndStuff.stdout
@@ -138,7 +138,7 @@ public class InteractiveProcess {
 			self.dataGroup.wait()
 			self.processQueue.sync {
 				self.state = .exited
-				serialProcess.sync {
+//				serialProcess.sync {
 					if #available(macOS 10.15, *) {
 						try? self.stdinPipe.fileHandleForReading.close()
 						try? self.stdoutPipe.fileHandleForReading.close()
@@ -147,14 +147,13 @@ public class InteractiveProcess {
 						try? self.stdinPipe.fileHandleForWriting.close()
 						try? self.stdoutPipe.fileHandleForWriting.close()
 						try? self.stderrPipe.fileHandleForWriting.close()
-						print(Colors.Yellow("[ CLOSED ]"))
 					}
-				}
+//				}
 			}
 			self.runGroup.leave()
 		}
         
-        serialProcess.sync {
+        processQueue.sync {
 			stdout.readabilityHandler = { [weak self] _ in
 				guard let self = self else {
 					return
