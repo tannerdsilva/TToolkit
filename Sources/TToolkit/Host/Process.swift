@@ -13,16 +13,26 @@ fileprivate func bashEscape(string:String) -> String {
 fileprivate let serialProcess = DispatchQueue(label:"com.tannersilva.global.process-interactive.launch", qos:Priority.highest.asDispatchQoS())
 
 //InteractiveProcess calls on this function to serially initialize the pipes and process objects that it needs to operate
-fileprivate typealias ProcessAndPipes = (stdin:FileHandle, stdout:FileHandle, stderr:FileHandle, process:Process)
+fileprivate typealias ProcessAndPipes = (stdin:Pipe, stdout:Pipe, stderr:Pipe, process:Process)
 fileprivate func initializePipesAndProcessesSerially(queue:DispatchQueue) -> ProcessAndPipes {
 	return queue.sync {
-		let stdinputPipe = FileHandle.nullDevice
-		let stdoutputPipe = FileHandle.nullDevice
-		let stderrorPipe = FileHandle.nullDevice
+		let stdinputPipe = Pipe()
+		let stdoutputPipe = Pipe()
+		let stderrorPipe = Pipe()
 		let processObject = Process()
 		return (stdin:stdinputPipe, stdout:stdoutputPipe, stderr:stderrorPipe, process:processObject)
 	}
 }
+
+extension Process {
+	fileprivate func signal(_ sign:Int32) -> Int32 {
+		return Darwin.kill(processIdentifier, sign)
+	}
+	fileprivate func kill() {
+		signal(SIGKILL)
+	}
+}
+
 
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
@@ -30,7 +40,7 @@ public class InteractiveProcess {
     public let processQueue:DispatchQueue		//what serial thread is going to be used to process the data for each class instance?
     private let callbackQueue:DispatchQueue		//what global concurrent thread is going to be used to call back the handlers
     private let runGroup:DispatchGroup			//used to signify that the object is still "working"
-    private let dataGroup:DispatchGroup
+    private let dataGroup:DispatchGroup			//used to signify that there is data that has been passed to a handler function that hasn't been appended to the internal buffers yet
     
 	public enum State:UInt8 {
 		case initialized = 0
@@ -42,9 +52,24 @@ public class InteractiveProcess {
     
 	public var env:[String:String]
 	
-	public var stdin:FileHandle
-	public var stdout:FileHandle
-	public var stderr:FileHandle
+	public var stdinPipe:Pipe
+	public var stdoutPipe:Pipe
+	public var stderrPipe:Pipe
+	public var stdin:FileHandle { 
+		get {
+			return stdinPipe.fileHandleForWriting
+		}
+	}
+	public var stdout:FileHandle {
+		get {
+			return stdoutPipe.fileHandleForReading
+		}
+	}
+	public var stderr:FileHandle {
+		get {
+			return stderrPipe.fileHandleForReading
+		}
+	}
 	
 	public var stdoutBuff = Data()
 	public var stderrBuff = Data()
@@ -91,23 +116,23 @@ public class InteractiveProcess {
 		runGroup = DispatchGroup()
 		dataGroup = DispatchGroup()
 		
-		let pipesAndProcess = initializePipesAndProcessesSerially(queue:serialProcess)
-		
 		env = command.environment
 		
-		stdin = pipesAndProcess.stdin
-		stdout = pipesAndProcess.stdout
-		stderr = pipesAndProcess.stderr
+		let pipesAndStuff = initializePipesAndProcessesSerially(queue:concurrentGlobal)
 		
-		proc = pipesAndProcess.process
+		stdinPipe = pipesAndStuff.stdin
+		stdoutPipe = pipesAndStuff.stdout
+		stderrPipe = pipesAndStuff.stderr
+		
+		proc = pipesAndStuff.process
 
 		workingDirectory = wd
 		proc.arguments = command.arguments
 		proc.executableURL = command.executable
 		proc.currentDirectoryURL = wd
-		proc.standardInput = stdin
-		proc.standardOutput = stdout
-		proc.standardError = stderr
+		proc.standardInput = pipesAndStuff.stdin
+		proc.standardOutput = pipesAndStuff.stdout
+		proc.standardError = pipesAndStuff.stderr
 		proc.qualityOfService = qos.asProcessQualityOfService()
 		proc.terminationHandler = { [weak self] someItem in
 			guard let self = self else {
@@ -118,10 +143,14 @@ public class InteractiveProcess {
 				self.state = .exited
 				serialProcess.sync {
 					if #available(macOS 10.15, *) {
-//						try? self.stdin.close()
-//						try? self.stdout.close()
-//						try? self.stderr.close()
-//						print(Colors.Yellow("[ CLOSED ]"))
+						try? self.stdinPipe.fileHandleForReading.close()
+						try? self.stdoutPipe.fileHandleForReading.close()
+						try? self.stderrPipe.fileHandleForReading.close()
+						
+						try? self.stdinPipe.fileHandleForWriting.close()
+						try? self.stdoutPipe.fileHandleForWriting.close()
+						try? self.stderrPipe.fileHandleForWriting.close()
+						print(Colors.Yellow("[ CLOSED ]"))
 					}
 				}
 			}
