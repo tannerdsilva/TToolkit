@@ -296,8 +296,5 @@ public class InteractiveProcess {
     deinit {
     	stdout.readabilityHandler = nil
     	stderr.readabilityHandler = nil
-    	
-    	stdoutBuff.removeAll(keepingCapacity:false)
-    	stderrBuff.removeAll(keepingCapacity:false)
     }
 }
