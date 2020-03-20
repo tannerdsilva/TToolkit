@@ -267,7 +267,7 @@ public class InteractiveProcess {
 	public func kill() -> Bool? {
 		return processQueue.sync { 
 			if state == .running {
-				if kill(proc.processIdentifier, SIGKILL) == 0 {
+				if SwiftGlibc.kill(proc.processIdentifier, SIGKILL) == 0 {
 					return true
 				} else {
 					return false
