@@ -153,7 +153,7 @@ public class InteractiveProcess {
 			self.runGroup.leave()
 		}
         
-        processQueue.sync {
+        serialProcess.sync {
 			stdout.readabilityHandler = { [weak self] _ in
 				guard let self = self else {
 					return
