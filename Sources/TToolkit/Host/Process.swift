@@ -138,17 +138,6 @@ public class InteractiveProcess {
 			self.dataGroup.wait()
 			self.processQueue.sync {
 				self.state = .exited
-//				serialProcess.sync {
-					if #available(macOS 10.15, *) {
-						try? self.stdinPipe.fileHandleForReading.close()
-						try? self.stdoutPipe.fileHandleForReading.close()
-						try? self.stderrPipe.fileHandleForReading.close()
-						
-						try? self.stdinPipe.fileHandleForWriting.close()
-						try? self.stdoutPipe.fileHandleForWriting.close()
-						try? self.stderrPipe.fileHandleForWriting.close()
-					}
-//				}
 			}
 			self.runGroup.leave()
 		}
