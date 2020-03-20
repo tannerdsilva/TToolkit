@@ -118,10 +118,10 @@ public class InteractiveProcess {
 				self.state = .exited
 				serialProcess.sync {
 					if #available(macOS 10.15, *) {
-						try? self.stdin.close()
-						try? self.stdout.close()
-						try? self.stderr.close()
-						print(Colors.Yellow("[ CLOSED ]"))
+//						try? self.stdin.close()
+//						try? self.stdout.close()
+//						try? self.stderr.close()
+//						print(Colors.Yellow("[ CLOSED ]"))
 					}
 				}
 			}
