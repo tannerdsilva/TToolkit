@@ -91,13 +91,15 @@ public class InteractiveProcess {
 		runGroup = DispatchGroup()
 		dataGroup = DispatchGroup()
 		
+		let pipesAndProcess = initializePipesAndProcessesSerially(queue:serialProcess)
+		
 		env = command.environment
 		
-		stdin = FileHandle.nullDevice
-		stdout = FileHandle.nullDevice
-		stderr = FileHandle.nullDevice
+		stdin = pipesAndProcess.stdin
+		stdout = pipesAndProcess.stdout
+		stderr = pipesAndProcess.stderr
 		
-		proc = Process()
+		proc = pipesAndProcess.process
 
 		workingDirectory = wd
 		proc.arguments = command.arguments
