@@ -115,7 +115,7 @@ public class InteractiveProcess {
 		
 		env = command.environment
 		
-		let pipesAndStuff = initializePipesAndProcessesSerially(queue:concurrentGlobal)
+		let pipesAndStuff = initializePipesAndProcessesSerially(queue:serialProcess)
 		
 		stdinPipe = pipesAndStuff.stdin
 		stdoutPipe = pipesAndStuff.stdout
