@@ -233,7 +233,7 @@ public class InteractiveProcess {
     }
 	
 	public func suspend() -> Bool? {
-        processQueue.sync {
+        return processQueue.sync {
             if state == .running {
                 if proc.suspend() == true {
                     state = .suspended
@@ -249,7 +249,7 @@ public class InteractiveProcess {
     }
 	
 	public func resume() -> Bool? {
-        processQueue.sync {
+        return processQueue.sync {
             if state == .suspended {
                 if proc.resume() == true {
                     state = .running
@@ -262,6 +262,20 @@ public class InteractiveProcess {
                 return nil
             }
         }
+	}
+	
+	public func kill() -> Bool? {
+		return processQueue.sync { 
+			if state == .running {
+				if kill(proc.processIdentifier, SIGKILL) == 0 {
+					return true
+				} else {
+					return false
+				}
+			} else {
+				return nil
+			}
+		}
 	}
 	
 	public func exportStdOut() -> Data {
