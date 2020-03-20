@@ -13,19 +13,16 @@ fileprivate func bashEscape(string:String) -> String {
 fileprivate let serialProcess = DispatchQueue(label:"com.tannersilva.global.process-interactive.launch", qos:Priority.highest.asDispatchQoS())
 
 //InteractiveProcess calls on this function to serially initialize the pipes and process objects that it needs to operate
-fileprivate typealias ProcessAndPipes = (stdin:Pipe, stdout:Pipe, stderr:Pipe, process:Process)
+fileprivate typealias ProcessAndPipes = (stdin:FileHandle, stdout:FileHandle, stderr:FileHandle, process:Process)
 fileprivate func initializePipesAndProcessesSerially(queue:DispatchQueue) -> ProcessAndPipes {
-	var procsAndPipes:ProcessAndPipes? = nil
-	queue.sync {
-		let stdinputPipe = Pipe()
-		let stdoutputPipe = Pipe()
-		let stderrorPipe = Pipe()
+	return queue.sync {
+		let stdinputPipe = FileHandle.nullDevice
+		let stdoutputPipe = FileHandle.nullDevice
+		let stderrorPipe = FileHandle.nullDevice
 		let processObject = Process()
-		procsAndPipes = (stdin:stdinputPipe, stdout:stdoutputPipe, stderr:stderrorPipe, process:processObject)
+		return (stdin:stdinputPipe, stdout:stdoutputPipe, stderr:stderrorPipe, process:processObject)
 	}
-	return procsAndPipes!
 }
-
 
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
@@ -45,24 +42,9 @@ public class InteractiveProcess {
     
 	public var env:[String:String]
 	
-	public var stdinPipe:Pipe
-	public var stdoutPipe:Pipe
-	public var stderrPipe:Pipe
-	public var stdin:FileHandle { 
-		get {
-			return stdinPipe.fileHandleForWriting
-		}
-	}
-	public var stdout:FileHandle {
-		get {
-			return stdoutPipe.fileHandleForReading
-		}
-	}
-	public var stderr:FileHandle {
-		get {
-			return stderrPipe.fileHandleForReading
-		}
-	}
+	public var stdin:FileHandle
+	public var stdout:FileHandle
+	public var stderr:FileHandle
 	
 	public var stdoutBuff = Data()
 	public var stderrBuff = Data()
@@ -111,21 +93,19 @@ public class InteractiveProcess {
 		
 		env = command.environment
 		
-		let pipesAndStuff = initializePipesAndProcessesSerially(queue:concurrentGlobal)
+		stdin = FileHandle.nullDevice
+		stdout = FileHandle.nullDevice
+		stderr = FileHandle.nullDevice
 		
-		stdinPipe = pipesAndStuff.stdin
-		stdoutPipe = pipesAndStuff.stdout
-		stderrPipe = pipesAndStuff.stderr
-		
-		proc = pipesAndStuff.process
+		proc = Process()
 
 		workingDirectory = wd
 		proc.arguments = command.arguments
 		proc.executableURL = command.executable
 		proc.currentDirectoryURL = wd
-		proc.standardInput = pipesAndStuff.stdin
-		proc.standardOutput = pipesAndStuff.stdout
-		proc.standardError = pipesAndStuff.stderr
+		proc.standardInput = stdin
+		proc.standardOutput = stdout
+		proc.standardError = stderr
 		proc.qualityOfService = qos.asProcessQualityOfService()
 		proc.terminationHandler = { [weak self] someItem in
 			guard let self = self else {
@@ -136,13 +116,9 @@ public class InteractiveProcess {
 				self.state = .exited
 				serialProcess.sync {
 					if #available(macOS 10.15, *) {
-						try? self.stdinPipe.fileHandleForReading.close()
-						try? self.stdoutPipe.fileHandleForReading.close()
-						try? self.stderrPipe.fileHandleForReading.close()
-						
-						try? self.stdinPipe.fileHandleForWriting.close()
-						try? self.stdoutPipe.fileHandleForWriting.close()
-						try? self.stderrPipe.fileHandleForWriting.close()
+						try? self.stdin.close()
+						try? self.stdout.close()
+						try? self.stderr.close()
 						print(Colors.Yellow("[ CLOSED ]"))
 					}
 				}
