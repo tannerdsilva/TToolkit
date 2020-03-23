@@ -124,12 +124,15 @@ internal class ExecutingProcess {
 		//bind the file handle descriptors to the pipes that we are associating with this process 
 		var fHandles = [Int32:Int32]()
 		if let hasStdin = stdin {
+			print(Colors.Green("[BIND]{OK} - STDIN"))
 			fHandles[STDIN_FILENO] = hasStdin.fileDescriptor
 		}
 		if let hasStdout = stdout {
+			print(Colors.Green("[BIND]{OK} - STDOUT"))
 			fHandles[STDOUT_FILENO] = hasStdout.fileDescriptor
 		}
 		if let hasStderr = stderr {
+			print(Colors.Green("[BIND]{OK} - STDERR"))
 			fHandles[STDERR_FILENO] = hasStderr.fileDescriptor
 		}
 		
@@ -154,7 +157,7 @@ internal class ExecutingProcess {
 		}
 		
 		for (destination, source) in fHandles {
-			posix_spawn_file_actions_adddup2(fileActions, source, destination)
+			print(Colors.Cyan("\(posix_spawn_file_actions_adddup2(fileActions, source, destination))"))
 		}
 
 		//launch the process
