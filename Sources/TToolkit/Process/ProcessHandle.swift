@@ -62,7 +62,7 @@ internal class ProcessPipes {
 					}
 					readSource = newSource
 					newSource.activate()
-					print(Colors.magenta("OK read handler scheduled when \(writing.fileDescriptor) is written"))
+					print(Colors.magenta("OK read handler scheduled for \(reading.fileDescriptor) when \(writing.fileDescriptor) is written"))
 				} else {
 					_readHandler = nil
 					readSource = nil
@@ -105,7 +105,7 @@ internal class ProcessPipes {
 					}
 					writeSource = newSource
 					newSource.activate()
-					print(Colors.magenta("OK write handler scheduled when \(reading.fileDescriptor) is available for writing"))
+					print(Colors.magenta("OK write handler scheduled for \(writing.fileDescriptor) when \(reading.fileDescriptor) is available for writing"))
 				} else {
 					_writeHandler = nil
 					writeSource = nil
