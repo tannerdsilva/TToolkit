@@ -115,7 +115,6 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
-			print(Colors.Red("[ \(self.proc.processIdentifier) ] TERM"))
 			self.dataGroup.wait()
 			self.processQueue.sync {
 				self.state = .exited
