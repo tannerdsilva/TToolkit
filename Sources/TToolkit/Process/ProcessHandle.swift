@@ -20,6 +20,41 @@ fileprivate let _close = Glibc.close(_:)
 	
 	The underlying posix functions create these types of filehandles in pairs...one for reading and one for writing. As such, there are class functions for initializing a pipe for reading, writing, or both
 */
+
+internal struct ProcessPipes {
+	var reading:ProcessHandle
+	var writing:ProcessHandle
+	
+	static func forReadingAndWriting(priority:Priority, queue:DispatchQueue) -> ProcessPipes {
+		let fds = UnsafeMutablePointer<Int32>.allocate(capacity:2)
+		defer {
+			fds.deallocate()
+		}
+		
+		let rwfds = pipe(fds)
+		switch rwfds {
+			case 0:
+				let readFD = fds.pointee
+				let writeFD = fds.successor().pointee
+				
+				let dupR = dup(readFD)
+				let dupW = dup(writeFD)
+				
+				_close(readFD)
+				_close(writeFD)
+				
+				return ProcessPipes(r:ProcessHandle(priority:priority, queue:queue, fileDescriptor:dupR, autoClose:true), w:ProcessHandle(priority:priority, queue:queue, fileDescriptor:dupW, autoClose:true))
+			default:
+			fatalError("Error calling pipe(): \(errno)")
+		}
+	}
+	
+	fileprivate init(r:ProcessHandle, w:ProcessHandle) {
+		self.reading = r
+		self.writing = w
+	}
+}
+
 internal class ProcessHandle {
 	var queue:DispatchQueue
 	var concurrentGlobal:DispatchQueue
@@ -117,40 +152,6 @@ internal class ProcessHandle {
 	private var writeSource:DispatchSourceProtocol? = nil
 	private var readSource:DispatchSourceProtocol? = nil
 	
-	//MARK: Public Initializers
-	class func forReading(priority:Priority, queue:DispatchQueue) -> ProcessHandle {
-		let readWrite = Self.forReadingAndWriting(priority:priority, queue:queue)
-		return readWrite.reading
-	}
-	
-	class func forWriting(priority:Priority, queue:DispatchQueue) -> ProcessHandle {
-		let readWrite = Self.forReadingAndWriting(priority:priority, queue:queue)
-		return readWrite.writing
-	}
-	
-	fileprivate class func forReadingAndWriting(priority:Priority, queue:DispatchQueue) -> (reading:ProcessHandle, writing:ProcessHandle) {
-		let fds = UnsafeMutablePointer<Int32>.allocate(capacity:2)
-		defer {
-			fds.deallocate()
-		}
-		
-		let rwfds = pipe(fds)
-		switch (rwfds, errno) {
-			case (0, _):
-				let readFD = fds.pointee
-				let writeFD = fds.successor().pointee
-				
-				let dupR = dup(readFD)
-				let dupW = dup(writeFD)
-				
-				_close(readFD)
-				_close(writeFD)
-				
-				return (reading:ProcessHandle(priority:priority, queue:queue, fileDescriptor:dupR, autoClose:false), writing:ProcessHandle(priority:priority, queue:queue, fileDescriptor:dupW, autoClose:false))
-			default:
-			fatalError("Error calling pipe(): \(errno)")
-		}
-	}
 	
 	init(priority:Priority, queue:DispatchQueue, fileDescriptor:Int32, autoClose:Bool = true) {
 		print(Colors.Yellow("[ \(fileDescriptor) ] - INITIALIZED"))

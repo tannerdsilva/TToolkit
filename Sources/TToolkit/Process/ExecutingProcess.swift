@@ -36,9 +36,9 @@ internal class ExecutingProcess {
 	var processIdentifier:Int32?
 	var isRunning:Bool
 	
-	var stdin:ProcessHandle? = nil
-	var stdout:ProcessHandle? = nil
-	var stderr:ProcessHandle? = nil
+	var stdin:ProcessPipes? = nil
+	var stdout:ProcessPipes? = nil
+	var stderr:ProcessPipes? = nil
 	
 	var terminationReason:TerminationReason? = nil
 	var exitCode:Int32? = nil
@@ -125,15 +125,15 @@ internal class ExecutingProcess {
 		var fHandles = [Int32:Int32]()
 		if let hasStdin = stdin {
 			print(Colors.Green("[BIND]{OK} - STDIN"))
-			fHandles[STDIN_FILENO] = hasStdin.fileDescriptor
+			fHandles[STDIN_FILENO] = hasStdin.writing.fileDescriptor
 		}
 		if let hasStdout = stdout {
 			print(Colors.Green("[BIND]{OK} - STDOUT"))
-			fHandles[STDOUT_FILENO] = hasStdout.fileDescriptor
+			fHandles[STDOUT_FILENO] = hasStdout.reading.fileDescriptor
 		}
 		if let hasStderr = stderr {
 			print(Colors.Green("[BIND]{OK} - STDERR"))
-			fHandles[STDERR_FILENO] = hasStderr.fileDescriptor
+			fHandles[STDERR_FILENO] = hasStderr.reading.fileDescriptor
 		}
 		
 		

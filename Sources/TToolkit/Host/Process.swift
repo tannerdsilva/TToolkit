@@ -35,9 +35,9 @@ public class InteractiveProcess {
 		case failed = 5
 	}
 	
-	internal var stdin:ProcessHandle
-	internal var stdout:ProcessHandle
-	internal var stderr:ProcessHandle
+	internal var stdin:ProcessPipes
+	internal var stdout:ProcessPipes
+	internal var stderr:ProcessPipes
 	
 	public var stdoutBuff = Data()
 	public var stderrBuff = Data()
@@ -96,9 +96,9 @@ public class InteractiveProcess {
 		dataGroup = DispatchGroup()
 				
 		//create the ProcessHandles that we need to read the data from this process as it runs
-		let standardIn = ProcessHandle.forWriting(priority:priority, queue:processQueue)
-		let standardOut = ProcessHandle.forReading(priority:priority, queue:processQueue)
-		let standardErr = ProcessHandle.forReading(priority:priority, queue:processQueue)
+		let standardIn = ProcessPipes.forReadingAndWriting(priority:priority, queue:processQueue)
+		let standardOut = ProcessPipes.forReadingAndWriting(priority:priority, queue:processQueue)
+		let standardErr = ProcessPipes.forReadingAndWriting(priority:priority, queue:processQueue)
 		stdin = standardIn
 		stdout = standardOut
 		stderr = standardErr
@@ -122,13 +122,13 @@ public class InteractiveProcess {
 			self.runGroup.leave()
 		}
         
-		stdout.readHandler = { [weak self] _ in
+		stdout.reading.readHandler = { [weak self] _ in
 			guard let self = self else {
 				return
 			}
 			print(Colors.cyan("stdout read handler"))
 			self.dataGroup.enter()
-			if let readData = self.stdout.availableData() {
+			if let readData = self.stdout.reading.availableData() {
 				print(Colors.yellow("\t-> GOT DATA"))
 				let bytesCount = readData.count
 				if bytesCount > 0 {
@@ -141,13 +141,13 @@ public class InteractiveProcess {
 			self.dataGroup.leave()
 		}
 	
-		stderr.readHandler = { [weak self] _ in
+		stderr.reading.readHandler = { [weak self] _ in
 			guard let self = self else {
 				return
 			}
 			print(Colors.magenta("stderr read handler"))
 			self.dataGroup.enter()
-			if let readData = self.stderr.availableData() {
+			if let readData = self.stderr.reading.availableData() {
 				print(Colors.yellow("\t-> GOT DATA"))
 				let bytesCount = readData.count
 				if bytesCount > 0 {
