@@ -191,44 +191,14 @@ internal class ProcessHandle {
 		}
 	}
 	
-	class func readHandle(_ fh:Int32) -> Data? {
+	func availableData() -> Data? {
 		var statbuf = stat()
-		if fstat(fh, &statbuf) < 0 {
+		if fstat(_fd, &statbuf) < 0 {
 			print("Statbuf fail")
 		}
 		
 		let readBlockSize:Int
 		if statbuf.st_mode & S_IFMT == S_IFREG && statbuf.st_blksize > 0 {
-			print("using custom block size")
-			readBlockSize = Int(clamping:statbuf.st_blksize)
-		} else {
-			readBlockSize = 1024 * 8
-		}
-		
-		guard var dynamicBuffer = malloc(readBlockSize + 1) else {
-			print(Colors.Red("Unable to allocate"))
-			return nil
-		}
-		defer {
-			free(dynamicBuffer)
-		}
-		
-		let amountRead = _read(fh, dynamicBuffer, readBlockSize)
-		guard amountRead > 0 else {
-			print("couldnt get data \(amountRead)")
-			return nil
-		}
-		let bytesBound = dynamicBuffer.bindMemory(to:UInt8.self, capacity:amountRead)
-		return Data(bytes:bytesBound, count:amountRead)
-	}
-	
-	func availableData() -> Data? {
-		var statbuf = stat()
-		if fstat(_fd, &statbuf) < 0 {
-		}
-		
-		let readBlockSize:Int
-		if statbuf.st_mode & S_IFMT == S_IFREG && statbuf.st_blksize > 0 {
 			readBlockSize = Int(clamping:statbuf.st_blksize)
 		} else {
 			readBlockSize = 1024 * 8
@@ -241,7 +211,7 @@ internal class ProcessHandle {
 			free(dynamicBuffer)
 		}
 		
-		let amountRead = _read(_fd, dynamicBuffer, readBlockSize)
+		let amountRead = read(_fd, dynamicBuffer, readBlockSize)
 		guard amountRead > 0 else {
 			return nil
 		}
