@@ -133,7 +133,12 @@ internal class ExecutingProcess {
 			fHandles[STDERR_FILENO] = hasStderr.fileDescriptor
 		}
 		
+		
+#if os(macOS)
 		var fileActions:UnsafeMutablePointer<posix_spawn_file_actions_t?>? = UnsafeMutablePointer<posix_spawn_file_actions_t?>.allocate(capacity:1)
+#else
+		var fileActions:UnsafeMutablePointer<posix_spawn_file_actions_t> = UnsafeMutablePointer<posix_spawn_file_actions_t>.allocate(capacity:1)
+#endif
 		posix_spawn_file_actions_init(fileActions)
 		defer {
 			posix_spawn_file_actions_destroy(fileActions)
