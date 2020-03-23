@@ -248,26 +248,7 @@ internal class ProcessHandle {
 		let bytesBound = dynamicBuffer.bindMemory(to:UInt8.self, capacity:amountRead)
 		return Data(bytes:bytesBound, count:amountRead)
 	}
-	
-	func read() -> Data? {
-		return availableData()
-		let readBlockSize = 1024 * 8
-		guard var dynamicBuffer = malloc(readBlockSize) else {
-			print(Colors.Red("Unable to allocate"))
-			return nil
-		}
-		defer {
-			free(dynamicBuffer)
-		}
 		
-		let amountRead = _read(_fd, dynamicBuffer, readBlockSize)
-		guard amountRead > 0 else {
-			return nil
-		}
-		let bytesBound = dynamicBuffer.bindMemory(to:UInt8.self, capacity:amountRead)
-		return Data(bytes:bytesBound, count:amountRead)
-	}
-	
 	func close() {
 		guard _fd != -1 else {
 			return

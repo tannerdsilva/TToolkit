@@ -128,7 +128,7 @@ public class InteractiveProcess {
 			}
 			print(Colors.cyan("stdout read handler"))
 			self.dataGroup.enter()
-			if let readData = self.stdout.read() {
+			if let readData = self.stdout.availableData() {
 				print(Colors.yellow("\t-> GOT DATA"))
 				let bytesCount = readData.count
 				if bytesCount > 0 {
@@ -147,7 +147,7 @@ public class InteractiveProcess {
 			}
 			print(Colors.magenta("stderr read handler"))
 			self.dataGroup.enter()
-			if let readData = self.stderr.read() {
+			if let readData = self.stderr.availableData() {
 				print(Colors.yellow("\t-> GOT DATA"))
 				let bytesCount = readData.count
 				if bytesCount > 0 {
