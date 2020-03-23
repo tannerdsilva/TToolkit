@@ -146,7 +146,7 @@ internal class ProcessHandle {
 				_close(readFD)
 				_close(writeFD)
 				
-				return (reading:ProcessHandle(priority:priority, queue:queue, fileDescriptor:dupR, autoClose:true), writing:ProcessHandle(priority:priority, queue:queue, fileDescriptor:dupW, autoClose:true))
+				return (reading:ProcessHandle(priority:priority, queue:queue, fileDescriptor:dupR, autoClose:false), writing:ProcessHandle(priority:priority, queue:queue, fileDescriptor:dupW, autoClose:false))
 			default:
 			fatalError("Error calling pipe(): \(errno)")
 		}
