@@ -52,7 +52,8 @@ internal class ProcessHandle {
 					_readHandler = hasNewHandler
 
 					let newFD = dup(_fd)
-					
+					print("duped fd \(newFD) from \(_fd)")
+										
 					//schedule the new timer
 					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:concurrentGlobal)
 					newSource.setEventHandler { [weak self] in
@@ -95,6 +96,7 @@ internal class ProcessHandle {
 					_writeHandler = hasNewHandler
 					
 					let newFD = dup(_fd)
+					print("duped fd \(newFD) from \(_fd)")
 					
 					//schedule the new timer
 					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:concurrentGlobal)
