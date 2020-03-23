@@ -115,19 +115,19 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
+			print(Colors.red("[ X ] TERM"))
 			self.dataGroup.wait()
 			self.processQueue.sync {
 				self.state = .exited
 			}
 			self.runGroup.leave()
 		}
-		
-		print("Termination handler assigned")
         
 		stdout.readHandler = { [weak self] _ in
 			guard let self = self else {
 				return
 			}
+			print(Colors.cyan("stdout read handler")
 			self.dataGroup.enter()
 			if let readData = self.stdout.read() {
 				let bytesCount = readData.count
@@ -138,13 +138,12 @@ public class InteractiveProcess {
 			}
 			self.dataGroup.leave()
 		}
-		
-		print("stdout handler applied")
 	
 		stderr.readHandler = { [weak self] _ in
 			guard let self = self else {
 				return
 			}
+			print(Colors.magenta("stderr read handler"))
 			self.dataGroup.enter()
 			if let readData = self.stderr.read() {
 				let bytesCount = readData.count
@@ -155,8 +154,6 @@ public class InteractiveProcess {
 			}
 			self.dataGroup.leave()         
 		}
-		
-		print("stderr handler applied")
 		        
 		if run {
             do {
