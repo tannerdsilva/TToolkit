@@ -86,7 +86,7 @@ internal class ProcessHandle {
 				if let hasNewHandler = newValue {
 					_readHandler = hasNewHandler
 
-					let newFD = _fd
+					let newFD = dup(_fd)
 										
 					//schedule the new timer
 					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:concurrentGlobal)
@@ -97,10 +97,11 @@ internal class ProcessHandle {
 						eventHandler(self)
 					}
 					newSource.setCancelHandler {
-//						_ = _close(newFD)
+						_ = _close(newFD)
 					}
 					readSource = newSource
 					newSource.activate()
+					print(Colors.magenta("OK write handler scheduled"))
 				} else {
 					_readHandler = nil
 					readSource = nil
@@ -126,7 +127,7 @@ internal class ProcessHandle {
 				if let hasNewHandler = newValue {
 					_writeHandler = hasNewHandler
 					
-					let newFD = _fd
+					let newFD = dup(_fd)
 					
 					//schedule the new timer
 					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:concurrentGlobal)
@@ -137,10 +138,11 @@ internal class ProcessHandle {
 						eventHandler(self)
 					}
 					newSource.setCancelHandler {
-//						_ = _close(newFD)
+						_ = _close(newFD)
 					}
 					writeSource = newSource
 					newSource.activate()
+					print(Colors.magenta("OK write handler scheduled"))
 				} else {
 					_writeHandler = nil
 					writeSource = nil
