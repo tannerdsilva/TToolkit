@@ -127,7 +127,7 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
-			print(Colors.cyan("stdout read handler")
+			print(Colors.cyan("stdout read handler"))
 			self.dataGroup.enter()
 			if let readData = self.stdout.read() {
 				let bytesCount = readData.count
