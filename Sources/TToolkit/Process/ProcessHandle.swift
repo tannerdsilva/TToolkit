@@ -51,7 +51,7 @@ internal class ProcessHandle {
 				if let hasNewHandler = newValue {
 					_readHandler = hasNewHandler
 
-					let newFD = dup(_fd)
+					let newFD = _fd
 										
 					//schedule the new timer
 					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:concurrentGlobal)
@@ -61,11 +61,8 @@ internal class ProcessHandle {
 						}
 						eventHandler(self)
 					}
-					newSource.setCancelHandler { [weak self] in
-						guard let self = self else {
-							return
-						}
-						_ = _close(newFD)
+					newSource.setCancelHandler {
+//						_ = _close(newFD)
 					}
 					readSource = newSource
 					newSource.activate()
@@ -94,7 +91,7 @@ internal class ProcessHandle {
 				if let hasNewHandler = newValue {
 					_writeHandler = hasNewHandler
 					
-					let newFD = dup(_fd)
+					let newFD = _fd
 					
 					//schedule the new timer
 					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:concurrentGlobal)
@@ -105,7 +102,7 @@ internal class ProcessHandle {
 						eventHandler(self)
 					}
 					newSource.setCancelHandler {
-						_ = _close(newFD)
+//						_ = _close(newFD)
 					}
 					writeSource = newSource
 					newSource.activate()
