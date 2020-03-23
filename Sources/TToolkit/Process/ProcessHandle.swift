@@ -59,6 +59,8 @@ internal class ProcessHandle {
 						guard let self = self, let eventHandler = self.readHandler else {
 							return
 						}
+						let newData = ProcessHandle.readHandle(newFD)
+						print("\(newData?.count)")
 						eventHandler(self)
 					}
 					newSource.setCancelHandler { [weak self] in
@@ -102,6 +104,8 @@ internal class ProcessHandle {
 						guard let self = self, let eventHandler = self.writeHandler else {
 							return
 						}
+						let newData = ProcessHandle.readHandle(newFD)
+						print("\(newData?.count)")
 						eventHandler(self)
 					}
 					newSource.setCancelHandler {
@@ -185,9 +189,9 @@ internal class ProcessHandle {
 		}
 	}
 	
-	func availableData() -> Data? {
+	class func readHandle(_ fh:Int32) -> Data? {
 		var statbuf = stat()
-		if fstat(_fd, &statbuf) < 0 {
+		if fstat(fh, &statbuf) < 0 {
 			print("Statbuf fail")
 		}
 		
@@ -199,8 +203,36 @@ internal class ProcessHandle {
 			readBlockSize = 1024 * 8
 		}
 		
-		guard var dynamicBuffer = malloc(readBlockSize) else {
+		guard var dynamicBuffer = malloc(readBlockSize + 1) else {
 			print(Colors.Red("Unable to allocate"))
+			return nil
+		}
+		defer {
+			free(dynamicBuffer)
+		}
+		
+		let amountRead = _read(fh, dynamicBuffer, readBlockSize)
+		guard amountRead > 0 else {
+			print("couldnt get data \(amountRead)")
+			return nil
+		}
+		let bytesBound = dynamicBuffer.bindMemory(to:UInt8.self, capacity:amountRead)
+		return Data(bytes:bytesBound, count:amountRead)
+	}
+	
+	func availableData() -> Data? {
+		var statbuf = stat()
+		if fstat(_fd, &statbuf) < 0 {
+		}
+		
+		let readBlockSize:Int
+		if statbuf.st_mode & S_IFMT == S_IFREG && statbuf.st_blksize > 0 {
+			readBlockSize = Int(clamping:statbuf.st_blksize)
+		} else {
+			readBlockSize = 1024 * 8
+		}
+		
+		guard var dynamicBuffer = malloc(readBlockSize + 1) else {
 			return nil
 		}
 		defer {
@@ -209,7 +241,6 @@ internal class ProcessHandle {
 		
 		let amountRead = _read(_fd, dynamicBuffer, readBlockSize)
 		guard amountRead > 0 else {
-			print("couldnt get data \(amountRead)")
 			return nil
 		}
 		let bytesBound = dynamicBuffer.bindMemory(to:UInt8.self, capacity:amountRead)
