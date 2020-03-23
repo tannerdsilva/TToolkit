@@ -2,76 +2,34 @@ import Dispatch
 import Foundation
 
 #if canImport(Darwin)
-import Darwin
-fileprivate let _read = Darwin.read(_:_:_:)
-fileprivate let _write = Darwin.write(_:_:_:)
-fileprivate let _close = Darwin.close(_:)
+	import Darwin
+	fileprivate let _read = Darwin.read(_:_:_:)
+	fileprivate let _write = Darwin.write(_:_:_:)
+	fileprivate let _close = Darwin.close(_:)
 #elseif canImport(Glibc)
-import Glibc
-fileprivate let _read = Glibc.read(_:_:_:)
-fileprivate let _write = Glibc.write(_:_:_:)
-fileprivate let _close = Glibc.close(_:)
+	import Glibc
+	fileprivate let _read = Glibc.read(_:_:_:)
+	fileprivate let _write = Glibc.write(_:_:_:)
+	fileprivate let _close = Glibc.close(_:)
 #endif
 
+internal class ProcessPipes {
+	typealias Handler = (ProcessHandle) -> Void
 
-/*
-	ProcessPipe is a special type of FileHandle object designed specifically for reading streams from external processes.
-	Much like the traditional FileHandle class found in the Swift Standard Library, ProcessPipe is able to achieve the same functionality with less complexity.
+	let queue:DispatchQueue
+	let priority:Priority
 	
-	The underlying posix functions create these types of filehandles in pairs...one for reading and one for writing. As such, there are class functions for initializing a pipe for reading, writing, or both
-*/
+	let reading:ProcessHandle
+	let writing:ProcessHandle
+	
+	//MARK: Handlers
+	//these are the timing sources that handle the readability and writability handler 
+	private var writeSource:DispatchSourceProtocol? = nil
+	private var readSource:DispatchSourceProtocol? = nil
 
-internal struct ProcessPipes {
-	var reading:ProcessHandle
-	var writing:ProcessHandle
-	
-	static func forReadingAndWriting(priority:Priority, queue:DispatchQueue) -> ProcessPipes {
-		let fds = UnsafeMutablePointer<Int32>.allocate(capacity:2)
-		defer {
-			fds.deallocate()
-		}
-		
-		let rwfds = pipe(fds)
-		switch rwfds {
-			case 0:
-				let readFD = fds.pointee
-				let writeFD = fds.successor().pointee
-				
-				let dupR = dup(readFD)
-				let dupW = dup(writeFD)
-				
-				_close(readFD)
-				_close(writeFD)
-				
-				return ProcessPipes(r:ProcessHandle(priority:priority, queue:queue, fileDescriptor:dupR, autoClose:true), w:ProcessHandle(priority:priority, queue:queue, fileDescriptor:dupW, autoClose:true))
-			default:
-			fatalError("Error calling pipe(): \(errno)")
-		}
-	}
-	
-	fileprivate init(r:ProcessHandle, w:ProcessHandle) {
-		self.reading = r
-		self.writing = w
-	}
-}
-
-internal class ProcessHandle {
-	var queue:DispatchQueue
-	var concurrentGlobal:DispatchQueue
-	
-	private var _fd:Int32
-	var fileDescriptor:Int32 {
-		get {
-			return _fd
-		}
-	}	
-	
-	var shouldClose:Bool
-	
-	typealias OutputHandler = (ProcessHandle) -> Void
-	
-	private var _readHandler:OutputHandler? = nil
-	var readHandler:OutputHandler? {
+	//readability handler
+	private var _readHandler:Handler? = nil
+	var readHandler:Handler? {
 		get {
 			return queue.sync {
 				return _readHandler
@@ -79,23 +37,25 @@ internal class ProcessHandle {
 		}
 		set {
 			queue.sync {
+				//cancel the old handler source if it exists
 				if let hasReadSource = readSource {
 					hasReadSource.cancel()
 				}
-
+				
+				//if there is a new handler to schedule...
 				if let hasNewHandler = newValue {
 					_readHandler = hasNewHandler
 
-					let newFD = dup(_fd)
+					let newFD = dup(reading.fileDescriptor)
 										
 					//schedule the new timer
-					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:concurrentGlobal)
+					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:priority.globalConcurrentQueue)
 					newSource.setEventHandler { [weak self] in
-						print("Event handler called")
+						print("read handler called")
 						guard let self = self, let eventHandler = self.readHandler else {
 							return
 						}
-						eventHandler(self)
+						eventHandler(self.reading)
 					}
 					newSource.setCancelHandler {
 						_ = _close(newFD)
@@ -111,8 +71,9 @@ internal class ProcessHandle {
 		}
 	}
 	
-	private var _writeHandler:OutputHandler? = nil
-	var writeHandler:OutputHandler? {
+	//write handler
+	private var _writeHandler:Handler? = nil
+	var writeHandler:Handler? {
 		get {
 			return queue.sync {
 				return _writeHandler
@@ -128,15 +89,16 @@ internal class ProcessHandle {
 				if let hasNewHandler = newValue {
 					_writeHandler = hasNewHandler
 					
-					let newFD = dup(_fd)
+					let newFD = dup(writing.fileDescriptor)
 					
 					//schedule the new timer
-					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:concurrentGlobal)
+					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:priority.globalConcurrentQueue)
 					newSource.setEventHandler { [weak self] in
+						print("write handler called")
 						guard let self = self, let eventHandler = self.writeHandler else {
 							return
 						}
-						eventHandler(self)
+						eventHandler(self.writing)
 					}
 					newSource.setCancelHandler {
 						_ = _close(newFD)
@@ -151,33 +113,59 @@ internal class ProcessHandle {
 			}
 		}
 	}
-
-	private var writeSource:DispatchSourceProtocol? = nil
-	private var readSource:DispatchSourceProtocol? = nil
 	
-	
-	init(priority:Priority, queue:DispatchQueue, fileDescriptor:Int32, autoClose:Bool = true) {
-		print(Colors.Yellow("[ \(fileDescriptor) ] - INITIALIZED"))
-		let concurrentQueue = priority.globalConcurrentQueue
-		self.queue = DispatchQueue(label:"com.tannersilva.instance.process-handle.sync", target:queue)
-		self.concurrentGlobal = concurrentQueue
-		self._fd = fileDescriptor
-		self.shouldClose = autoClose
-	}
-	
-	convenience init(priority:Priority, fileDescriptor:Int32, autoClose:Bool = true) {
-		self.init(priority:priority, queue:DispatchQueue(label:"com.tannersilva.sintance.process-handle.sync", target:priority.globalConcurrentQueue), fileDescriptor:fileDescriptor, autoClose:autoClose)
-	}
+	init(priority:Priority, queue:DispatchQueue) {
+		let readWrite = Self.forReadingAndWriting(priority:priority, queue:queue)
 		
+		self.reading = readWrite.r
+		self.writing = readWrite.w
+		self.priority = priority
+		self.queue = queue
+	}
+	
+	fileprivate static func forReadingAndWriting(priority:Priority, queue:DispatchQueue) -> (r:ProcessHandle, w:ProcessHandle) {
+		let fds = UnsafeMutablePointer<Int32>.allocate(capacity:2)
+		defer {
+			fds.deallocate()
+		}
+		
+		let rwfds = pipe(fds)
+		switch rwfds {
+			case 0:
+				let readFD = fds.pointee
+				let writeFD = fds.successor().pointee
+								
+				return (r:ProcessHandle(fd:readFD, autoClose:true), w:ProcessHandle(fd:writeFD, autoClose:true))
+			default:
+			fatalError("Error calling pipe(): \(errno)")
+		}
+	}
+}
+
+internal class ProcessHandle {
+	private var _fd:Int32
+	var fileDescriptor:Int32 {
+		get {
+			return _fd
+		}
+	}
+	
+	var autoClose:Bool
+	
+	init(fd:Int32, autoClose:Bool) {
+		self._fd = fd
+		self.autoClose = autoClose
+	}
+	
 	func write(_ dataObj:Data) throws {
-		try dataObj.withUnsafeBytes({ 
+		try dataObj.withUnsafeBytes({
 			if let hasBaseAddress = $0.baseAddress {
 				try write(buf:hasBaseAddress, length:dataObj.count)
 			}
 		})
 	}
 	
-	fileprivate func write(buf: UnsafeRawPointer, length:Int) throws {
+	fileprivate func write(buf:UnsafeRawPointer, length:Int) throws {
 		var bytesRemaining = length
 		while bytesRemaining > 0 {
 			var bytesWritten = 0
@@ -195,7 +183,8 @@ internal class ProcessHandle {
 	func availableData() -> Data? {
 		var statbuf = stat()
 		if fstat(_fd, &statbuf) < 0 {
-			print("Statbuf fail")
+			print(Colors.Red("statbuf fstat fail"))
+			return nil
 		}
 		
 		let readBlockSize:Int
@@ -219,14 +208,12 @@ internal class ProcessHandle {
 		let bytesBound = dynamicBuffer.bindMemory(to:UInt8.self, capacity:amountRead)
 		return Data(bytes:bytesBound, count:amountRead)
 	}
-		
+	
 	func close() {
 		guard _fd != -1 else {
 			return
 		}
 		
-		writeHandler = nil
-		readHandler = nil
 		guard _close(_fd) >= 0 else {
 			print(Colors.Red("ERROR CLOSING FILE DESCRIPTOR \(_fd)"))
 			return
@@ -237,8 +224,9 @@ internal class ProcessHandle {
 	
 	deinit {
 		print(Colors.red("[ \(fileDescriptor) ] - DEINIT"))
-		if _fd != -1 && shouldClose == true {
+		if _fd != -1 && autoClose == true {
 			close()
 		}
 	}
+
 }

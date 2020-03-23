@@ -50,7 +50,7 @@ internal class ExecutingProcess {
 		let launchString = launchURL.path
 		
 		//validate that we have permissions to read this file
-		let fsRep = try FileManager.default.fileSystemRepresentation(withPath:launchString)
+		let fsRep = FileManager.default.fileSystemRepresentation(withPath:launchString)
 		var statInfo = stat()
 		guard stat(fsRep, &statInfo) == 0 else {
 			return nil

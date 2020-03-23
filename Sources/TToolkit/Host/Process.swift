@@ -96,9 +96,9 @@ public class InteractiveProcess {
 		dataGroup = DispatchGroup()
 				
 		//create the ProcessHandles that we need to read the data from this process as it runs
-		let standardIn = ProcessPipes.forReadingAndWriting(priority:priority, queue:processQueue)
-		let standardOut = ProcessPipes.forReadingAndWriting(priority:priority, queue:processQueue)
-		let standardErr = ProcessPipes.forReadingAndWriting(priority:priority, queue:processQueue)
+		let standardIn = ProcessPipes(priority:priority, queue:processQueue)
+		let standardOut = ProcessPipes(priority:priority, queue:processQueue)
+		let standardErr = ProcessPipes(priority:priority, queue:processQueue)
 		stdin = standardIn
 		stdout = standardOut
 		stderr = standardErr
@@ -122,7 +122,7 @@ public class InteractiveProcess {
 			self.runGroup.leave()
 		}
         
-		stdout.reading.readHandler = { [weak self] _ in
+		stdout.readHandler = { [weak self] _ in
 			guard let self = self else {
 				return
 			}
@@ -141,7 +141,7 @@ public class InteractiveProcess {
 			self.dataGroup.leave()
 		}
 	
-		stderr.reading.readHandler = { [weak self] _ in
+		stderr.readHandler = { [weak self] _ in
 			guard let self = self else {
 				return
 			}
