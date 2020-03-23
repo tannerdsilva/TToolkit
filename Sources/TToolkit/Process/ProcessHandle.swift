@@ -52,7 +52,6 @@ internal class ProcessHandle {
 					_readHandler = hasNewHandler
 
 					let newFD = dup(_fd)
-					print("duped fd \(newFD) from \(_fd)")
 										
 					//schedule the new timer
 					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:concurrentGlobal)
@@ -96,7 +95,6 @@ internal class ProcessHandle {
 					_writeHandler = hasNewHandler
 					
 					let newFD = dup(_fd)
-					print("duped fd \(newFD) from \(_fd)")
 					
 					//schedule the new timer
 					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:concurrentGlobal)
@@ -145,7 +143,13 @@ internal class ProcessHandle {
 				let readFD = fds.pointee
 				let writeFD = fds.successor().pointee
 				
-				return (reading:ProcessHandle(priority:priority, queue:queue, fileDescriptor:readFD, autoClose:true), writing:ProcessHandle(priority:priority, queue:queue, fileDescriptor:writeFD, autoClose:true))
+				let dupR = dup(readFD)
+				let dupW = dup(writeFD)
+				
+				_close(readFD)
+				_close(writeFD)
+				
+				return (reading:ProcessHandle(priority:priority, queue:queue, fileDescriptor:dupR, autoClose:true), writing:ProcessHandle(priority:priority, queue:queue, fileDescriptor:dupW, autoClose:true))
 			default:
 			fatalError("Error calling pipe(): \(errno)")
 		}
