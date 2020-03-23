@@ -134,6 +134,8 @@ internal class ExecutingProcess {
 		}
 		
 		
+		//there are some weird differences between Linux and macOS in terms of their preference with optionals
+		//here, the specific allocators and deallocators for each platform are specified
 #if os(macOS)
 		var fileActions:UnsafeMutablePointer<posix_spawn_file_actions_t?>? = UnsafeMutablePointer<posix_spawn_file_actions_t?>.allocate(capacity:1)
 #else
@@ -142,10 +144,15 @@ internal class ExecutingProcess {
 		posix_spawn_file_actions_init(fileActions)
 		defer {
 			posix_spawn_file_actions_destroy(fileActions)
+#if os(macOS)
 			if let hasFileActions = fileActions {
 				hasFileActions.deallocate()
 			}
+#else
+			fileActions.deallocate()
+#endif
 		}
+		
 		for (destination, source) in fHandles {
 			posix_spawn_file_actions_adddup2(fileActions, source, destination)
 		}
