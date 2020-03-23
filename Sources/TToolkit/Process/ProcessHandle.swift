@@ -119,6 +119,12 @@ internal class ProcessPipes {
 		
 		self.reading = readWrite.r
 		self.writing = readWrite.w
+		
+		print(Colors.Yellow("===== PROCESS PIPE INITIALIZED ====="))
+		print(Colors.Yellow("R:\t\(readWrite.r.fileDescriptor)"))
+		print(Colors.Yellow("W:\t\(readWrite.w.fileDescriptor)"))
+		print(Colors.Yellow("===================================="))
+		
 		self.priority = priority
 		self.queue = queue
 	}
