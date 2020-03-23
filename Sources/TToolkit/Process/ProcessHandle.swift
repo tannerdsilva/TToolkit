@@ -91,6 +91,7 @@ internal class ProcessHandle {
 					//schedule the new timer
 					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:concurrentGlobal)
 					newSource.setEventHandler { [weak self] in
+						print("Event handler called")
 						guard let self = self, let eventHandler = self.readHandler else {
 							return
 						}
@@ -101,7 +102,7 @@ internal class ProcessHandle {
 					}
 					readSource = newSource
 					newSource.activate()
-					print(Colors.magenta("OK write handler scheduled"))
+					print(Colors.magenta("OK read handler scheduled"))
 				} else {
 					_readHandler = nil
 					readSource = nil
