@@ -132,18 +132,22 @@ internal class ExecutingProcess {
 		if let hasStderr = stderr {
 			fHandles[STDERR_FILENO] = hasStderr.fileDescriptor
 		}
-		var fileActions:posix_spawn_file_actions_t? = nil
-		posix_spawn_file_actions_init(&fileActions)
+		
+		var fileActions:UnsafeMutablePointer<posix_spawn_file_actions_t?>? = UnsafeMutablePointer<posix_spawn_file_actions_t?>.allocate(capacity:1)
+		posix_spawn_file_actions_init(fileActions)
 		defer {
-			posix_spawn_file_actions_destroy(&fileActions)
+			posix_spawn_file_actions_destroy(fileActions)
+			if let hasFileActions = fileActions {
+				hasFileActions.deallocate()
+			}
 		}
 		for (destination, source) in fHandles {
-			posix_spawn_file_actions_adddup2(&fileActions, source, destination)
+			posix_spawn_file_actions_adddup2(fileActions, source, destination)
 		}
 
 		//launch the process
 		var lpid = pid_t()
-		guard posix_spawn(&lpid, launchPath, &fileActions, nil, argC, envC) == 0 else {
+		guard posix_spawn(&lpid, launchPath, fileActions, nil, argC, envC) == 0 else {
 			throw ProcessError.unableToExecute
 		}
 		
