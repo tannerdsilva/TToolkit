@@ -1,11 +1,17 @@
 import Dispatch
 import Foundation
 
+#if canImport(Darwin)
+import Darwin
+fileprivate let _read = Darwin.read(_:_:_:)
+fileprivate let _write = Darwin.write(_:_:_:)
+fileprivate let _close = Darwin.close(_:)
+#elseif canImport(Glibc)
 import Glibc
 fileprivate let _read = Glibc.read(_:_:_:)
 fileprivate let _write = Glibc.write(_:_:_:)
 fileprivate let _close = Glibc.close(_:)
-fileprivate let _kill = Glibc.kill(_:_:)
+#endif
 
 
 /*
@@ -19,18 +25,18 @@ internal class ProcessHandle {
 	var concurrentGlobal:DispatchQueue
 	
 	private var _fd:Int32
-	public var fileDescriptor:Int32 {
+	var fileDescriptor:Int32 {
 		get {
 			return _fd
 		}
 	}	
 	
-	private var shouldClose:Bool
+	var shouldClose:Bool
 	
-	public typealias OutputHandler = (ProcessHandle) -> Void
+	typealias OutputHandler = (ProcessHandle) -> Void
 	
 	private var _readHandler:OutputHandler? = nil
-	private var readHandler:OutputHandler? {
+	var readHandler:OutputHandler? {
 		get {
 			return queue.sync {
 				return _readHandler
@@ -46,7 +52,6 @@ internal class ProcessHandle {
 					_readHandler = hasNewHandler
 
 					let newFD = dup(_fd)
-					_rh_watch_fd = newFD
 					
 					//schedule the new timer
 					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:concurrentGlobal)
@@ -73,7 +78,7 @@ internal class ProcessHandle {
 	}
 	
 	private var _writeHandler:OutputHandler? = nil
-	private var writeHandler:OutputHandler? {
+	var writeHandler:OutputHandler? {
 		get {
 			return queue.sync {
 				return _writeHandler
@@ -99,10 +104,7 @@ internal class ProcessHandle {
 						}
 						eventHandler(self)
 					}
-					newSource.setCancelHandler { [weak self] in
-						guard let self = self else {
-							return
-						}
+					newSource.setCancelHandler {
 						_ = _close(newFD)
 					}
 					writeSource = newSource
@@ -119,12 +121,12 @@ internal class ProcessHandle {
 	private var readSource:DispatchSourceProtocol? = nil
 	
 	//MARK: Public Initializers
-	public class func forReading(priority:Priority, queue:DispatchQueue) -> ProcessHandle {
+	class func forReading(priority:Priority, queue:DispatchQueue) -> ProcessHandle {
 		let readWrite = Self.forReadingAndWriting(priority:priority, queue:queue)
 		return readWrite.reading
 	}
 	
-	public class func forWriting(priority:Priority, queue:DispatchQueue) -> ProcessHandle {
+	class func forWriting(priority:Priority, queue:DispatchQueue) -> ProcessHandle {
 		let readWrite = Self.forReadingAndWriting(priority:priority, queue:queue)
 		return readWrite.writing
 	}
@@ -147,14 +149,23 @@ internal class ProcessHandle {
 		}
 	}
 	
-	internal init(priority:Priority, queue:DispatchQueue, fileDescriptor:Int32, autoClose:Bool = true) {
-		self.queue = queue
-		self.concurrentGlobal = DispatchQueue.global(qos:priority.asDispatchQoS())
+	init(priority:Priority, queue:DispatchQueue, fileDescriptor:Int32, autoClose:Bool = true) {
+		let concurrentQueue = priority.globalConcurrentQueue
+		self.queue = DispatchQueue(label:"com.tannersilva.instance.process-handle.sync", target:queue)
+		self.concurrentGlobal = concurrentQueue
+		self._fd = fileDescriptor
+		self.shouldClose = autoClose
+	}
+	
+	init(priority:Priority, fileDescriptor:Int32, autoClose:Bool = true) {
+		let concurrentQueue = priority.globalConcurrentQueue
+		self.queue = DispatchQueue(label:"com.tannersilva.instance.process-handle.sync", target:concurrentQueue)
+		self.concurrentGlobal = concurrentQueue
 		self._fd = fileDescriptor
 		self.shouldClose = autoClose
 	}
 		
-	public func write(_ dataObj:Data) throws {
+	func write(_ dataObj:Data) throws {
 		try dataObj.withUnsafeBytes({ 
 			if let hasBaseAddress = $0.baseAddress {
 				try write(buf:hasBaseAddress, length:dataObj.count)
@@ -177,7 +188,7 @@ internal class ProcessHandle {
 		}
 	}
 	
-	public func read() -> Data? {
+	func read() -> Data? {
 		let readBlockSize = 1024 * 8
 		guard var dynamicBuffer = malloc(readBlockSize) else {
 			return nil
@@ -194,7 +205,7 @@ internal class ProcessHandle {
 		return Data(bytes:bytesBound, count:amountRead)
 	}
 	
-	public func close() {
+	func close() {
 		guard _fd != -1 else {
 			return
 		}
