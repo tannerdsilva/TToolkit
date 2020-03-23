@@ -125,15 +125,15 @@ internal class ExecutingProcess {
 		var fHandles = [Int32:Int32]()
 		if let hasStdin = stdin {
 			print(Colors.Green("[BIND]{OK} - STDIN"))
-			fHandles[STDIN_FILENO] = hasStdin.writing.fileDescriptor
+			fHandles[STDIN_FILENO] = hasStdin.reading.fileDescriptor
 		}
 		if let hasStdout = stdout {
 			print(Colors.Green("[BIND]{OK} - STDOUT"))
-			fHandles[STDOUT_FILENO] = hasStdout.reading.fileDescriptor
+			fHandles[STDOUT_FILENO] = hasStdout.writing.fileDescriptor
 		}
 		if let hasStderr = stderr {
 			print(Colors.Green("[BIND]{OK} - STDERR"))
-			fHandles[STDERR_FILENO] = hasStderr.reading.fileDescriptor
+			fHandles[STDERR_FILENO] = hasStderr.writing.fileDescriptor
 		}
 		
 		
