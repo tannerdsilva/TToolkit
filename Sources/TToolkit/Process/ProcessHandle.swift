@@ -150,6 +150,7 @@ internal class ProcessHandle {
 	}
 	
 	init(priority:Priority, queue:DispatchQueue, fileDescriptor:Int32, autoClose:Bool = true) {
+		print(Colors.Yellow("[ \(fileDescriptor) ] - INITIALIZED"))
 		let concurrentQueue = priority.globalConcurrentQueue
 		self.queue = DispatchQueue(label:"com.tannersilva.instance.process-handle.sync", target:queue)
 		self.concurrentGlobal = concurrentQueue
@@ -157,12 +158,8 @@ internal class ProcessHandle {
 		self.shouldClose = autoClose
 	}
 	
-	init(priority:Priority, fileDescriptor:Int32, autoClose:Bool = true) {
-		let concurrentQueue = priority.globalConcurrentQueue
-		self.queue = DispatchQueue(label:"com.tannersilva.instance.process-handle.sync", target:concurrentQueue)
-		self.concurrentGlobal = concurrentQueue
-		self._fd = fileDescriptor
-		self.shouldClose = autoClose
+	convenience init(priority:Priority, fileDescriptor:Int32, autoClose:Bool = true) {
+		self.init(priority:priority, queue:DispatchQueue(label:"com.tannersilva.sintance.process-handle.sync", target:priority.globalConcurrentQueue), fileDescriptor:fileDescriptor, autoClose:autoClose)
 	}
 		
 	func write(_ dataObj:Data) throws {
@@ -216,10 +213,12 @@ internal class ProcessHandle {
 			print(Colors.Red("ERROR CLOSING FILE DESCRIPTOR \(_fd)"))
 			return
 		}
+		print(Colors.dim("[ \(fileDescriptor) ] - CLOSED"))
 		_fd = -1
 	}
 	
 	deinit {
+		print(Colors.red("[ \(fileDescriptor) ] - DEINIT"))
 		if _fd != -1 && shouldClose == true {
 			close()
 		}

@@ -88,6 +88,7 @@ public class InteractiveProcess {
     }
 
     public init<C>(command:C, priority:Priority = .`default`, run:Bool) throws where C:Command {
+    	print(Colors.cyan("Executing process initialized"))
 		processQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS())
 		callbackQueue = priority.globalConcurrentQueue
 		
@@ -104,9 +105,12 @@ public class InteractiveProcess {
 		
 		//create the ExecutingProcess
 		proc = ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, priority:priority)
+		print("Initialized executing process...not running")
+		
 		proc.stdin = standardIn
 		proc.stdout = standardOut
 		proc.stderr = standardErr
+		
 		proc.terminationHandler = { [weak self] _ in
 			guard let self = self else {
 				return
@@ -117,6 +121,8 @@ public class InteractiveProcess {
 			}
 			self.runGroup.leave()
 		}
+		
+		print("Termination handler assigned")
         
 		stdout.readHandler = { [weak self] _ in
 			guard let self = self else {
@@ -132,6 +138,8 @@ public class InteractiveProcess {
 			}
 			self.dataGroup.leave()
 		}
+		
+		print("stdout handler applied")
 	
 		stderr.readHandler = { [weak self] _ in
 			guard let self = self else {
@@ -147,6 +155,8 @@ public class InteractiveProcess {
 			}
 			self.dataGroup.leave()         
 		}
+		
+		print("stderr handler applied")
 		        
 		if run {
             do {
