@@ -115,7 +115,7 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
-			print(Colors.red("[ X ] TERM"))
+			print(Colors.Red("[ \(self.proc.processIdentifier) ] TERM"))
 			self.dataGroup.wait()
 			self.processQueue.sync {
 				self.state = .exited
@@ -130,11 +130,14 @@ public class InteractiveProcess {
 			print(Colors.cyan("stdout read handler"))
 			self.dataGroup.enter()
 			if let readData = self.stdout.read() {
+				print(Colors.yellow("\t-> GOT DATA"))
 				let bytesCount = readData.count
 				if bytesCount > 0 {
 					let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 					self.appendStdoutData(bytesCopy)
 				}
+			} else {
+				print("DID NOT GET DATA")
 			}
 			self.dataGroup.leave()
 		}
@@ -146,11 +149,14 @@ public class InteractiveProcess {
 			print(Colors.magenta("stderr read handler"))
 			self.dataGroup.enter()
 			if let readData = self.stderr.read() {
+				print(Colors.yellow("\t-> GOT DATA"))
 				let bytesCount = readData.count
 				if bytesCount > 0 {
 					let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 					self.appendStderrData(bytesCopy)
 				}
+			} else {
+				print("DID NOT GET DATA")
 			}
 			self.dataGroup.leave()         
 		}
