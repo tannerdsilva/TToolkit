@@ -59,8 +59,6 @@ internal class ProcessHandle {
 						guard let self = self, let eventHandler = self.readHandler else {
 							return
 						}
-						let newData = ProcessHandle.readHandle(newFD)
-						print("\(newData?.count)")
 						eventHandler(self)
 					}
 					newSource.setCancelHandler { [weak self] in
@@ -104,8 +102,6 @@ internal class ProcessHandle {
 						guard let self = self, let eventHandler = self.writeHandler else {
 							return
 						}
-						let newData = ProcessHandle.readHandle(newFD)
-						print("\(newData?.count)")
 						eventHandler(self)
 					}
 					newSource.setCancelHandler {
