@@ -157,7 +157,8 @@ internal class ExecutingProcess {
 		}
 		
 		for (destination, source) in fHandles {
-			print(Colors.Cyan("\(posix_spawn_file_actions_adddup2(fileActions, source, destination))"))
+			posix_spawn_file_actions_adddup2(fileActions, source, destination)
+			print(Colors.Cyan("Mapped original FD: \(source)\t->\tnew FD: \(destination)"))
 		}
 
 		//launch the process
