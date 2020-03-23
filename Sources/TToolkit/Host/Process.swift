@@ -1,9 +1,5 @@
 import Foundation
 
-enum ProcessError:Error {
-    case processStillRunning
-}
-
 fileprivate func bashEscape(string:String) -> String {
 	return "'" + string.replacingOccurrences(of:"'", with:"\'") + "'"
 }
@@ -14,15 +10,6 @@ fileprivate let serialProcess = DispatchQueue(label:"com.tannersilva.global.proc
 
 //InteractiveProcess calls on this function to serially initialize the pipes and process objects that it needs to operate
 fileprivate typealias ProcessAndPipes = (stdin:Pipe, stdout:Pipe, stderr:Pipe, process:Process)
-fileprivate func initializePipesAndProcessesSerially(queue:DispatchQueue) -> ProcessAndPipes {
-	return queue.sync {
-		let stdinputPipe = Pipe()
-		let stdoutputPipe = Pipe()
-		let stderrorPipe = Pipe()
-		let processObject = Process()
-		return (stdin:stdinputPipe, stdout:stdoutputPipe, stderr:stderrorPipe, process:processObject)
-	}
-}
 
 extension Process {
 	fileprivate func signal(_ sign:Int32) -> Int32 {
@@ -30,12 +17,13 @@ extension Process {
 	}
 }
 
-
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
+    public typealias InputHandler = (InteractiveProcess) -> Void
     
     public let processQueue:DispatchQueue		//what serial thread is going to be used to process the data for each class instance?
-    private let callbackQueue:DispatchQueue		//what global concurrent thread is going to be used to call back the handlers
+    public let callbackQueue:DispatchQueue		//what global concurrent thread is going to be used to call back the handlers
+    
     private let runGroup:DispatchGroup			//used to signify that the object is still "working"
     private let dataGroup:DispatchGroup			//used to signify that there is data that has been passed to a handler function that hasn't been appended to the internal buffers yet
     
@@ -46,33 +34,15 @@ public class InteractiveProcess {
 		case exited = 4
 		case failed = 5
 	}
-    
-	public var env:[String:String]
 	
-	public var stdinPipe:Pipe
-	public var stdoutPipe:Pipe
-	public var stderrPipe:Pipe
-	public var stdin:FileHandle { 
-		get {
-			return stdinPipe.fileHandleForWriting
-		}
-	}
-	public var stdout:FileHandle {
-		get {
-			return stdoutPipe.fileHandleForReading
-		}
-	}
-	public var stderr:FileHandle {
-		get {
-			return stderrPipe.fileHandleForReading
-		}
-	}
+	internal var stdin:ProcessHandle
+	internal var stdout:ProcessHandle
+	internal var stderr:ProcessHandle
 	
 	public var stdoutBuff = Data()
 	public var stderrBuff = Data()
 
-	public var workingDirectory:URL
-	internal var proc:Process
+	internal let proc:ExecutingProcess
 	public var state:State = .initialized
     
     private var _stdoutHandler:OutputHandler? = nil
@@ -103,35 +73,41 @@ public class InteractiveProcess {
         }
     }
     
-    
+    private var _stdinHandler:InputHandler? = nil
+    public var stdinHandler:InputHandler? {
+    	get {
+    		return processQueue.sync {
+    			return _stdinHandler
+    		}
+    	}
+    	set {
+    		return processQueue.sync {
+    			_stdinHandler = newValue
+    		}
+    	}
+    }
 
-    public init<C>(command:C, qos:Priority = .`default`, workingDirectory wd:URL, run:Bool) throws where C:Command {
-		processQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:qos.asDispatchQoS())
-		let concurrentGlobal = DispatchQueue.global(qos:qos.asDispatchQoS())
-		callbackQueue = concurrentGlobal
+    public init<C>(command:C, priority:Priority = .`default`, run:Bool) throws where C:Command {
+		processQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS())
+		callbackQueue = priority.globalConcurrentQueue
 		
 		runGroup = DispatchGroup()
 		dataGroup = DispatchGroup()
+				
+		//create the ProcessHandles that we need to read the data from this process as it runs
+		let standardIn = ProcessHandle.forWriting(priority:priority, queue:processQueue)
+		let standardOut = ProcessHandle.forReading(priority:priority, queue:processQueue)
+		let standardErr = ProcessHandle.forReading(priority:priority, queue:processQueue)
+		stdin = standardIn
+		stdout = standardOut
+		stderr = standardErr
 		
-		env = command.environment
-		
-		let pipesAndStuff = initializePipesAndProcessesSerially(queue:processQueue)
-		
-		stdinPipe = pipesAndStuff.stdin
-		stdoutPipe = pipesAndStuff.stdout
-		stderrPipe = pipesAndStuff.stderr
-		
-		proc = pipesAndStuff.process
-
-		workingDirectory = wd
-		proc.arguments = command.arguments
-		proc.executableURL = command.executable
-		proc.currentDirectoryURL = wd
-		proc.standardInput = pipesAndStuff.stdin
-		proc.standardOutput = pipesAndStuff.stdout
-		proc.standardError = pipesAndStuff.stderr
-		proc.qualityOfService = qos.asProcessQualityOfService()
-		proc.terminationHandler = { [weak self] someItem in
+		//create the ExecutingProcess
+		proc = ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, priority:priority)
+		proc.stdin = standardIn
+		proc.stdout = standardOut
+		proc.stderr = standardErr
+		proc.terminationHandler = { [weak self] _ in
 			guard let self = self else {
 				return
 			}
@@ -142,34 +118,34 @@ public class InteractiveProcess {
 			self.runGroup.leave()
 		}
         
-        serialProcess.sync {
-			stdout.readabilityHandler = { [weak self] _ in
-				guard let self = self else {
-					return
-				}
-				self.dataGroup.enter()
-				let readData = self.stdout.availableData
+		stdout.readHandler = { [weak self] _ in
+			guard let self = self else {
+				return
+			}
+			self.dataGroup.enter()
+			if let readData = self.stdout.read() {
 				let bytesCount = readData.count
 				if bytesCount > 0 {
 					let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 					self.appendStdoutData(bytesCopy)
 				}
-				self.dataGroup.leave()
 			}
-		
-			stderr.readabilityHandler = { [weak self] _ in
-				guard let self = self else {
-					return
-				}
-				self.dataGroup.enter()
-				let readData = self.stderr.availableData
+			self.dataGroup.leave()
+		}
+	
+		stderr.readHandler = { [weak self] _ in
+			guard let self = self else {
+				return
+			}
+			self.dataGroup.enter()
+			if let readData = self.stderr.read() {
 				let bytesCount = readData.count
 				if bytesCount > 0 {
 					let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 					self.appendStderrData(bytesCopy)
 				}
-				self.dataGroup.leave()         
 			}
+			self.dataGroup.leave()         
 		}
 		        
 		if run {
@@ -253,21 +229,7 @@ public class InteractiveProcess {
             }
         }
 	}
-	
-	public func kill() -> Bool? {
-		return processQueue.sync { 
-			if state == .running {
-				if SwiftGlibc.kill(proc.processIdentifier, SIGKILL) == 0 {
-					return true
-				} else {
-					return false
-				}
-			} else {
-				return nil
-			}
-		}
-	}
-	
+		
 	public func exportStdOut() -> Data {
 		return stdoutBuff
 	}
@@ -278,12 +240,7 @@ public class InteractiveProcess {
 
     public func waitForExitCode() -> Int {
 		runGroup.wait()
-        let returnCode = proc.terminationStatus
+        let returnCode = proc.exitCode!
         return Int(returnCode)
-    }
-    
-    deinit {
-    	stdout.readabilityHandler = nil
-    	stderr.readabilityHandler = nil
     }
 }
