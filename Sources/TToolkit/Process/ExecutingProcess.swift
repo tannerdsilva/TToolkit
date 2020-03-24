@@ -193,7 +193,6 @@ internal class ExecutingProcess {
 					th(self)
 				}
 			}
-		}
 	}
 	
 	func suspend() -> Bool? {
