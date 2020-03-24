@@ -49,13 +49,15 @@ internal class ProcessPipes {
 					let newFD = dup(reading.fileDescriptor)
 										
 					//schedule the new timer
-					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:priority.globalConcurrentQueue)
+					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:queue)
 					newSource.setEventHandler { [weak self] in
 						print("read handler called")
-						guard let self = self, let eventHandler = self.readHandler else {
-							return
+						self.priority.globalConcurrentQueue.async { [weak self] in
+							guard let self = self else {
+								return
+							}
+							eventHandler(self.reading)
 						}
-						eventHandler(self.reading)
 					}
 					newSource.setCancelHandler {
 						_ = _close(newFD)
@@ -92,7 +94,7 @@ internal class ProcessPipes {
 					let newFD = dup(writing.fileDescriptor)
 					
 					//schedule the new timer
-					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:priority.globalConcurrentQueue)
+					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:queue)
 					newSource.setEventHandler { [weak self] in
 						print("write handler called")
 						guard let self = self, let eventHandler = self.writeHandler else {

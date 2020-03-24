@@ -68,7 +68,7 @@ internal class ExecutingProcess {
 	}
 	
 	init(execute:URL, arguments:[String]?, environment:[String:String]?, priority:Priority, _ terminationHandler:TerminationHandler? = nil) {
-		self.queue = DispatchQueue(label:"com.tannersilva.instance.executing-process.sync", qos:priority.asDispatchQoS(), target:priority.globalConcurrentQueue)
+		self.queue = DispatchQueue(label:"com.tannersilva.instance.executing-process.sync", qos:priority.asDispatchQoS())
 		self.priority = priority
 		self.executable = execute
 		self.arguments = arguments
