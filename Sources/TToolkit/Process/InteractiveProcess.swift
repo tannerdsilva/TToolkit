@@ -111,47 +111,38 @@ public class InteractiveProcess {
 		}
         
 		stdout.readHandler = { [weak self] handleToRead in
+			guard let self = self else {
+				return
+			}
 			dg.enter()
-			if let newData = handleToRead.availableData() {
-				let bytesCount = newData.count
-				if bytesCount > 0 {
-					let bytesCopy = newData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-					syncQueue.async { [weak self] in
-						defer {
-							print("before leave")
-							dg.leave()
-							print("done leave")
-						}
-						guard let self = self else {
-							return
-						}
-						print("pre out append")
+			defer {
+				dg.leave()
+			}
+			syncQueue.sync {
+				if let newData = handleToRead.availableData() {
+					let bytesCount = newData.count
+					if bytesCount > 0 {
+						let bytesCopy = newData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 						self.stdoutBuff.append(bytesCopy)
-						print("append out success")
 					}
 				}
 			}
-			
 		}
 	
 		stderr.readHandler = { [weak self] handleToRead in
+			guard let self = self else {
+				return
+			}
 			dg.enter()
-			if let newData = handleToRead.availableData() {
-				let bytesCount = newData.count
-				if bytesCount > 0 {
-					let bytesCopy = newData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-					syncQueue.async { [weak self] in
-						defer {
-							print("before err leave")
-							dg.leave()
-							print("done err leave")
-						}
-						guard let self = self else {
-							return
-						}
-						print("pre err append")
+			defer {
+				dg.leave()
+			}
+			syncQueue.sync {
+				if let newData = handleToRead.availableData() {
+					let bytesCount = newData.count
+					if bytesCount > 0 {
+						let bytesCopy = newData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 						self.stderrBuff.append(bytesCopy)
-						print("append err success")
 					}
 				}
 			}
