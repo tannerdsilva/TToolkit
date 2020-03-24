@@ -1,7 +1,7 @@
 import Foundation
 import Dispatch
 
-fileprivate enum TimerState {
+public enum TimerState {
 	case activated
 	case suspended
 	case canceled
@@ -32,7 +32,8 @@ public class TTimer {
 	private let priority:Priority
 	private let queue:DispatchQueue
 		
-	fileprivate var state:TimerState
+	private(set) public var state:TimerState
+	
 	private var timerSource:DispatchSourceTimer? = nil
 	private var lastTriggerDate:DispatchWallTime? = nil
 	
@@ -44,7 +45,6 @@ public class TTimer {
 			return _duration
 		}
 		set {
-			print(Colors.dim("Assigning duration"))
 			let valueToAssign = newValue
 			queue.sync {
 				_duration = valueToAssign
@@ -61,7 +61,6 @@ public class TTimer {
 			}
 		}
 		set {
-			print(Colors.dim("Assigning handler"))
 			let valueToAssign = newValue
 			queue.sync {
 				_handler = valueToAssign
@@ -107,7 +106,6 @@ public class TTimer {
 		newSource.activate()
 		timerSource = newSource
 		state = .activated
-		print(Colors.green("TIMER ACTIVATED"))
 	}
 	
 	/*
@@ -116,11 +114,9 @@ public class TTimer {
 		This function must be called in a synchronized dispatch queue
 	*/
 	private func rescheduleTimer(duration:Double?, newHandle:TimerHandler?, fireNow:Bool) {
-		print(Colors.yellow("Attempting to reschedule"))
 		unscheduleTimer()
 		
 		guard let validDuration = duration, validDuration != 0, let hasHandle = newHandle else {
-			print(Colors.Red("Returning"))
 			return
 		}
 		
@@ -128,7 +124,7 @@ public class TTimer {
 	}
 	
 	public init() {
-		self.state = .canceled
+		state = .canceled
 		
 		let defPri = Priority.`default`
 		
