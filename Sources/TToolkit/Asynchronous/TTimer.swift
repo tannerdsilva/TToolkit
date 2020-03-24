@@ -163,5 +163,11 @@ public class TTimer {
 			unscheduleTimer()
 		}
 	}
+	
+	deinit {
+		if state != .canceled {
+			unscheduleTimer()
+		}
+	}
 }
 
