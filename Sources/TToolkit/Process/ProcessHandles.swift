@@ -134,12 +134,12 @@ internal class ProcessPipes {
 	}
 	
 	func close() {
-		queue.sync {
+//		queue.sync {
 			reading.close()
 			writing.close()
 			readHandler = nil
 			writeHandler = nil
-		}
+//		}
 	}
 	
 	deinit {
