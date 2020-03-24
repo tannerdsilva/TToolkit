@@ -1,15 +1,11 @@
 import Foundation
 
-fileprivate func bashEscape(string:String) -> String {
-	return "'" + string.replacingOccurrences(of:"'", with:"\'") + "'"
-}
-
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     public typealias InputHandler = (InteractiveProcess) -> Void
     
-    public let processQueue:DispatchQueue		//what serial thread is going to be used to process the data for each class instance?
-    public let callbackQueue:DispatchQueue		//what global concurrent thread is going to be used to call back the handlers
+    public let priority:Priority				//what is the priority of this interactive process. most (if not all) of the asyncronous work for this process and others will be based on this Priority
+    public let queue:DispatchQueue				//what serial thread is going to be used to process the data for each class instance?
     
     private let runGroup:DispatchGroup			//used to signify that the object is still "working"
     private let dataGroup:DispatchGroup			//used to signify that there is data that has been passed to a handler function that hasn't been appended to the internal buffers yet
@@ -35,12 +31,12 @@ public class InteractiveProcess {
     private var _stdoutHandler:OutputHandler? = nil
     public var stdoutHandler:OutputHandler? {
         get {
-        	return processQueue.sync {
+        	return queue.sync {
         		return _stdoutHandler
         	}
         }
         set {
-            processQueue.sync {
+            queue.sync {
                 _stdoutHandler = newValue
             }
         }
@@ -49,12 +45,12 @@ public class InteractiveProcess {
     private var _stderrHandler:OutputHandler? = nil
     public var stderrHandler:OutputHandler? {
         get {
-        	return processQueue.sync {
+        	return queue.sync {
 				return _stderrHandler
         	}   
         }
         set {
-            processQueue.sync {
+            queue.sync {
                 _stderrHandler = newValue
             }
         }
@@ -63,28 +59,32 @@ public class InteractiveProcess {
     private var _stdinHandler:InputHandler? = nil
     public var stdinHandler:InputHandler? {
     	get {
-    		return processQueue.sync {
+    		return queue.sync {
     			return _stdinHandler
     		}
     	}
     	set {
-    		return processQueue.sync {
+    		return queue.sync {
     			_stdinHandler = newValue
     		}
     	}
     }
 
     public init<C>(command:C, priority:Priority = .`default`, run:Bool) throws where C:Command {
-		processQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS())
-		callbackQueue = priority.globalConcurrentQueue
+    	self.priority = priority
+		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:priority.globalConcurrentQueue)
+		self.queue = syncQueue
 		
-		runGroup = DispatchGroup()
-		dataGroup = DispatchGroup()
+		let dg = DispatchGroup()
+		let rg = DispatchGroup()
+		
+		runGroup = rg
+		dataGroup = dg
 				
 		//create the ProcessHandles that we need to read the data from this process as it runs
-		let standardIn = ProcessPipes(priority:priority, queue:processQueue)
-		let standardOut = ProcessPipes(priority:priority, queue:processQueue)
-		let standardErr = ProcessPipes(priority:priority, queue:processQueue)
+		let standardIn = try ProcessPipes(priority:priority)
+		let standardOut = try ProcessPipes(priority:priority)
+		let standardErr = try ProcessPipes(priority:priority)
 		stdin = standardIn
 		stdout = standardOut
 		stderr = standardErr
@@ -97,44 +97,55 @@ public class InteractiveProcess {
 		proc.stderr = standardErr
 		
 		proc.terminationHandler = { [weak self] _ in
+			defer {
+				rg.leave()
+			}
+			dg.wait()
 			guard let self = self else {
 				return
 			}
-			self.dataGroup.wait()
-			self.processQueue.sync {
+			syncQueue.sync {
 				self.state = .exited
 			}
-			self.runGroup.leave()
 		}
         
-		stdout.readHandler = { [weak self] _ in
-			guard let self = self else {
-				return
-			}
-			self.dataGroup.enter()
-			if let readData = self.stdout.reading.availableData() {
-				let bytesCount = readData.count
+		stdout.readHandler = { [weak self] handleToRead in
+			dg.enter()
+			if let newData = handleToRead.availableData() {
+				let bytesCount = newData.count
 				if bytesCount > 0 {
-					let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-					self.appendStdoutData(bytesCopy)
+					let bytesCopy = newData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+					syncQueue.async { [weak self] in
+						defer {
+							dg.leave()
+						}
+						guard let self = self else {
+							return
+						}
+						self.stdoutBuff.append(bytesCopy)
+					}
 				}
 			}
-			self.dataGroup.leave()
+			
 		}
 	
-		stderr.readHandler = { [weak self] _ in
-			guard let self = self else {
-				return
-			}
-			self.dataGroup.enter()
-			if let readData = self.stderr.reading.availableData() {
-				let bytesCount = readData.count
+		stderr.readHandler = { [weak self] handleToRead in
+			dg.enter()
+			if let newData = handleToRead.availableData() {
+				let bytesCount = newData.count
 				if bytesCount > 0 {
-					let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-					self.appendStderrData(bytesCopy)
+					let bytesCopy = newData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
+					syncQueue.async { [weak self] in
+						defer {
+							dg.leave()
+						}
+						guard let self = self else {
+							return
+						}
+						self.stderrBuff.append(bytesCopy)
+					}
 				}
 			}
-			self.dataGroup.leave()         
 		}
 		        
 		if run {
@@ -146,30 +157,8 @@ public class InteractiveProcess {
 		}
     }
     
-    fileprivate func appendStdoutData(_ inputData:Data) {
-    	dataGroup.enter()
-    	processQueue.async { [weak self] in
-			guard let self = self else {
-				return
-			}
-    		self.stdoutBuff.append(inputData)
-    		self.dataGroup.leave()
-    	}
-    }
-    
-    fileprivate func appendStderrData(_ inputData:Data) {
-    	dataGroup.enter()
-    	processQueue.async { [weak self] in
-    		guard let self = self else {
-    			return
-    		}
-    		self.stderrBuff.append(inputData)
-    		self.dataGroup.leave()
-    	}
-    }
-    
     public func run() throws {
-        try processQueue.sync {
+        try queue.sync {
             do {
             	runGroup.enter()
 				try proc.run()
@@ -183,7 +172,7 @@ public class InteractiveProcess {
     }
 	
 	public func suspend() -> Bool? {
-        return processQueue.sync {
+        return queue.sync {
             if state == .running {
                 if proc.suspend() == true {
                     state = .suspended
@@ -199,7 +188,7 @@ public class InteractiveProcess {
     }
 	
 	public func resume() -> Bool? {
-        return processQueue.sync {
+        return queue.sync {
             if state == .suspended {
                 if proc.resume() == true {
                     state = .running
@@ -215,11 +204,15 @@ public class InteractiveProcess {
 	}
 		
 	public func exportStdOut() -> Data {
-		return stdoutBuff
+		return queue.sync {
+			return stdoutBuff
+		}
 	}
 	
 	public func exportStdErr() -> Data {
-		return stderrBuff
+		return queue.sync {
+			return stderrBuff
+		}
 	}
 
     public func waitForExitCode() -> Int {
