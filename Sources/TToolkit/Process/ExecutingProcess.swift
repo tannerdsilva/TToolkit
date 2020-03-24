@@ -31,6 +31,7 @@ internal class ExecutingProcess {
 		case uncaughtSignal
 	}
 	
+	let queue:DispatchQueue
 	let priority:Priority
 	
 	var executable:URL
@@ -71,6 +72,7 @@ internal class ExecutingProcess {
 	}
 	
 	init(execute:URL, arguments:[String]?, environment:[String:String]?, priority:Priority, _ terminationHandler:TerminationHandler? = nil) {
+		self.queue = DispatchQueue(label:"com.tannersilva.instance.executing-process.sync", qos:priority.asDispatchQoS(), target:priority.globalConcurrentQueue)
 		self.priority = priority
 		self.executable = execute
 		self.arguments = arguments
@@ -82,6 +84,7 @@ internal class ExecutingProcess {
 	}
 	
 	func run() throws {
+		queue.sync {
 			guard isRunning == false else {
 				throw ProcessError.processAlreadyRunning
 			}
@@ -193,41 +196,50 @@ internal class ExecutingProcess {
 					th(self)
 				}
 			}
+		}
 	}
 	
 	func suspend() -> Bool? {
-		guard let pid = processIdentifier else {
-			return nil
-		}
-		if kill(pid, SIGSTOP) == 0 {
-			return true
-		} else {
-			return false
+		return queue.sync {
+			guard let pid = processIdentifier else {
+				return nil
+			}
+			if kill(pid, SIGSTOP) == 0 {
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	
 	func terminate() {
-		guard let pid = processIdentifier else {
-			return
+		queue.sync {
+			guard let pid = processIdentifier else {
+				return
+			}
+			kill(pid, SIGTERM)
 		}
-		kill(pid, SIGTERM)
 	}
 	
 	func forceKill() {
-		guard let pid = processIdentifier else {
-			return
+		return queue.sync {
+			guard let pid = processIdentifier else {
+				return
+			}
+			kill(pid, SIGKILL)
 		}
-		kill(pid, SIGKILL)
 	}
 	
 	func resume() -> Bool? {
-		guard let pid = processIdentifier else {
-			return nil
-		}
-		if kill(pid, SIGCONT) == 0 {
-			return true
-		} else {
-			return false
+		return queue.sync {
+			guard let pid = processIdentifier else {
+				return nil
+			}
+			if kill(pid, SIGCONT) == 0 {
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 }

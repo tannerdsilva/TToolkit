@@ -110,12 +110,13 @@ public class InteractiveProcess {
 		}
         
 		stdout.readHandler = { [weak self] handleToRead in
-			guard let self = self else {
-				return
-			}
 			dg.enter()
 			defer {
 				dg.leave()
+			}
+
+			guard let self = self else {
+				return
 			}
 			syncQueue.sync {
 				if let newData = handleToRead.availableData() {
@@ -123,7 +124,6 @@ public class InteractiveProcess {
 					if bytesCount > 0 {
 						let bytesCopy = newData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 						self.stdoutBuff.append(bytesCopy)
-						print("out data appended yay")
 					}
 				}
 			}
@@ -143,7 +143,6 @@ public class InteractiveProcess {
 					if bytesCount > 0 {
 						let bytesCopy = newData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 						self.stderrBuff.append(bytesCopy)
-						print("err data appended yay")
 					}
 				}
 			}
