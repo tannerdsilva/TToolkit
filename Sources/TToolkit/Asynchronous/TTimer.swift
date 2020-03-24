@@ -44,6 +44,7 @@ public class TTimer {
 			return _duration
 		}
 		set {
+			print(Colors.dim("Assigning duration"))
 			let valueToAssign = newValue
 			queue.sync {
 				_duration = valueToAssign
@@ -60,6 +61,7 @@ public class TTimer {
 			}
 		}
 		set {
+			print(Colors.dim("Assigning handler"))
 			let valueToAssign = newValue
 			queue.sync {
 				_handler = valueToAssign
@@ -105,6 +107,7 @@ public class TTimer {
 		newSource.activate()
 		timerSource = newSource
 		state = .activated
+		print(Colors.green("TIMER ACTIVATED"))
 	}
 	
 	/*
@@ -113,9 +116,11 @@ public class TTimer {
 		This function must be called in a synchronized dispatch queue
 	*/
 	private func rescheduleTimer(duration:Double?, newHandle:TimerHandler?, fireNow:Bool) {
+		print(Colors.yellow("Attempting to reschedule"))
 		unscheduleTimer()
 		
 		guard let validDuration = duration, validDuration != 0, let hasHandle = newHandle else {
+			print(Colors.Red("Returning"))
 			return
 		}
 		
