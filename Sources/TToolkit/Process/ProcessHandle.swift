@@ -147,6 +147,11 @@ internal class ProcessPipes {
 			fatalError("Error calling pipe(): \(errno)")
 		}
 	}
+	
+	func close() {
+		reading.close()
+		writing.close()
+	}
 }
 
 internal class ProcessHandle {

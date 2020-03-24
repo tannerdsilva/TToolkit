@@ -184,6 +184,9 @@ internal class ExecutingProcess {
 			if let th = self.terminationHandler {
 				th(self)
 			}
+			self.stdin?.close()
+			self.stdout?.close() 
+			self.stderr?.close()
 		}
 	}
 	
