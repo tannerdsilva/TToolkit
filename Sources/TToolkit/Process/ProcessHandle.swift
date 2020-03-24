@@ -14,7 +14,7 @@ import Foundation
 	fileprivate let _write = Glibc.write(_:_:_:)
 	fileprivate let _close = Glibc.close(_:)
 	fileprivate let o_cloexec = Glibc.O_CLOEXEC
-	fileprivate let _pipe2 = Gilbc.pipe2(_:_:)
+	fileprivate let _pipe2 = Glibc.pipe2(_:_:)
 #endif
 
 internal class ProcessPipes {
