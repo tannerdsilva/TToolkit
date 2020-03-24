@@ -125,8 +125,9 @@ public class InteractiveProcess {
 						guard let self = self else {
 							return
 						}
+						print("pre out append")
 						self.stdoutBuff.append(bytesCopy)
-						print("append success")
+						print("append out success")
 					}
 				}
 			}
@@ -141,16 +142,16 @@ public class InteractiveProcess {
 					let bytesCopy = newData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 					syncQueue.async { [weak self] in
 						defer {
-							print("before leave")
+							print("before err leave")
 							dg.leave()
-							print("done leave")
+							print("done err leave")
 						}
-						print("sync is here yay")
 						guard let self = self else {
 							return
 						}
+						print("pre err append")
 						self.stderrBuff.append(bytesCopy)
-						print("append success")
+						print("append err success")
 					}
 				}
 			}
