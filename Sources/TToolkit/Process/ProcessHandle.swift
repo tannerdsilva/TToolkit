@@ -50,10 +50,10 @@ internal class ProcessPipes {
 				if let hasNewHandler = newValue {
 					_readHandler = hasNewHandler
 
-					let newFD = fcntl(reading.fileDescriptor, F_DUPFD)
+//					let newFD = fcntl(reading.fileDescriptor, F_DUPFD)
 										
 					//schedule the new timer
-					let newSource = DispatchSource.makeReadSource(fileDescriptor:newFD, queue:priority.globalConcurrentQueue)
+					let newSource = DispatchSource.makeReadSource(fileDescriptor:reading.fileDescriptor, queue:priority.globalConcurrentQueue)
 					newSource.setEventHandler { [weak self] in
 						guard let self = self else {
 							return
@@ -61,9 +61,9 @@ internal class ProcessPipes {
 						print("read handler called")
 						hasNewHandler(self.reading)
 					}
-					newSource.setCancelHandler {
-						_ = _close(newFD)
-					}
+//					newSource.setCancelHandler {
+//						_ = _close(newFD)
+//					}
 					readSource = newSource
 					newSource.activate()
 					print(Colors.magenta("OK read handler scheduled for \(reading.fileDescriptor) when \(writing.fileDescriptor) is written"))
@@ -93,10 +93,10 @@ internal class ProcessPipes {
 				if let hasNewHandler = newValue {
 					_writeHandler = hasNewHandler
 					
-					let newFD = fcntl(reading.fileDescriptor, F_DUPFD)
+//					let newFD = fcntl(reading.fileDescriptor, F_DUPFD)
 					
 					//schedule the new timer
-					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:priority.globalConcurrentQueue)
+					let newSource = DispatchSource.makeWriteSource(fileDescriptor:writing.fileDescriptor, queue:priority.globalConcurrentQueue)
 					newSource.setEventHandler { [weak self] in
 						guard let self = self else {
 							return
@@ -104,9 +104,9 @@ internal class ProcessPipes {
 						print("read handler called")
 						hasNewHandler(self.writing)
 					}
-					newSource.setCancelHandler {
-						_ = _close(newFD)
-					}
+//					newSource.setCancelHandler {
+//						_ = _close(newFD)
+//					}
 					writeSource = newSource
 					newSource.activate()
 					print(Colors.magenta("OK write handler scheduled for \(writing.fileDescriptor) when \(reading.fileDescriptor) is available for writing"))
