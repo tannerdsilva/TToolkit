@@ -112,7 +112,7 @@ internal class ProcessPipes {
 		self.writing = readWrite.w
 		
 		self.priority = priority
-		self.queue = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", qos:priority.asDispatchQoS())
+		self.queue = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", qos:priority.asDispatchQoS(), target:priority.globalConcurrentQueue)
 	}
 	
 	fileprivate static func forReadingAndWriting(priority:Priority) throws -> (r:ProcessHandle, w:ProcessHandle) {
@@ -134,16 +134,17 @@ internal class ProcessPipes {
 	}
 	
 	func close() {
-//		queue.sync {
+		queue.sync {
 			reading.close()
 			writing.close()
-			readHandler = nil
-			writeHandler = nil
-//		}
+		}
+		readHandler = nil
+		writeHandler = nil
 	}
 	
 	deinit {
-		close()
+		readHandler = nil
+		writeHandler = nil
 	}
 }
 
