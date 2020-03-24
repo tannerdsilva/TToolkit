@@ -84,7 +84,7 @@ internal class ExecutingProcess {
 	}
 	
 	func run() throws {
-		queue.sync {
+		try queue.sync {
 			guard isRunning == false else {
 				throw ProcessError.processAlreadyRunning
 			}
