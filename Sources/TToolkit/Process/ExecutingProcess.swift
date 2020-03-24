@@ -97,8 +97,6 @@ internal class ExecutingProcess {
 				argBuild.append(contentsOf:args)
 			}
 			
-			print("trying to run the thing")
-			
 			//convert the arguments into C compatible variables
 			let argC:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?> = argBuild.withUnsafeBufferPointer {
 				let arr:UnsafeBufferPointer<String> = $0
@@ -199,6 +197,9 @@ internal class ExecutingProcess {
 				}
 			}
 		}
+					
+			print("we ran the thing yay")
+
 	}
 	
 	func suspend() -> Bool? {
