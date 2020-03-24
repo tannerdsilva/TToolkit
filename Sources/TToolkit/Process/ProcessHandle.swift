@@ -139,11 +139,7 @@ internal class ProcessPipes {
 			fds.deallocate()
 		}
 		
-		#if os(macOS)
 		let rwfds = _pipe(fds)
-		#else
-		let rwfds = _pipe2(fds, o_cloexec)
-		#endif
 		switch rwfds {
 			case 0:
 				let readFD = fds.pointee
