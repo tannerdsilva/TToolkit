@@ -72,7 +72,7 @@ public class InteractiveProcess {
 
     public init<C>(command:C, priority:Priority = .`default`, run:Bool) throws where C:Command {
     	self.priority = priority
-		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:priority.globalConcurrentQueue)
+		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS())
 		self.queue = syncQueue
 		
 		let dg = DispatchGroup()
