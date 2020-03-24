@@ -84,7 +84,7 @@ internal class ExecutingProcess {
 	}
 	
 	func run() throws {
-		try queue.sync {
+//		try queue.sync {
 			guard isRunning == false else {
 				throw ProcessError.processAlreadyRunning
 			}
@@ -196,11 +196,11 @@ internal class ExecutingProcess {
 					th(self)
 				}
 			}
-		}
+//		}
 	}
 	
 	func suspend() -> Bool? {
-		return queue.sync {
+//		return queue.sync {
 			guard let pid = processIdentifier else {
 				return nil
 			}
@@ -209,29 +209,29 @@ internal class ExecutingProcess {
 			} else {
 				return false
 			}
-		}
+//		}
 	}
 	
 	func terminate() {
-		queue.sync {
+//		queue.sync {
 			guard let pid = processIdentifier else {
 				return
 			}
 			kill(pid, SIGTERM)
-		}
+//		}
 	}
 	
 	func forceKill() {
-		queue.sync {
+//		queue.sync {
 			guard let pid = processIdentifier else {
 				return
 			}
 			kill(pid, SIGKILL)
-		}
+//		}
 	}
 	
 	func resume() -> Bool? {
-		return queue.sync {
+//		return queue.sync {
 			guard let pid = processIdentifier else {
 				return nil
 			}
@@ -240,6 +240,6 @@ internal class ExecutingProcess {
 			} else {
 				return false
 			}
-		}
+//		}
 	}
 }
