@@ -6,11 +6,15 @@ import Foundation
 	fileprivate let _read = Darwin.read(_:_:_:)
 	fileprivate let _write = Darwin.write(_:_:_:)
 	fileprivate let _close = Darwin.close(_:)
+	fileprivate let o_cloexec = Darwin.O_CLOEXEC
+	fileprivate let _pipe = Darwin.pipe(_:)
 #elseif canImport(Glibc)
 	import Glibc
 	fileprivate let _read = Glibc.read(_:_:_:)
 	fileprivate let _write = Glibc.write(_:_:_:)
 	fileprivate let _close = Glibc.close(_:)
+	fileprivate let o_cloexec = Glibc.O_CLOEXEC
+	fileprivate let _pipe2 = Gilbc.pipe2(_:_:)
 #endif
 
 internal class ProcessPipes {
@@ -92,8 +96,7 @@ internal class ProcessPipes {
 					let newFD = dup(writing.fileDescriptor)
 					
 					//schedule the new timer
-					let concQueue = priority.globalConcurrentQueue
-					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:queue)
+					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:priority.globalConcurrentQueue)
 					newSource.setEventHandler { [weak self] in
 						guard let self = self else {
 							return
@@ -136,7 +139,11 @@ internal class ProcessPipes {
 			fds.deallocate()
 		}
 		
-		let rwfds = pipe(fds)
+		#if os(macOS)
+		let rwfds = _pipe(fds)
+		#else
+		let rwfds = _pipe2(fds, o_cloexec)
+		#endif
 		switch rwfds {
 			case 0:
 				let readFD = fds.pointee

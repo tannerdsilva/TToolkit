@@ -181,12 +181,14 @@ internal class ExecutingProcess {
 				self.terminationReason = TerminationReason.exited
 			}
 			self.exitCode = ec
-			if let th = self.terminationHandler {
-				th(self)
-			}
+			
 			self.stdin?.close()
 			self.stdout?.close() 
 			self.stderr?.close()
+
+			if let th = self.terminationHandler {
+				th(self)
+			}
 		}
 	}
 	
