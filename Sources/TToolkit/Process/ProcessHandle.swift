@@ -50,23 +50,16 @@ internal class ProcessPipes {
 				if let hasNewHandler = newValue {
 					_readHandler = hasNewHandler
 
-//					let newFD = fcntl(reading.fileDescriptor, F_DUPFD)
-										
 					//schedule the new timer
 					let newSource = DispatchSource.makeReadSource(fileDescriptor:reading.fileDescriptor, queue:priority.globalConcurrentQueue)
 					newSource.setEventHandler { [weak self] in
 						guard let self = self else {
 							return
 						}
-						print("read handler called")
 						hasNewHandler(self.reading)
 					}
-//					newSource.setCancelHandler {
-//						_ = _close(newFD)
-//					}
 					readSource = newSource
 					newSource.activate()
-					print(Colors.magenta("OK read handler scheduled for \(reading.fileDescriptor) when \(writing.fileDescriptor) is written"))
 				} else {
 					_readHandler = nil
 					readSource = nil
@@ -99,7 +92,6 @@ internal class ProcessPipes {
 						guard let self = self else {
 							return
 						}
-						print("read handler called")
 						hasNewHandler(self.writing)
 					}
 					writeSource = newSource
@@ -117,11 +109,6 @@ internal class ProcessPipes {
 		
 		self.reading = readWrite.r
 		self.writing = readWrite.w
-		
-		print(Colors.Yellow("===== PROCESS PIPE INITIALIZED ====="))
-		print(Colors.Yellow("R:\t\(readWrite.r.fileDescriptor)"))
-		print(Colors.Yellow("W:\t\(readWrite.w.fileDescriptor)"))
-		print(Colors.Yellow("===================================="))
 		
 		self.priority = priority
 		self.queue = queue
@@ -229,7 +216,6 @@ internal class ProcessHandle {
 		}
 		
 		guard _close(_fd) >= 0 else {
-			print(Colors.Red("ERROR CLOSING FILE DESCRIPTOR \(_fd)"))
 			return
 		}
 		_fd = -1

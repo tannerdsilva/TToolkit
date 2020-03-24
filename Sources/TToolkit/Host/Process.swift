@@ -88,7 +88,6 @@ public class InteractiveProcess {
     }
 
     public init<C>(command:C, priority:Priority = .`default`, run:Bool) throws where C:Command {
-    	print(Colors.cyan("Executing process initialized"))
 		processQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS())
 		callbackQueue = priority.globalConcurrentQueue
 		
@@ -105,7 +104,6 @@ public class InteractiveProcess {
 		
 		//create the ExecutingProcess
 		proc = ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, priority:priority)
-		print("Initialized executing process...not running")
 		
 		proc.stdin = standardIn
 		proc.stdout = standardOut
@@ -126,17 +124,13 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
-			print(Colors.cyan("stdout read handler"))
 			self.dataGroup.enter()
 			if let readData = self.stdout.reading.availableData() {
-				print(Colors.yellow("\t-> GOT DATA"))
 				let bytesCount = readData.count
 				if bytesCount > 0 {
 					let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 					self.appendStdoutData(bytesCopy)
 				}
-			} else {
-				print("DID NOT GET DATA")
 			}
 			self.dataGroup.leave()
 		}
@@ -145,17 +139,13 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
-			print(Colors.magenta("stderr read handler"))
 			self.dataGroup.enter()
 			if let readData = self.stderr.reading.availableData() {
-				print(Colors.yellow("\t-> GOT DATA"))
 				let bytesCount = readData.count
 				if bytesCount > 0 {
 					let bytesCopy = readData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 					self.appendStderrData(bytesCopy)
 				}
-			} else {
-				print("DID NOT GET DATA")
 			}
 			self.dataGroup.leave()         
 		}
