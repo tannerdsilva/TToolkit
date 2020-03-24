@@ -96,7 +96,9 @@ internal class ExecutingProcess {
 			if let args = self.arguments {
 				argBuild.append(contentsOf:args)
 			}
-		
+			
+			print("trying to run the thing")
+			
 			//convert the arguments into C compatible variables
 			let argC:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?> = argBuild.withUnsafeBufferPointer {
 				let arr:UnsafeBufferPointer<String> = $0
