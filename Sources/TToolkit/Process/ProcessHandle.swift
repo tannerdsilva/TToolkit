@@ -50,7 +50,7 @@ internal class ProcessPipes {
 										
 					//schedule the new timer
 					let concQueue = priority.globalConcurrentQueue
-					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:queue)
+					let newSource = DispatchSource.makeReadSource(fileDescriptor:newFD, queue:queue)
 					newSource.setEventHandler { [weak self] in
 						print("read handler 1 called")
 						concQueue.async { [weak self] in
