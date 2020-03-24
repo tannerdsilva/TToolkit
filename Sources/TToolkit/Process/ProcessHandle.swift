@@ -149,6 +149,11 @@ internal class ProcessPipes {
 		reading.close()
 		writing.close()
 	}
+	
+	deinit {
+		readHandler = nil
+		writeHandler = nil
+	}
 }
 
 internal class ProcessHandle {
@@ -223,8 +228,6 @@ internal class ProcessHandle {
 			return
 		}
 		
-		readHandler = nil
-		writeHandler = nil
 		guard _close(_fd) >= 0 else {
 			print(Colors.Red("ERROR CLOSING FILE DESCRIPTOR \(_fd)"))
 			return
