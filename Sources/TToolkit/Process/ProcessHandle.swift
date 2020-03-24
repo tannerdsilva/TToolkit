@@ -50,7 +50,7 @@ internal class ProcessPipes {
 				if let hasNewHandler = newValue {
 					_readHandler = hasNewHandler
 
-					let newFD = fcntl(reading.fileDescriptor, F_DUPFD_CLOEXEC)
+					let newFD = fcntl(reading.fileDescriptor, F_DUPFD)
 										
 					//schedule the new timer
 					let newSource = DispatchSource.makeReadSource(fileDescriptor:newFD, queue:priority.globalConcurrentQueue)
@@ -93,7 +93,7 @@ internal class ProcessPipes {
 				if let hasNewHandler = newValue {
 					_writeHandler = hasNewHandler
 					
-					let newFD = fcntl(reading.fileDescriptor, F_DUPFD_CLOEXEC)
+					let newFD = fcntl(reading.fileDescriptor, F_DUPFD)
 					
 					//schedule the new timer
 					let newSource = DispatchSource.makeWriteSource(fileDescriptor:newFD, queue:priority.globalConcurrentQueue)
@@ -145,8 +145,8 @@ internal class ProcessPipes {
 				let readFD = fds.pointee
 				let writeFD = fds.successor().pointee
 				
-				fcntl(readFD, F_SETFD, FD_CLOEXEC)
-				fcntl(writeFD, F_SETFD, FD_CLOEXEC)
+//				fcntl(readFD, F_DUPFD, FD_CLOEXEC)
+//				fcntl(writeFD, F_DUPFD, FD_CLOEXEC)
 				
 				return (r:ProcessHandle(fd:readFD, autoClose:true), w:ProcessHandle(fd:writeFD, autoClose:true))
 			default:
