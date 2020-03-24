@@ -100,6 +100,7 @@ public class InteractiveProcess {
 			defer {
 				rg.leave()
 			}
+			print("termination handler called")
 			dg.wait()
 			guard let self = self else {
 				return
@@ -117,13 +118,15 @@ public class InteractiveProcess {
 					let bytesCopy = newData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 					syncQueue.async { [weak self] in
 						defer {
+							print("before leave")
 							dg.leave()
+							print("done leave")
 						}
-						print("sync is here yay")
 						guard let self = self else {
 							return
 						}
 						self.stdoutBuff.append(bytesCopy)
+						print("append success")
 					}
 				}
 			}
@@ -138,13 +141,16 @@ public class InteractiveProcess {
 					let bytesCopy = newData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 					syncQueue.async { [weak self] in
 						defer {
+							print("before leave")
 							dg.leave()
+							print("done leave")
 						}
 						print("sync is here yay")
 						guard let self = self else {
 							return
 						}
 						self.stderrBuff.append(bytesCopy)
+						print("append success")
 					}
 				}
 			}
