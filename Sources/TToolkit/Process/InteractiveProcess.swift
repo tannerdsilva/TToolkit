@@ -100,7 +100,6 @@ public class InteractiveProcess {
 			defer {
 				rg.leave()
 			}
-			print("termination handler called")
 			dg.wait()
 			guard let self = self else {
 				return
@@ -124,6 +123,7 @@ public class InteractiveProcess {
 					if bytesCount > 0 {
 						let bytesCopy = newData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 						self.stdoutBuff.append(bytesCopy)
+						print("out data appended yay")
 					}
 				}
 			}
@@ -143,6 +143,7 @@ public class InteractiveProcess {
 					if bytesCount > 0 {
 						let bytesCopy = newData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
 						self.stderrBuff.append(bytesCopy)
+						print("err data appended yay")
 					}
 				}
 			}
