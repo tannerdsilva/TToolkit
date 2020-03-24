@@ -31,7 +31,6 @@ internal class ExecutingProcess {
 		case uncaughtSignal
 	}
 	
-	let queue:DispatchQueue		//this is a serial queue whose target is assigned to the relevant global concurrent queue from the assigned Priority
 	let priority:Priority
 	
 	var executable:URL
@@ -72,7 +71,6 @@ internal class ExecutingProcess {
 	}
 	
 	init(execute:URL, arguments:[String]?, environment:[String:String]?, priority:Priority, _ terminationHandler:TerminationHandler? = nil) {
-		self.queue = DispatchQueue(label:"com.tannersilva.instance.executing-process.sync", qos:priority.asDispatchQoS())
 		self.priority = priority
 		self.executable = execute
 		self.arguments = arguments
@@ -84,7 +82,6 @@ internal class ExecutingProcess {
 	}
 	
 	func run() throws {
-		try queue.sync {
 			guard isRunning == false else {
 				throw ProcessError.processAlreadyRunning
 			}
@@ -200,46 +197,38 @@ internal class ExecutingProcess {
 	}
 	
 	func suspend() -> Bool? {
-		return queue.sync {
-			guard let pid = processIdentifier else {
-				return nil
-			}
-			if kill(pid, SIGSTOP) == 0 {
-				return true
-			} else {
-				return false
-			}
+		guard let pid = processIdentifier else {
+			return nil
+		}
+		if kill(pid, SIGSTOP) == 0 {
+			return true
+		} else {
+			return false
 		}
 	}
 	
 	func terminate() {
-		queue.sync {
-			guard let pid = processIdentifier else {
-				return
-			}
-			kill(pid, SIGTERM)
+		guard let pid = processIdentifier else {
+			return
 		}
+		kill(pid, SIGTERM)
 	}
 	
 	func forceKill() {
-		queue.sync {
-			guard let pid = processIdentifier else {
-				return
-			}
-			kill(pid, SIGKILL)
+		guard let pid = processIdentifier else {
+			return
 		}
+		kill(pid, SIGKILL)
 	}
 	
 	func resume() -> Bool? {
-		return queue.sync {
-			guard let pid = processIdentifier else {
-				return nil
-			}
-			if kill(pid, SIGCONT) == 0 {
-				return true
-			} else {
-				return false
-			}
+		guard let pid = processIdentifier else {
+			return nil
+		}
+		if kill(pid, SIGCONT) == 0 {
+			return true
+		} else {
+			return false
 		}
 	}
 }
