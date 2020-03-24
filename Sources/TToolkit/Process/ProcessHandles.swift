@@ -17,10 +17,11 @@ import Foundation
 	fileprivate let _pipe = Glibc.pipe(_:)
 #endif
 
+
 internal class ProcessPipes {
 	typealias Handler = (ProcessHandle) -> Void
 
-	let queue:DispatchQueue
+	private let queue:DispatchQueue
 	let priority:Priority
 	
 	let reading:ProcessHandle
@@ -104,17 +105,17 @@ internal class ProcessPipes {
 		}
 	}
 	
-	init(priority:Priority, queue:DispatchQueue) {
-		let readWrite = Self.forReadingAndWriting(priority:priority, queue:queue)
+	init(priority:Priority) throws {
+		let readWrite = try Self.forReadingAndWriting(priority:priority)
 		
 		self.reading = readWrite.r
 		self.writing = readWrite.w
 		
 		self.priority = priority
-		self.queue = queue
+		self.queue = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", qos:priority.asDispatchQoS(), target:priority.globalConcurrentQueue)
 	}
 	
-	fileprivate static func forReadingAndWriting(priority:Priority, queue:DispatchQueue) -> (r:ProcessHandle, w:ProcessHandle) {
+	fileprivate static func forReadingAndWriting(priority:Priority) throws -> (r:ProcessHandle, w:ProcessHandle) {
 		let fds = UnsafeMutablePointer<Int32>.allocate(capacity:2)
 		defer {
 			fds.deallocate()
@@ -126,20 +127,23 @@ internal class ProcessPipes {
 				let readFD = fds.pointee
 				let writeFD = fds.successor().pointee
 				
-				return (r:ProcessHandle(fd:readFD, autoClose:true), w:ProcessHandle(fd:writeFD, autoClose:true))
+				return (r:ProcessHandle(fd:readFD), w:ProcessHandle(fd:writeFD))
 			default:
-			fatalError("Error calling pipe(): \(errno)")
+			throw ProcessError.unableToCreatePipes
 		}
 	}
 	
 	func close() {
-		reading.close()
-		writing.close()
+		queue.sync {
+			reading.close()
+			writing.close()
+			readHandler = nil
+			writeHandler = nil
+		}
 	}
 	
 	deinit {
-		readHandler = nil
-		writeHandler = nil
+		close()
 	}
 }
 
@@ -151,11 +155,8 @@ internal class ProcessHandle {
 		}
 	}
 	
-	var autoClose:Bool
-	
-	init(fd:Int32, autoClose:Bool) {
+	init(fd:Int32) {
 		self._fd = fd
-		self.autoClose = autoClose
 	}
 	
 	func write(_ dataObj:Data) throws {
@@ -221,7 +222,7 @@ internal class ProcessHandle {
 	}
 	
 	deinit {
-		if _fd != -1 && autoClose == true {
+		if _fd != -1 {
 			close()
 		}
 	}
