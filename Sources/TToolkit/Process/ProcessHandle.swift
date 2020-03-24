@@ -184,7 +184,6 @@ internal class ProcessHandle {
 	func availableData() -> Data? {
 		var statbuf = stat()
 		if fstat(_fd, &statbuf) < 0 {
-			print(Colors.Red("statbuf fstat fail"))
 			return nil
 		}
 		

@@ -4,19 +4,6 @@ fileprivate func bashEscape(string:String) -> String {
 	return "'" + string.replacingOccurrences(of:"'", with:"\'") + "'"
 }
 
-//InteractiveProcess must be launched and destroyed on a serial thread for stability.
-//This is the internal run thread that TToolkit uses to launch new InteractiveProcess instances
-fileprivate let serialProcess = DispatchQueue(label:"com.tannersilva.global.process-interactive.launch", qos:Priority.highest.asDispatchQoS())
-
-//InteractiveProcess calls on this function to serially initialize the pipes and process objects that it needs to operate
-fileprivate typealias ProcessAndPipes = (stdin:Pipe, stdout:Pipe, stderr:Pipe, process:Process)
-
-extension Process {
-	fileprivate func signal(_ sign:Int32) -> Int32 {
-		return kill(processIdentifier, sign)
-	}
-}
-
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     public typealias InputHandler = (InteractiveProcess) -> Void
@@ -185,12 +172,7 @@ public class InteractiveProcess {
         try processQueue.sync {
             do {
             	runGroup.enter()
-            	
-            	//framework must launch processes serially for complete thread safety
-            	try serialProcess.sync {
-					try proc.run()
-            	}
-            	
+				try proc.run()
                 state = .running
             } catch let error {
             	runGroup.leave()
