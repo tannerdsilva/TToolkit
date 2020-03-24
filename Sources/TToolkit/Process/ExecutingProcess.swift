@@ -124,15 +124,12 @@ internal class ExecutingProcess {
 		//bind the file handle descriptors to the pipes that we are associating with this process 
 		var fHandles = [Int32:Int32]()
 		if let hasStdin = stdin {
-			print(Colors.Green("[BIND]{OK} - STDIN"))
 			fHandles[STDIN_FILENO] = hasStdin.reading.fileDescriptor
 		}
 		if let hasStdout = stdout {
-			print(Colors.Green("[BIND]{OK} - STDOUT"))
 			fHandles[STDOUT_FILENO] = hasStdout.writing.fileDescriptor
 		}
 		if let hasStderr = stderr {
-			print(Colors.Green("[BIND]{OK} - STDERR"))
 			fHandles[STDERR_FILENO] = hasStderr.writing.fileDescriptor
 		}
 		
@@ -152,7 +149,6 @@ internal class ExecutingProcess {
 		
 		for (destination, source) in fHandles {
 			let result = posix_spawn_file_actions_adddup2(fileActions, source, destination)
-			print(Colors.Cyan("Mapped original FD: \(source)\t->\tnew FD: \(destination)\t->\t\(result)"))
 		}
 
 		//launch the process
@@ -181,10 +177,6 @@ internal class ExecutingProcess {
 				self.terminationReason = TerminationReason.exited
 			}
 			self.exitCode = ec
-			
-			self.stdin?.close()
-			self.stdout?.close() 
-			self.stderr?.close()
 
 			if let th = self.terminationHandler {
 				th(self)
