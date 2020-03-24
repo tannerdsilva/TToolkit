@@ -119,6 +119,7 @@ public class InteractiveProcess {
 						defer {
 							dg.leave()
 						}
+						print("sync is here yay")
 						guard let self = self else {
 							return
 						}
@@ -139,6 +140,7 @@ public class InteractiveProcess {
 						defer {
 							dg.leave()
 						}
+						print("sync is here yay")
 						guard let self = self else {
 							return
 						}

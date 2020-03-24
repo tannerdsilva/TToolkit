@@ -197,9 +197,6 @@ internal class ExecutingProcess {
 				}
 			}
 		}
-					
-			print("we ran the thing yay")
-
 	}
 	
 	func suspend() -> Bool? {
