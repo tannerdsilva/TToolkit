@@ -52,7 +52,7 @@ public class TTimer {
 			queue.sync {
 				_anchor = newValue
 				if autoRun {
-					_scheduleTimerIfPossible()
+					_scheduleTimerIfPossible(keepAnchor:false)
 				}
 			}
 		}
@@ -100,7 +100,7 @@ public class TTimer {
 			queue.sync {
 				_duration = valueToAssign
 				if autoRun {
-					_scheduleTimerIfPossible()
+					_scheduleTimerIfPossible(keepAnchor:true)
 				}
 			}
 		}
@@ -117,8 +117,8 @@ public class TTimer {
 			let valueToAssign = newValue
 			queue.sync {
 				_handler = valueToAssign
-				if autoRun {
-					_scheduleTimerIfPossible()
+				if autoRun && state == .canceled {
+					_scheduleTimerIfPossible(keepAnchor:true)
 				}
 			}
 		}
@@ -143,7 +143,7 @@ public class TTimer {
 		Schedules a new timer with a valid duration and handler
 		Assumptions: duration must not be 0
 	*/
-	private func _rescheduleTimer(lastTrigger:DispatchWallTime?, fireNow:Bool) {
+	private func _rescheduleTimer(lastTrigger:DispatchWallTime?) {
 		guard let hasDuration = _timerInterval, let hasDoubleDuration = _duration, hasDoubleDuration > 0 else {
 			return
 		}
@@ -164,17 +164,13 @@ public class TTimer {
 		if let hasLastTriggerDate = lastTrigger {
 			let newBaseTime = hasLastTriggerDate + hasDuration
 			let nowTime = DispatchWallTime.now()
-			if fireNow == true && nowTime > newBaseTime {
+			if soonMode == true && nowTime > newBaseTime {
 				baseTime = nowTime
 			} else {
 				baseTime = newBaseTime
 			}
 		} else {
-			if fireNow {
-				baseTime = _anchorAdjustedNowTime
-			} else {
-				baseTime = _anchorAdjustedNowTime + hasDuration
-			}
+			baseTime = _anchorAdjustedNowTime
 		}
 		newSource.schedule(wallDeadline:baseTime, repeating:hasDuration, leeway:.nanoseconds(0))
 		newSource.activate()
@@ -187,14 +183,18 @@ public class TTimer {
 		This function DOES NOT ASSUME that duration is not 0, therefore, this should be the function that is used when the duration and handler public variables are assigned
 		This function must be called in a synchronized dispatch queue
 	*/
-	private func _scheduleTimerIfPossible() {
+	private func _scheduleTimerIfPossible(keepAnchor:Bool) {
 		_unscheduleTimer()
 		
 		guard _handler != nil, _duration != nil else {
 			return
 		}
 		
-		_rescheduleTimer(lastTrigger:lastTriggerDate, fireNow:false)
+		if keepAnchor {
+			_rescheduleTimer(lastTrigger:lastTriggerDate)
+		} else {
+			_rescheduleTimer(lastTrigger:nil)
+		}
 	}
 	
 	public init(strict:Bool, autoRun:Bool, soon:Bool) {
@@ -209,7 +209,7 @@ public class TTimer {
 	
 	public func run() {
 		queue.sync {
-			_scheduleTimerIfPossible()
+			_scheduleTimerIfPossible(keepAnchor:false)
 		}
 	}
 	
