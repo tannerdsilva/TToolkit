@@ -32,6 +32,7 @@ public class TTimer {
 	private let priority:Priority
 	private let queue:DispatchQueue
 	
+	public let soonMode:Bool
 	public let strictMode:Bool
 	public let autoRun:Bool
 	
@@ -65,10 +66,18 @@ public class TTimer {
 			}
 			let timeDelta = hasAnchor.timeIntervalSinceNow
 			let intervalRemainder = timeDelta.truncatingRemainder(dividingBy:hasDuration)
-			if intervalRemainder > 0 {
-				return nowTime + (hasDuration - intervalRemainder)
+			if soonMode {
+				if intervalRemainder > 0 {
+					return nowTime - intervalRemainder
+				} else {
+					return nowTime + intervalRemainder
+				}
 			} else {
-				return nowTime + hasDuration + intervalRemainder
+				if intervalRemainder > 0 {
+					return nowTime + (hasDuration - intervalRemainder)
+				} else {
+					return nowTime + hasDuration + intervalRemainder
+				}
 			}
 		}
 	}
@@ -187,11 +196,12 @@ public class TTimer {
 		_rescheduleTimer(lastTrigger:lastTriggerDate, fireNow:false)
 	}
 	
-	public init(strict:Bool, autoRun:Bool) {
+	public init(strict:Bool, autoRun:Bool, soon:Bool) {
 		let defaultPriority = Priority.`default`
 		self.priority = defaultPriority
 		self.queue = DispatchQueue(label:"com.tannersilva.instance.ttimer.sync", qos:defaultPriority.asDispatchQoS(), target:defaultPriority.globalConcurrentQueue)
 		self.strictMode = strict
+		self.soonMode = soon
 		self.state = .canceled
 		self.autoRun = autoRun
 	}
