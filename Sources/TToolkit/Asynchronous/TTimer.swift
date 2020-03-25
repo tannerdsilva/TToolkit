@@ -61,11 +61,15 @@ public class TTimer {
 	private var _anchorAdjustedNowTime:DispatchWallTime {
 		get {
 			let nowTime = DispatchWallTime.now()
+			guard let hasDuration = _duration else {
+				return nowTime
+			}
 			guard let hasAnchor = _anchor, let hasDuration = _duration else {
 				return nowTime
 			}
 			let timeDelta = hasAnchor.timeIntervalSinceNow
 			let intervalRemainder = timeDelta.truncatingRemainder(dividingBy:hasDuration)
+			print("Now: \(nowTime)\tInterval:\(intervalRemainder)")
 			if soonMode {
 				if intervalRemainder > 0 {
 					return nowTime - intervalRemainder
