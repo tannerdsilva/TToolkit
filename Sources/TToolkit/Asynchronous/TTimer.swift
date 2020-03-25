@@ -61,9 +61,6 @@ public class TTimer {
 	private var _anchorAdjustedNowTime:DispatchWallTime {
 		get {
 			let nowTime = DispatchWallTime.now()
-			guard let hasDuration = _duration else {
-				return nowTime
-			}
 			guard let hasAnchor = _anchor, let hasDuration = _duration else {
 				return nowTime
 			}
