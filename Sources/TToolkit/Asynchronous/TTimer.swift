@@ -63,8 +63,13 @@ public class TTimer {
 		set {
 			let valueToAssign = newValue
 			queue.sync {
-				_handler = valueToAssign
-				rescheduleTimer(duration:_duration, newHandle:_handler, fireNow:false)
+				if _handler == nil {
+					_handler = valueToAssign
+					rescheduleTimer(duration:_duration, newHandle:_handler, fireNow:false)
+				} else {
+					_handler = valueToAssign
+				}
+				
 			}
 		}
 	}
