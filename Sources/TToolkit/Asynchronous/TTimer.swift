@@ -3,7 +3,6 @@ import Dispatch
 
 public enum TimerState {
 	case activated
-	case suspended
 	case canceled
 }
 
@@ -29,79 +28,63 @@ extension Double {
 public class TTimer {
 	public typealias TimerHandler = (TTimer) -> Void
 	
-	private let priority:Priority
-	private let queue:DispatchQueue
+	private var _timerTarget:DispatchQueue
+	public var queue:DispatchQueue {
+		get {
+			return _internalSync.sync {
+				return _timerTarget
+			}
+		}
+		set {
+			let valueToAssign = newValue
+			_internalSync.sync {
+				_timerTarget = valueToAssign
+				_timerQueue.setTarget(queue:valueToAssign)
+			}
+		}
+	}
 	
-	public let soonMode:Bool
-	public let strictMode:Bool
-	public let autoRun:Bool
+	private let _timerQueue:DispatchQueue	//this is the queue that the timer sources are explicityly scheduled against. The target of this queue is assigned to `self._targetQueue`
+	private let _priority:Priority			//this specifies the global concurrent priority of this timer
+	private let _internalSync:DispatchQueue	//for internal thread safety
 	
-	private(set) public var state:TimerState
+	private var _state:TimerState
+	public var state:TimerState {
+		get {
+			return _internalSync.sync {
+				return _state
+			}
+		}
+	}
 	
-	private var timerSource:DispatchSourceTimer? = nil
-	private var lastTriggerDate:DispatchWallTime? = nil
+	private var _timerSource:DispatchSourceTimer? = nil
+	private var _lastTriggerDate:DispatchWallTime? = nil
 	
 	private var _anchor:Date? = nil
 	public var anchor:Date? {
 		get {
-			return queue.sync {
+			return _internalSync.sync {
 				return _anchor
 			}
 		}
 		set {
-			queue.sync {
+			_internalSync.sync {
 				_anchor = newValue
-				if autoRun {
-					_scheduleTimerIfPossible(keepAnchor:false)
-				}
 			}
 		}
 	}
-	//always adjusts with the anchor date into the past
-	private var _anchorAdjustedNowTime:DispatchWallTime {
-		get {
-			let nowTime = DispatchWallTime.now()
-			guard let hasAnchor = _anchor, let hasDuration = _duration else {
-				return nowTime
-			}
-			let timeDelta = hasAnchor.timeIntervalSinceNow
-			let intervalRemainder = timeDelta.truncatingRemainder(dividingBy:hasDuration)
-			print("Now: \(nowTime)\tInterval:\(intervalRemainder)")
-			if soonMode {
-				if intervalRemainder > 0 {
-					return nowTime - intervalRemainder
-				} else {
-					return nowTime + intervalRemainder
-				}
-			} else {
-				if intervalRemainder > 0 {
-					return nowTime + (hasDuration - intervalRemainder)
-				} else {
-					return nowTime + hasDuration + intervalRemainder
-				}
-			}
-		}
-	}
-	
-	private var _timerInterval:DispatchTimeInterval? {
-		get {
-			return _duration?.asDispatchTimeIntervalSeconds()
-		}
-	}
+
 	private var _duration:Double? = nil
 	public var duration:Double? {
 		get {
-			return queue.sync {
+			return _internalSync.sync {
 				return _duration
 			}
 		}
 		set {
 			let valueToAssign = newValue
-			queue.sync {
+			_internalSync.sync {
 				_duration = valueToAssign
-				if autoRun {
-					_scheduleTimerIfPossible(keepAnchor:true)
-				}
 			}
 		}
 	}
@@ -109,31 +92,45 @@ public class TTimer {
 	private var _handler:TimerHandler? = nil
 	public var handler:TimerHandler? {
 		get {
-			return queue.sync {
+			return _internalSync.sync {
 				return _handler
 			}
 		}
 		set {
 			let valueToAssign = newValue
-			queue.sync {
+			_internalSync.sync {
 				_handler = valueToAssign
-				if autoRun && state == .canceled {
-					_scheduleTimerIfPossible(keepAnchor:true)
-				}
 			}
 		}
 	}
 	
+	private func _timerInterval() -> DispatchTimeInterval? {
+		return _duration?.asDispatchTimeIntervalSeconds()
+	}
+	
+	private func _anchorAdjustedNowTime() -> DispatchWallTime {
+		let nowTime = DispatchWallTime.now()
+		guard let hasAnchor = _anchor, let hasDuration = _duration else {
+			return nowTime
+		}
+		let timeDelta = hasAnchor.timeIntervalSinceNow
+		let intervalRemainder = timeDelta.truncatingRemainder(dividingBy:hasDuration)
+		if intervalRemainder > 0 {
+			return nowTime + (hasDuration - intervalRemainder)
+		} else {
+			return nowTime + hasDuration + intervalRemainder
+		}
+	}
+
 	/*
 		Unschedules the timer so that it no longer fires.
 		Return value: 	true if the timer was able to be unscheduled
 						false if the there was no timer scheduled
 	*/
 	private func _unscheduleTimer() -> Bool {
-		if let hasCurrentTimer = timerSource {
+		if let hasCurrentTimer = _timerSource {
 			hasCurrentTimer.cancel()
-			timerSource = nil
-			state = .canceled
+			_state = .canceled
 			return true
 		}
 		return false
@@ -142,34 +139,38 @@ public class TTimer {
 	/*
 		Schedules a new timer with a valid duration and handler
 		Assumptions: duration must not be 0
+		Assumption: This function is syncronized with internalSync via the calling function
 	*/
 	private func _rescheduleTimer(lastTrigger:DispatchWallTime?) {
-		guard let hasDuration = _timerInterval, let hasDoubleDuration = _duration, hasDoubleDuration > 0 else {
+		guard let hasDuration = _timerInterval(), let hasDoubleDuration = _duration, hasDoubleDuration > 0, let handlerToSchedule = _handler else {
 			return
 		}
 		let newSource:DispatchSourceTimer
-		if strictMode {
-			newSource = DispatchSource.makeTimerSource(flags:[.strict], queue:priority.globalConcurrentQueue)
-		} else {
-			newSource = DispatchSource.makeTimerSource(flags:[], queue:priority.globalConcurrentQueue)
-		}
+		newSource = DispatchSource.makeTimerSource(flags:[.strict], queue:_timerQueue)
 		newSource.setEventHandler { [weak self] in
 			guard let self = self else {
 				return
 			}
-			self._fire(markTime:true)
+			let triggerTime = DispatchWallTime.now()
+			self._internalSync.async { [weak self] in
+				guard let self = self else {
+					return
+				}
+				self._lastTriggerDate = triggerTime
+			}
+			handlerToSchedule(self)
 		}
 		
 		var baseTime:DispatchWallTime
 		if let hasLastTriggerDate = lastTrigger {
 			baseTime = hasLastTriggerDate + hasDuration
 		} else {
-			baseTime = _anchorAdjustedNowTime
+			baseTime = _anchorAdjustedNowTime()
 		}
 		newSource.schedule(wallDeadline:baseTime, repeating:hasDuration, leeway:.nanoseconds(0))
 		newSource.activate()
-		timerSource = newSource
-		state = .activated
+		_timerSource = newSource
+		_state = .activated
 	}
 	
 	/*
@@ -185,63 +186,40 @@ public class TTimer {
 		}
 		
 		if keepAnchor {
-			_rescheduleTimer(lastTrigger:lastTriggerDate)
+			_rescheduleTimer(lastTrigger:_lastTriggerDate)
 		} else {
 			_rescheduleTimer(lastTrigger:nil)
 		}
 	}
 	
-	public init(strict:Bool, autoRun:Bool, soon:Bool) {
+	public init() {
 		let defaultPriority = Priority.`default`
-		self.priority = defaultPriority
-		self.queue = DispatchQueue(label:"com.tannersilva.instance.ttimer.sync", qos:defaultPriority.asDispatchQoS(), target:defaultPriority.globalConcurrentQueue)
-		self.strictMode = strict
-		self.soonMode = soon
-		self.state = .canceled
-		self.autoRun = autoRun
+		let globalConcurrent = defaultPriority.globalConcurrentQueue
+		self._timerTarget = globalConcurrent
+		self._timerQueue = DispatchQueue(label:"com.tannersilva.instance.ttimer.fire", qos:defaultPriority.asDispatchQoS(), target:globalConcurrent)
+		self._priority = defaultPriority
+		self._internalSync = DispatchQueue(label:"com.tannersilva.instance.ttimer.internal-sync", qos:defaultPriority.asDispatchQoS(), target:globalConcurrent)
+		self._state = .canceled
 	}
 	
-	public func schedule() {
-		queue.sync {
+	public func activate() {
+		_internalSync.sync {
 			_scheduleTimerIfPossible(keepAnchor:false)
 		}
 	}
-	
-	fileprivate func _fire(markTime:Bool) {
-		if markTime {
-			lastTriggerDate = DispatchWallTime.now()
-		}
-		if let hasHandler = _handler {
-			hasHandler(self)
-		}
-	}
-	
+		
 	public func fire() {
-		queue.sync {
-			self._fire(markTime:false)
-		}
-	}
-	
-	public func play() {
-		queue.sync {
-			if state == .suspended, let hasTimer = timerSource {
-				hasTimer.resume()
-				state = .activated
-			}
-		}
-	}
-	
-	public func pause() {
-		queue.sync {
-			if state == .activated, let hasTimer = timerSource {
-				hasTimer.suspend()
-				state = .suspended
+		_internalSync.sync {
+			_timerQueue.sync {
+				if let hasHandler = _handler {
+					hasHandler(self)
+				}
 			}
 		}
 	}
 	
 	public func cancel() {
-		queue.sync {
+		_internalSync.sync {
 			_unscheduleTimer()
 		}
 	}
