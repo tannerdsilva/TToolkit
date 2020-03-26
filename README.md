@@ -61,8 +61,6 @@ Supports linebreaks in CR, LF, and CRLF.
 
 The data line slicing functions also have the ability to detect and stip the byte order mark from the beginning of a data sequence. Default behavior is to strip any known BOM sequence from the beginning of a Data variable, however, this behavior can be overridden.
 
-### Interactive Process Interface
+### InteractiveProcess
 
-Do you need to write a process that can launch and interact with other processes safely? Or perhaps you need to execute shell commands? The `InteractiveProcess` class has you covered! With this object (and the help of `explode`), you can easily spin up thousands of processes to import, process, and build data very quickly with complete thread safety.
-
-With the `InteractiveProcess` class allows for dynamic access to stderr, stdout, and stdin with full thread safety. Unlike other shell interfaces, `InteractiveProcess` allows you to write to a process while also reading from it. This makes it very helpful for executing against interactive shells and processes.
+`InteractiveProcess` is a class that allows you to launch and handle I/O with external processes. Unlike the `Process` class from the Foundation framework (and the FileHandle classes that it uses as well), `InteractiveProcess` is designed to be completely asynchronous and thread safe.

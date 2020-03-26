@@ -4,58 +4,6 @@ public enum CommandError:Error {
 	case temporaryDirectoryNameConflict
 }
 
-public enum Priority:UInt8 {
-	case highest
-	case high
-	case `default`
-	case low
-	case lowest
-	
-	public func asDispatchQoS() -> DispatchQoS.QoSClass {
-		switch self {
-			case .highest:
-				return .userInteractive
-			case .high:
-				return .userInitiated
-			case .`default`:
-				return .`default`
-			case .low:
-				return .utility
-			case .lowest:
-				return .background
-		}
-	}
-	
-	public func asDispatchQoS() -> DispatchQoS {
-		switch self {
-			case .highest:
-				return .userInteractive
-			case .high:
-				return .userInitiated
-			case .`default`:
-				return .`default`
-			case .low:
-				return .utility
-			case .lowest:
-				return .background
-		}
-	}
-	
-	public func asProcessQualityOfService() -> QualityOfService {
-		switch self {
-			case .highest:
-				return .userInteractive
-			case .high:
-				return .userInitiated
-			case .`default`:
-				return .`default`
-			case .low:
-				return .utility
-			case .lowest:
-				return .background
-		}
-	}
-}
 
 //MARK: Shell Protocol
 public protocol Shell {
@@ -128,7 +76,7 @@ public protocol Context {
 extension Context {
     public func runSync(_ thisCommand:String) throws -> CommandResult {
         let commandToRun = build(thisCommand)
-        let process = try InteractiveProcess(command:commandToRun, workingDirectory:workingDirectory, run:false)
+        let process = try InteractiveProcess(command:commandToRun, run:false)
         try process.run()
         let exitCode = process.waitForExitCode()
         let stderrData = process.exportStdErr()

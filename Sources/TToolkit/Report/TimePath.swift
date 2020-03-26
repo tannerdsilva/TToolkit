@@ -1,6 +1,7 @@
 import Foundation
 
 //Base Protocol
+//MARK: TimePath Protocol
 public protocol TimePath {
     var yearElement:Int { get }
 	var monthElement:Int { get }
@@ -11,6 +12,7 @@ public protocol TimePath {
 
 fileprivate let indexFilename = ".index-file"
 
+//MARK: TimePrecision
 public enum TimePrecision:UInt8 {
 	case annual = 1
 	case monthly = 2
