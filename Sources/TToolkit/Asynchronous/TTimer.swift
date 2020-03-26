@@ -138,7 +138,7 @@ public class TTimer {
 	
 	/*
 		Schedules a new timer with a valid duration and handler
-		Assumption: This function is syncronized with internalSync via the calling function
+		Assumption: This function is synchronized with internalSync via the calling function
 	*/
 	private func _rescheduleTimer(lastTrigger:DispatchWallTime?) {
 		guard let hasDuration = _timerInterval(), let hasDoubleDuration = _duration, hasDoubleDuration > 0, let handlerToSchedule = _handler else {
