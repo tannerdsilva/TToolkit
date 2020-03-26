@@ -201,7 +201,7 @@ public class TTimer {
 		self.autoRun = autoRun
 	}
 	
-	public func run() {
+	public func schedule() {
 		queue.sync {
 			_scheduleTimerIfPossible(keepAnchor:false)
 		}
