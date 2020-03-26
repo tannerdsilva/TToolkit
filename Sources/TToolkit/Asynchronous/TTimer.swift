@@ -215,7 +215,6 @@ public class TTimer {
 			if let hasHandler = self.handler {
 				hasHandler(self)
 			}
-			print("deadlock?")
 		}
 	}
 	
