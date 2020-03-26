@@ -208,12 +208,14 @@ public class TTimer {
 	}
 		
 	public func fire() {
-		_internalSync.sync {
-			_timerQueue.sync {
-				if let hasHandler = _handler {
-					hasHandler(self)
-				}
+		_timerQueue.async { [weak self] in
+			guard let self = self else {
+				return
 			}
+			if let hasHandler = self.handler {
+				hasHandler(self)
+			}
+			print("deadlock?")
 		}
 	}
 	
