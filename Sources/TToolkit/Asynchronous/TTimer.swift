@@ -138,7 +138,6 @@ public class TTimer {
 	
 	/*
 		Schedules a new timer with a valid duration and handler
-		Assumptions: duration must not be 0
 		Assumption: This function is syncronized with internalSync via the calling function
 	*/
 	private func _rescheduleTimer(lastTrigger:DispatchWallTime?) {
