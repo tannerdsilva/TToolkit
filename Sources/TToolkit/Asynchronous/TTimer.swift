@@ -162,13 +162,7 @@ public class TTimer {
 		
 		var baseTime:DispatchWallTime
 		if let hasLastTriggerDate = lastTrigger {
-			let newBaseTime = hasLastTriggerDate + hasDuration
-			let nowTime = DispatchWallTime.now()
-			if soonMode == true && nowTime > newBaseTime {
-				baseTime = nowTime
-			} else {
-				baseTime = newBaseTime
-			}
+			baseTime = hasLastTriggerDate + hasDuration
 		} else {
 			baseTime = _anchorAdjustedNowTime
 		}
