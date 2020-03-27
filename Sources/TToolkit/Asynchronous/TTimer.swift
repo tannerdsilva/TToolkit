@@ -3,6 +3,7 @@ import Dispatch
 
 public enum TimerState {
 	case activated
+	case paused
 	case canceled
 }
 
@@ -27,7 +28,7 @@ extension Double {
 
 public class TTimer {
 	public typealias TimerHandler = (TTimer) -> Void
-	
+		
 	private var _timerTarget:DispatchQueue
 	public var queue:DispatchQueue {
 		get {
@@ -201,12 +202,38 @@ public class TTimer {
 		self._state = .canceled
 	}
 	
-	public func activate() {
-		_internalSync.sync {
+	public func activate() -> Bool {
+		return _internalSync.sync {
+			guard _state == .canceled else {
+				return false
+			}
 			_scheduleTimerIfPossible(keepAnchor:false)
+			return true
 		}
 	}
-		
+	
+	public func pause() -> Bool {
+		_internalSync.sync {
+			guard _state == .activated, let hasTimerSource = _timerSource else {
+				return false
+			}
+			hasTimerSource.suspend()
+			_state = .paused
+			return true
+		}
+	}
+	
+	public func resume() -> Bool {
+		_internalSync.sync {
+			guard _state == .paused, let hasTimerSource = _timerSource else {
+				return false
+			}
+			hasTimerSource.resume()
+			_state = .activated
+			return true
+		}
+	}
+	
 	public func fire() {
 		_timerQueue.async { [weak self] in
 			guard let self = self else {
