@@ -129,7 +129,7 @@ internal class ProcessPipes {
 				
 				return (r:ProcessHandle(fd:readFD), w:ProcessHandle(fd:writeFD))
 			default:
-			throw ProcessError.unableToCreatePipes
+			throw ExecutingProcess.ProcessError.unableToCreatePipes
 		}
 	}
 	

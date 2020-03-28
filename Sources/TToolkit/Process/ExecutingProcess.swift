@@ -1,11 +1,6 @@
 import Foundation
 import CoreFoundation
 
-public enum ProcessError:Error { 
-	case unableToExecute
-	case processAlreadyRunning
-	case unableToCreatePipes
-}
 fileprivate func _WSTATUS(_ status:Int32) -> Int32 {
 	return status & 0x7f
 }
@@ -25,6 +20,13 @@ fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 	Furthermore, the standard 
 */
 internal class ExecutingProcess {
+	//these are the types of errors that this class can throw
+	public enum ProcessError:Error { 
+		case unableToExecute
+		case processAlreadyRunning
+		case unableToCreatePipes
+	}
+
 	typealias TerminationHandler = (ExecutingProcess) -> Void
 	enum TerminationReason:UInt8 {
 		case exited
