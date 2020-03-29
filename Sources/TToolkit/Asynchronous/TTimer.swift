@@ -3,6 +3,7 @@ import Dispatch
 
 public enum TimerState {
 	case activated
+	case paused
 	case canceled
 }
 
@@ -27,7 +28,7 @@ extension Double {
 
 public class TTimer {
 	public typealias TimerHandler = (TTimer) -> Void
-	
+		
 	private var _timerTarget:DispatchQueue
 	public var queue:DispatchQueue {
 		get {
@@ -174,7 +175,6 @@ public class TTimer {
 	
 	/*
 		Schedules a new timer (or possibly not) given optional durations, event handlers.
-		This function DOES NOT ASSUME that duration is not 0, therefore, this should be the function that is used when the duration and handler public variables are assigned
 		This function must be called in a synchronized dispatch queue
 	*/
 	private func _scheduleTimerIfPossible(keepAnchor:Bool) {
@@ -201,12 +201,50 @@ public class TTimer {
 		self._state = .canceled
 	}
 	
-	public func activate() {
-		_internalSync.sync {
+	/*
+		This is the function that will enable a newly initialized and configured TTimer.
+	*/
+	public func activate() -> Bool {
+		return _internalSync.sync {
+			guard _state == .canceled else {
+				return false
+			}
 			_scheduleTimerIfPossible(keepAnchor:false)
+			return true
 		}
 	}
-		
+	
+	/*
+		For timers that are already activated, pause will cause the timer to no longer fire its event handler
+	*/	
+	public func pause() -> Bool {
+		_internalSync.sync {
+			guard _state == .activated, let hasTimerSource = _timerSource else {
+				return false
+			}
+			hasTimerSource.suspend()
+			_state = .paused
+			return true
+		}
+	}
+	
+	/*
+		For timers that are already paused, resume() will cause the timer to resume firing its event handler
+	*/
+	public func resume() -> Bool {
+		_internalSync.sync {
+			guard _state == .paused, let hasTimerSource = _timerSource else {
+				return false
+			}
+			hasTimerSource.resume()
+			_state = .activated
+			return true
+		}
+	}
+	
+	/*
+		Fires the event handler asyncronously. Does not interrupt the timing of the timer or otherwise disrupt the timers cadence in any way
+	*/
 	public func fire() {
 		_timerQueue.async { [weak self] in
 			guard let self = self else {
@@ -218,6 +256,9 @@ public class TTimer {
 		}
 	}
 	
+	/*
+		Unschedules a timer. The only way to make a timer functional after cancel() is to call activate() once again.
+	*/
 	public func cancel() {
 		_internalSync.sync {
 			_unscheduleTimer()
