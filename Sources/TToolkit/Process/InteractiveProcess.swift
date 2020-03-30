@@ -72,7 +72,7 @@ public class InteractiveProcess {
 
     public init<C>(command:C, priority:Priority = .`default`, run:Bool) throws where C:Command {
     	self.priority = priority
-		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS())
+		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:priority.globalConcurrentQueue)
 		self.queue = syncQueue
 		
 		let dg = DispatchGroup()
@@ -119,7 +119,9 @@ public class InteractiveProcess {
 				return
 			}
 			syncQueue.sync {
+				let startBlock = StringStopwatch()
 				if let newData = handleToRead.availableData() {
+					print("stdout read was blocked for \(startBlock.click(5)) seconds")
 					let bytesCount = newData.count
 					if bytesCount > 0 {
 						let bytesCopy = newData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
@@ -130,12 +132,13 @@ public class InteractiveProcess {
 		}
 	
 		stderr.readHandler = { [weak self] handleToRead in
-			guard let self = self else {
-				return
-			}
 			dg.enter()
 			defer {
 				dg.leave()
+			}
+			
+			guard let self = self else {
+				return
 			}
 			syncQueue.sync {
 				if let newData = handleToRead.availableData() {
