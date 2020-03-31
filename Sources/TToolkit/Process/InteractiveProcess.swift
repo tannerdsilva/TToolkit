@@ -255,6 +255,7 @@ public class InteractiveProcess {
 				return
 			}
 			for (_, curLine) in lines.enumerated() {
+				print(Colors.cyan("o"))
 				outHandler(curLine)
 			}
 		}
@@ -266,6 +267,7 @@ public class InteractiveProcess {
 				return
 			}
 			for (_, curLine) in lines.enumerated() {
+				print(Colors.red("e"))
 				errHandler(curLine)
 			}
 		}
@@ -299,7 +301,33 @@ public class InteractiveProcess {
 			stderrBuff.append(lastDataLine)
 			callbackStderr(lines:slicedLines)
 		}
-	}	
+	}
+	
+	private func _finishStdoutLines() {
+		if var slicedLines = stdoutBuff.lineSlice(removeBOM:false), let outHandler = _stdoutHandler {
+			callbackStdout(lines:slicedLines)
+			stdoutBuff.removeAll(keepingCapacity:false)
+			callbackQueue.sync {
+				for (_, curLine) in slicedLines.enumerated() {
+					print(Colors.cyan("o"))
+					outHandler(curLine)
+				}
+			}
+		}
+	}
+	
+	private func _finishStderrLines() {
+		if var slicedLines = stderrBuff.lineSlice(removeBOM:false), let errHandler = _stderrHandler {
+			callbackStderr(lines:slicedLines)
+			stderrBuff.removeAll(keepingCapacity:false)
+			callbackQueue.sync {
+				for (_, curLine) in slicedLines.enumerated() {
+					print(Colors.red("e"))
+					errHandler(curLine)
+				}
+			}
+		}
+	}
 		
     public func waitForExitCode() -> Int {
 		runGroup.wait()
