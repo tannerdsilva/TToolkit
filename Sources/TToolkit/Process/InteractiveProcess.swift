@@ -102,7 +102,7 @@ public class InteractiveProcess {
 		proc.stdout = standardOut
 		proc.stderr = standardErr
 		
-		proc.terminationHandler = { [weak self] in
+		proc.terminationHandler = { [weak self] _ in
 			syncQueue.async { [weak self] in
 				guard let self = self else {
 					return
