@@ -76,12 +76,20 @@ public protocol Context {
 extension Context {
     public func runSync(_ thisCommand:String) throws -> CommandResult {
         let commandToRun = build(thisCommand)
+        
+        var errorLines = [Data]()
+        var outputLines = [Data]()
+        
         let process = try InteractiveProcess(command:commandToRun, run:false)
+        process.stdoutHandler = { someData in
+        	outputLines.append(someData)
+        }
+        process.stderrHandler = { someData in
+        	errorLines.append(someData)
+        }
         try process.run()
         let exitCode = process.waitForExitCode()
-        let stderrData = process.exportStdErr()
-        let stdoutData = process.exportStdOut()
-        let result = CommandResult(exitCode: exitCode, stdout: stdoutData.lineSlice(removeBOM: false), stderr: stderrData.lineSlice(removeBOM: false))
+        let result = CommandResult(exitCode: exitCode, stdout:outputLines, stderr:errorLines)
    		return result
     }
 	    

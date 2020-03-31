@@ -17,12 +17,10 @@ import Foundation
 	fileprivate let _pipe = Glibc.pipe(_:)
 #endif
 
-
 internal class ProcessPipes {
 	typealias Handler = (ProcessHandle) -> Void
 
-	private let queue:DispatchQueue
-	let priority:Priority
+	private let scheduleQueue:DispatchQueue
 	
 	let reading:ProcessHandle
 	let writing:ProcessHandle
@@ -36,35 +34,34 @@ internal class ProcessPipes {
 	private var _readHandler:Handler? = nil
 	var readHandler:Handler? {
 		get {
-			return queue.sync {
+			return scheduleQueue.sync {
 				return _readHandler
 			}
 		}
 		set {
-			queue.sync {
-				//cancel the old handler source if it exists
-				if let hasReadSource = readSource {
-					hasReadSource.cancel()
-				}
-				
-				//if there is a new handler to schedule...
-				if let hasNewHandler = newValue {
+			//cancel the old handler source if it exists
+			if let hasReadSource = readSource {
+				hasReadSource.cancel()
+			}
+			
+			//if there is a new handler to schedule...
+			if let hasNewHandler = newValue {
+				scheduleQueue.sync {
 					_readHandler = hasNewHandler
-
-					//schedule the new timer
-					let newSource = DispatchSource.makeReadSource(fileDescriptor:reading.fileDescriptor, queue:priority.globalConcurrentQueue)
-					newSource.setEventHandler { [weak self] in
-						guard let self = self else {
-							return
-						}
-						hasNewHandler(self.reading)
-					}
-					readSource = newSource
-					newSource.activate()
-				} else {
-					_readHandler = nil
-					readSource = nil
 				}
+				//schedule the new timer
+				let newSource = DispatchSource.makeReadSource(fileDescriptor:reading.fileDescriptor, queue:scheduleQueue)
+				newSource.setEventHandler { [weak self] in
+					guard let self = self else {
+						return
+					}
+					hasNewHandler(self.reading)
+				}
+				readSource = newSource
+				newSource.activate()
+			} else {
+				_readHandler = nil
+				readSource = nil
 			}
 		}
 	}
@@ -73,49 +70,47 @@ internal class ProcessPipes {
 	private var _writeHandler:Handler? = nil
 	var writeHandler:Handler? {
 		get {
-			return queue.sync {
+			return scheduleQueue.sync {
 				return _writeHandler
 			}
 		}
 		set {
-			queue.sync {
-				//cancel the existing writing source if it exists
-				if let hasWriteSource = writeSource {
-					hasWriteSource.cancel()
-				}
-				//assign the new value and schedule a new writing source if necessary
-				if let hasNewHandler = newValue {
+			//cancel the existing writing source if it exists
+			if let hasWriteSource = writeSource {
+				hasWriteSource.cancel()
+			}
+			//assign the new value and schedule a new writing source if necessary
+			if let hasNewHandler = newValue {
+				scheduleQueue.sync {
 					_writeHandler = hasNewHandler
-					
-					//schedule the new timer
-					let newSource = DispatchSource.makeWriteSource(fileDescriptor:writing.fileDescriptor, queue:priority.globalConcurrentQueue)
-					newSource.setEventHandler { [weak self] in
-						guard let self = self else {
-							return
-						}
-						hasNewHandler(self.writing)
-					}
-					writeSource = newSource
-					newSource.activate()
-				} else {
-					_writeHandler = nil
-					writeSource = nil
 				}
+				//schedule the new timer
+				let newSource = DispatchSource.makeWriteSource(fileDescriptor:writing.fileDescriptor, queue:scheduleQueue)
+				newSource.setEventHandler { [weak self] in
+					guard let self = self else {
+						return
+					}
+					hasNewHandler(self.writing)
+				}
+				writeSource = newSource
+				newSource.activate()
+			} else {
+				_writeHandler = nil
+				writeSource = nil
 			}
 		}
 	}
 	
-	init(priority:Priority) throws {
-		let readWrite = try Self.forReadingAndWriting(priority:priority)
+	init(queue:DispatchQueue) throws {
+		let readWrite = try Self.forReadingAndWriting()
 		
 		self.reading = readWrite.r
 		self.writing = readWrite.w
 		
-		self.priority = priority
-		self.queue = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", qos:priority.asDispatchQoS(), target:priority.globalConcurrentQueue)
+		self.scheduleQueue = DispatchQueue(label:"com.tannersilva.instance.process-pipe.callback", target:queue)
 	}
 	
-	fileprivate static func forReadingAndWriting(priority:Priority) throws -> (r:ProcessHandle, w:ProcessHandle) {
+	fileprivate static func forReadingAndWriting() throws -> (r:ProcessHandle, w:ProcessHandle) {
 		let fds = UnsafeMutablePointer<Int32>.allocate(capacity:2)
 		defer {
 			fds.deallocate()
@@ -134,17 +129,20 @@ internal class ProcessPipes {
 	}
 	
 	func close() {
-		queue.sync {
-			reading.close()
-			writing.close()
-		}
+		reading.close()
+		writing.close()
 		readHandler = nil
 		writeHandler = nil
 	}
 	
 	deinit {
-		readHandler = nil
-		writeHandler = nil
+		if _readHandler != nil {
+			readHandler = nil
+		}
+		
+		if _writeHandler != nil {
+			writeHandler = nil
+		}
 	}
 }
 
