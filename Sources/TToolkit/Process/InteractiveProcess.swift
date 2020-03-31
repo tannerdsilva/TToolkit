@@ -108,16 +108,13 @@ public class InteractiveProcess {
 			}
 			print(Colors.Cyan("TH?"))
 			//wait for the callbacks to finish
-			self.callbackQueue.async { [weak self] in
-				guard let self = self else {
-					return
-				}
-				print(Colors.Cyan("-> TH1"))
-				self.internalSync.sync {
-					print(Colors.Cyan("-> -> TH2"))
-					self.state = .exited
-					self.runGroup.leave()
-				}
+			print(Colors.Cyan("-> TH1"))
+			self.internalSync.sync {
+				self._finishStdoutLines()
+				self._finishStderrLines()
+				print(Colors.Cyan("-> -> TH2"))
+				self.state = .exited
+				self.runGroup.leave()
 			}
 		}
         
