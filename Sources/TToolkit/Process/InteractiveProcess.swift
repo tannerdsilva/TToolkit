@@ -102,11 +102,8 @@ public class InteractiveProcess {
 		proc.stdout = standardOut
 		proc.stderr = standardErr
 		
-		proc.terminationHandler = { [weak self] _ in
-			guard let self = self else {
-				return
-			}
-			self.internalSync.async { [weak self] in
+		proc.terminationHandler = { [weak self] in
+			syncQueue.async { [weak self] in
 				guard let self = self else {
 					return
 				}
@@ -121,7 +118,6 @@ public class InteractiveProcess {
 		}
         
 		stdout.readHandler = { [weak self] handleToRead in
-			print(Colors.dim("o rh"))
 			//try to read the data. do we get something?
 			if let newData = handleToRead.availableData() {
 				let bytesCount = newData.count
@@ -157,7 +153,6 @@ public class InteractiveProcess {
 		}
 	
 		stderr.readHandler = { [weak self] handleToRead in
-			print(Colors.dim("e rh"))
 			//try to read the data. do we get something?
 			if let newData = handleToRead.availableData() {
 				let bytesCount = newData.count
@@ -203,7 +198,6 @@ public class InteractiveProcess {
     
     public func run() throws {
     	try internalSync.sync {
-    		print("sync run OK")
 			do {
 				runGroup.enter()
 				try proc._run()
@@ -254,7 +248,6 @@ public class InteractiveProcess {
 				return
 			}
 			for (_, curLine) in lines.enumerated() {
-				print(Colors.cyan("o"))
 				outHandler(curLine)
 			}
 		}
@@ -266,7 +259,6 @@ public class InteractiveProcess {
 				return
 			}
 			for (_, curLine) in lines.enumerated() {
-				print(Colors.red("e"))
 				errHandler(curLine)
 			}
 		}
@@ -274,11 +266,6 @@ public class InteractiveProcess {
 	
 	private func _buildStdout(data:Data, lineSlice:Bool) {
 		stdoutBuff.append(data)
-		if (lineSlice == true) {
-			print(Colors.yellow("o processing \(data.count) bytes."))
-		} else {
-			print(Colors.magenta("o processing \(data.count) bytes."))
-		}
 		if lineSlice == true, var slicedLines = stdoutBuff.lineSlice(removeBOM:false) {
 			let lastDataLine = slicedLines.removeLast()
 			stdoutBuff.removeAll(keepingCapacity:true)
@@ -289,11 +276,6 @@ public class InteractiveProcess {
 	
 	private func _buildStderr(data:Data, lineSlice:Bool) {
 		stderrBuff.append(data)
-		if (lineSlice == true) {
-			print(Colors.yellow("e processing \(data.count) bytes."))
-		} else {
-			print(Colors.magenta("e processing \(data.count) bytes."))
-		}
 		if lineSlice == true, var slicedLines = stderrBuff.lineSlice(removeBOM:false) {
 			let lastDataLine = slicedLines.removeLast()
 			stderrBuff.removeAll(keepingCapacity:true)
@@ -308,7 +290,6 @@ public class InteractiveProcess {
 			stdoutBuff.removeAll(keepingCapacity:false)
 			callbackQueue.async {
 				for (_, curLine) in slicedLines.enumerated() {
-					print(Colors.cyan("o"))
 					outHandler(curLine)
 				}
 			}
@@ -321,7 +302,6 @@ public class InteractiveProcess {
 			stderrBuff.removeAll(keepingCapacity:false)
 			callbackQueue.async {
 				for (_, curLine) in slicedLines.enumerated() {
-					print(Colors.red("e"))
 					errHandler(curLine)
 				}
 			}
