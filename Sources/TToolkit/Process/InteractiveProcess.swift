@@ -106,9 +106,15 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
+			print(Colors.Cyan("TH?"))
 			//wait for the callbacks to finish
-			self.callbackQueue.sync {
+			self.callbackQueue.async { [weak self] in
+				guard let self = self else {
+					return
+				}
+				print(Colors.Cyan("-> TH1"))
 				self.internalSync.sync {
+					print(Colors.Cyan("-> -> TH2"))
 					self.state = .exited
 					self.runGroup.leave()
 				}
@@ -116,6 +122,7 @@ public class InteractiveProcess {
 		}
         
 		stdout.readHandler = { [weak self] handleToRead in
+			print(Colors.dim("o rh"))
 			//try to read the data. do we get something?
 			if let newData = handleToRead.availableData() {
 				let bytesCount = newData.count
@@ -151,6 +158,7 @@ public class InteractiveProcess {
 		}
 	
 		stderr.readHandler = { [weak self] handleToRead in
+			print(Colors.dim("e rh"))
 			//try to read the data. do we get something?
 			if let newData = handleToRead.availableData() {
 				let bytesCount = newData.count
@@ -196,6 +204,7 @@ public class InteractiveProcess {
     
     public func run() throws {
     	try internalSync.sync {
+    		print("sync run OK")
 			do {
 				runGroup.enter()
 				try proc._run()
