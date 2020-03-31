@@ -1,5 +1,6 @@
 import Foundation
 
+//this is an enum for standardized byte order marks that typically reside at the beginning of data blobs stored on disk
 fileprivate enum BOM: UInt {
 	static let all:Set<Self> = Set([.utf8BOM, .utf16BEBOM, .utf16LEBOM, .utf32BEBOM, .utf32LEBOM, .utf7BOM, .utf1BOM, .utfEBCDICBOM, .scsuBOM, .bocu1BOM, .gb18030BOM])
 	
