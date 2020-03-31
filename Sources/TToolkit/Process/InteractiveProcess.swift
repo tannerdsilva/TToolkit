@@ -273,6 +273,11 @@ public class InteractiveProcess {
 	
 	private func _buildStdout(data:Data, lineSlice:Bool) {
 		stdoutBuff.append(data)
+		if (lineSlice == true) {
+			print(Colors.yellow("o processing \(data.count) bytes."))
+		} else {
+			print(Colors.magenta("o processing \(data.count) bytes."))
+		}
 		if lineSlice == true, var slicedLines = stdoutBuff.lineSlice(removeBOM:false) {
 			let lastDataLine = slicedLines.removeLast()
 			stdoutBuff.removeAll(keepingCapacity:true)
@@ -283,6 +288,11 @@ public class InteractiveProcess {
 	
 	private func _buildStderr(data:Data, lineSlice:Bool) {
 		stderrBuff.append(data)
+		if (lineSlice == true) {
+			print(Colors.yellow("e processing \(data.count) bytes."))
+		} else {
+			print(Colors.magenta("e processing \(data.count) bytes."))
+		}
 		if lineSlice == true, var slicedLines = stderrBuff.lineSlice(removeBOM:false) {
 			let lastDataLine = slicedLines.removeLast()
 			stderrBuff.removeAll(keepingCapacity:true)
