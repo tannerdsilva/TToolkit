@@ -110,12 +110,13 @@ public class InteractiveProcess {
 				guard let self = self else {
 					return
 				}
-				print(Colors.dim("F?"))
 				self._finishStdoutLines()
 				self._finishStderrLines()
-				print(Colors.Cyan("-> -> TH2"))
 				self.state = .exited
-				self.runGroup.leave()
+				let rg = self.runGroup
+				self.callbackQueue.async {
+					rg.leave()
+				}
 			}
 		}
         
@@ -305,7 +306,7 @@ public class InteractiveProcess {
 		if var slicedLines = stdoutBuff.lineSlice(removeBOM:false), let outHandler = _stdoutHandler {
 			callbackStdout(lines:slicedLines)
 			stdoutBuff.removeAll(keepingCapacity:false)
-			callbackQueue.sync {
+			callbackQueue.async {
 				for (_, curLine) in slicedLines.enumerated() {
 					print(Colors.cyan("o"))
 					outHandler(curLine)
@@ -318,7 +319,7 @@ public class InteractiveProcess {
 		if var slicedLines = stderrBuff.lineSlice(removeBOM:false), let errHandler = _stderrHandler {
 			callbackStderr(lines:slicedLines)
 			stderrBuff.removeAll(keepingCapacity:false)
-			callbackQueue.sync {
+			callbackQueue.async {
 				for (_, curLine) in slicedLines.enumerated() {
 					print(Colors.red("e"))
 					errHandler(curLine)
