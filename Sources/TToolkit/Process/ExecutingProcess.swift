@@ -167,15 +167,17 @@ internal class ExecutingProcess {
 		timeAlignGroup.enter()
 		
 		priority.globalConcurrentQueue.async { [weak self] in
+			let flightTime = Date()
 			timeAlignGroup.leave()
 			launchGroup.wait()
 			//wait for the process to exit and capture its exit code
 			var waitResult:Int32 = 0
 			var ec:Int32 = 0
 			repeat {
+				let launchTime = Date()
+				print(Colors.Yellow("\(launchTime.timeIntervalSince(flightTime))"))
 				waitResult = waitpid(lpid, &ec, 0)
 			} while waitResult == -1 && errno == EINTR || WIFEXITED(ec) == false
-			print(Colors.red("exit"))
 			guard let self = self else {
 				return
 			}

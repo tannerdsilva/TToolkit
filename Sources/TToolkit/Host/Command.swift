@@ -94,9 +94,11 @@ extension Context {
         process.proc.environment = environment
         process.stdoutHandler = { someData in
         	outputLines.append(someData)
+        	print(Colors.magenta("."), terminator:"")
         }
         process.stderrHandler = { someData in
         	errorLines.append(someData)
+        	print(Colors.cyan("."), terminator:"")
         }
         try process.run()
         let exitCode = process.waitForExitCode()
