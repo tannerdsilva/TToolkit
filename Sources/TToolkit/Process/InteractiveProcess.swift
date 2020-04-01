@@ -84,7 +84,7 @@ public class InteractiveProcess {
     	} else {
     		callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:globalConcurrent)
     	}
-		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:globalConcurrent)
+		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:Priority.highest.asDispatchQoS())
 		
 		self.internalSync = syncQueue
 		self.callbackQueue = callbackQueue
