@@ -120,6 +120,7 @@ public class InteractiveProcess {
 		stdout.readHandler = { [weak self] handleToRead in
 			//try to read the data. do we get something?
 			if let newData = handleToRead.availableData() {
+				print("o")
 				let bytesCount = newData.count
 				
 				//do we have bytes to take action on?
@@ -155,6 +156,7 @@ public class InteractiveProcess {
 		stderr.readHandler = { [weak self] handleToRead in
 			//try to read the data. do we get something?
 			if let newData = handleToRead.availableData() {
+				print("e")
 				let bytesCount = newData.count
 				
 				//does this data have bytes that we can take action on?
