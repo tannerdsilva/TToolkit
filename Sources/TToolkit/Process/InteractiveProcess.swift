@@ -84,15 +84,15 @@ public class InteractiveProcess {
     	} else {
     		callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:globalConcurrent)
     	}
-		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:Priority.highest.asDispatchQoS())
+		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:globalConcurrent)
 		
 		self.internalSync = syncQueue
 		self.callbackQueue = callbackQueue
 		
 		//create the ProcessHandles that we need to read the data from this process as it runs
-		let standardIn = try ProcessPipes(queue:globalConcurrent)
-		let standardOut = try ProcessPipes(queue:globalConcurrent)
-		let standardErr = try ProcessPipes(queue:globalConcurrent)
+		let standardIn = try ProcessPipes(queue:Priority.highest.globalConcurrentQueue)
+		let standardOut = try ProcessPipes(queue:Priority.highest.globalConcurrentQueue)
+		let standardErr = try ProcessPipes(queue:Priority.highest.globalConcurrentQueue)
 		stdin = standardIn
 		stdout = standardOut
 		stderr = standardErr
