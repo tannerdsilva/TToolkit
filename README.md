@@ -57,7 +57,7 @@ manyImages.explode(using: { (n, curImageURL) -> Data in
 
 ## InteractiveProcess
 
-`InteractiveProcess` was born from a need for interface with external processes with complete asyncronicity and thread safety.
+`InteractiveProcess` was born from a need for interface with external processes with complete asyncronicity and thread safety. Furthermore, `InteractiveProcess` was built with an uncompromising desire for performance.
 
 Foundation framework offers classes that theoretically deliver this functionality, however, in practice, these classes do not hold together well under intense enterprise-level workloads. From this unfortunate discovery came the need to reimplement Foundation frameworks `Process`, `Pipe` and `FileHandle` classes from scratch to achieve a more robust shell/process framework.
 
