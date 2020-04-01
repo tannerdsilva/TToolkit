@@ -6,12 +6,22 @@ public enum CommandError:Error {
 
 
 //MARK: Shell Protocol
+/* SHELL PROTOCOL 
+
+	Shell protocol is used to help wrap user command strings into an executable path with arguments.
+	path:URL - This is the executable path to the shell
+	executableAndArguments(String) - This is a function that wraps the users command string into a executable+argument set that is ready to execute.
+*/
 public protocol Shell {
 	static var path:URL { get }
     static func executableAndArguments(_:String) -> (executable:URL, arguments:[String])
 }
 
 //MARK: Shell Implementations
+/* SHELL SUPPORT
+	
+	Right now Bash is the only shell that is being supported. 
+*/
 public struct Bash:Shell {
 	public static let path = URL(fileURLWithPath:"/bin/bash")
     public static func executableAndArguments(_ thisCommand:String) -> (executable:URL, arguments:[String]) {
@@ -91,6 +101,15 @@ extension Context {
         let exitCode = process.waitForExitCode()
         let result = CommandResult(exitCode: exitCode, stdout:outputLines, stderr:errorLines)
    		return result
+    }
+    
+    public func prepareAsync(_ thisCommand:String) throws -> InteractiveProcess {
+    	return try prepareAsync(thisCommand, queue:nil)
+    }
+    
+    public func prepareAsync(_ thisCommand:String, queue:DispatchQueue?) throws -> InteractiveProcess {
+    	let commandToRun = build(thisCommand)
+    	let processToReturn = try InteractiveProcess(command:command, run:false, queue:queue)
     }
 	    
     public func build(_ commandString: String) -> BasicCommand {
