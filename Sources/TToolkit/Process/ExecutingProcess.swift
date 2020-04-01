@@ -160,36 +160,25 @@ internal class ExecutingProcess {
 		for (destination, source) in fHandles {
 			let result = posix_spawn_file_actions_adddup2(fileActions, source, destination)
 		}
-
-		//launch the process
+		
 		var lpid = pid_t()
-		guard posix_spawn(&lpid, launchPath, fileActions, nil, argC, envC) == 0 else {
-			throw ProcessError.unableToExecute
-		}
+		let launchGroup = DispatchGroup()
+		let timeAlignGroup = DispatchGroup()
+		timeAlignGroup.enter()
 		
-		let launchDate = Date()
-		
-	
-		processIdentifier = lpid
-		isRunning = true
-	
-		//launch a thread on the concurrent queue to wait for this process to finish executing
-		concurrentExitQueue.async { [weak self] in
-			let schedDate = Date()
-	
-			print(Colors.magenta("launched concurrent thread for waiting in \(schedDate.timeIntervalSince(launchDate))"))
+		priority.globalConcurrentQueue.async { [weak self] in
+			timeAlignGroup.leave()
+			launchGroup.wait()
 			//wait for the process to exit and capture its exit code
 			var waitResult:Int32 = 0
 			var ec:Int32 = 0
 			repeat {
 				waitResult = waitpid(lpid, &ec, 0)
 			} while waitResult == -1 && errno == EINTR || WIFEXITED(ec) == false
-		
-			//validate that self still exists
+			print(Colors.red("exit"))
 			guard let self = self else {
 				return
 			}
-		
 			//close file handles if they exist
 			self.stdin?.close()
 			self.stdout?.close()
@@ -207,6 +196,20 @@ internal class ExecutingProcess {
 				th(self)
 			}
 		}
+		launchGroup.enter()
+		timeAlignGroup.wait()
+		
+		//launch the process
+		guard posix_spawn(&lpid, launchPath, fileActions, nil, argC, envC) == 0 else {
+			throw ProcessError.unableToExecute
+		}
+		launchGroup.leave()
+		print(Colors.green("-> launched"))
+		let launchDate = Date()
+		
+	
+		processIdentifier = lpid
+		isRunning = true
 	}
 	
 	func _suspend() -> Bool? {
