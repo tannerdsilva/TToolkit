@@ -163,13 +163,18 @@ internal class ExecutingProcess {
 		guard posix_spawn(&lpid, launchPath, fileActions, nil, argC, envC) == 0 else {
 			throw ProcessError.unableToExecute
 		}
+		
+		let launchDate = Date()
+		
 	
 		processIdentifier = lpid
 		isRunning = true
 	
 		//launch a thread on the concurrent queue to wait for this process to finish executing
 		priority.globalConcurrentQueue.async { [weak self] in
-		
+			let schedDate = Date()
+	
+			print(Colors.magenta("launched concurrent thread for waiting in \(schedDate.timeIntervalSince(launchDate))"))
 			//wait for the process to exit and capture its exit code
 			var waitResult:Int32 = 0
 			var ec:Int32 = 0
