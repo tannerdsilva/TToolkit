@@ -76,21 +76,23 @@ public class InteractiveProcess {
     public init<C>(command:C, priority:Priority = .`default`, run:Bool, callback:DispatchQueue? = nil) throws where C:Command {
     	self.priority = priority
     	
+    	let globalConcurrent = priority.globalConcurrentQueue
+    	
     	let callbackQueue:DispatchQueue
     	if let specifiedCallback = callback {
     		callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:callback)
     	} else {
-    		callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:priority.globalConcurrentQueue)
+    		callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:globalConcurrent)
     	}
-		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:priority.globalConcurrentQueue)
+		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:globalConcurrent)
 		
 		self.internalSync = syncQueue
 		self.callbackQueue = callbackQueue
 		
 		//create the ProcessHandles that we need to read the data from this process as it runs
-		let standardIn = try ProcessPipes(queue:syncQueue)
-		let standardOut = try ProcessPipes(queue:syncQueue)
-		let standardErr = try ProcessPipes(queue:syncQueue)
+		let standardIn = try ProcessPipes(queue:globalConcurrent)
+		let standardOut = try ProcessPipes(queue:globalConcurrent)
+		let standardErr = try ProcessPipes(queue:globalConcurrent)
 		stdin = standardIn
 		stdout = standardOut
 		stderr = standardErr
@@ -120,35 +122,36 @@ public class InteractiveProcess {
 		stdout.readHandler = { [weak self] handleToRead in
 			//try to read the data. do we get something?
 			if let newData = handleToRead.availableData() {
-				print("o")
 				let bytesCount = newData.count
 				
 				//do we have bytes to take action on?
 				if bytesCount > 0 {
 				
-					//parse the buffer of unsafe bytes for an endline
-					var shouldLineSlice = false
-					let bytesCopy = newData.withUnsafeBytes({ byteBuff -> Data? in
-						if let hasBaseAddress = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
-							for i in 0..<bytesCount {
-								switch hasBaseAddress.advanced(by:i).pointee {
-									case 10, 13:
-										shouldLineSlice = true
-									default:
-									break;
+					syncQueue.async { [weak self] in
+						//parse the buffer of unsafe bytes for an endline
+						var shouldLineSlice = false
+						let bytesCopy = newData.withUnsafeBytes({ byteBuff -> Data? in
+							if let hasBaseAddress = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
+								for i in 0..<bytesCount {
+									switch hasBaseAddress.advanced(by:i).pointee {
+										case 10, 13:
+											shouldLineSlice = true
+										default:
+										break;
+									}
 								}
+								return Data(bytes:hasBaseAddress, count:bytesCount)
+							} else {
+								return nil
 							}
-							return Data(bytes:hasBaseAddress, count:bytesCount)
-						} else {
-							return nil
-						}
-					})
+						})
 					
-					//validate the relevant variables before passing to the builder function
-					guard let self = self, let validatedData = bytesCopy else {
-						return
+						//validate the relevant variables before passing to the builder function
+						guard let self = self, let validatedData = bytesCopy else {
+							return
+						}
+						self._buildStdout(data:validatedData, lineSlice:shouldLineSlice)
 					}
-					self._buildStdout(data:validatedData, lineSlice:shouldLineSlice)
 				}
 			}
 		}
@@ -156,35 +159,36 @@ public class InteractiveProcess {
 		stderr.readHandler = { [weak self] handleToRead in
 			//try to read the data. do we get something?
 			if let newData = handleToRead.availableData() {
-				print("e")
 				let bytesCount = newData.count
 				
 				//does this data have bytes that we can take action on?
 				if bytesCount > 0 {
 				
-					//parse the buffer of unsafe bytes for an endline
-					var shouldLineSlice = false
-					let bytesCopy = newData.withUnsafeBytes({ byteBuff -> Data? in
-						if let hasBaseAddress = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
-							for i in 0..<bytesCount {
-								switch hasBaseAddress.advanced(by:i).pointee {
-									case 10, 13:
-										shouldLineSlice = true
-									default:
-									break;
+					syncQueue.async { [weak self] in
+						//parse the buffer of unsafe bytes for an endline
+						var shouldLineSlice = false
+						let bytesCopy = newData.withUnsafeBytes({ byteBuff -> Data? in
+							if let hasBaseAddress = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
+								for i in 0..<bytesCount {
+									switch hasBaseAddress.advanced(by:i).pointee {
+										case 10, 13:
+											shouldLineSlice = true
+										default:
+										break;
+									}
 								}
+								return Data(bytes:hasBaseAddress, count:bytesCount)
+							} else {
+								return nil
 							}
-							return Data(bytes:hasBaseAddress, count:bytesCount)
-						} else {
-							return nil
-						}
-					})
+						})
 					
-					//validate the relevant variables before passing to the builder function
-					guard let self = self, let validatedData = bytesCopy else {
-						return
+						//validate the relevant variables before passing to the builder function
+						guard let self = self, let validatedData = bytesCopy else {
+							return
+						}
+						self._buildStderr(data:validatedData, lineSlice:shouldLineSlice)
 					}
-					self._buildStderr(data:validatedData, lineSlice:shouldLineSlice)
 				}
 			}
 		}

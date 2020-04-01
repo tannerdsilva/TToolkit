@@ -166,8 +166,9 @@ internal class ExecutingProcess {
 		let timeAlignGroup = DispatchGroup()
 		timeAlignGroup.enter()
 		
+		let flightTime = Date()
+
 		priority.globalConcurrentQueue.async { [weak self] in
-			let flightTime = Date()
 			timeAlignGroup.leave()
 			launchGroup.wait()
 			//wait for the process to exit and capture its exit code
