@@ -13,7 +13,7 @@ fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 }
 
 
-fileprivate let concurrentExitQueue:DispatchQueue = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", attributes:[.concurrent])
+fileprivate let concurrentExitQueue:DispatchQueue = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", qos:Priority.highest.asDispatchQoS(), attributes:[.concurrent])
 
 /*
 	ExecutingProcess is my interpretation of the Process object from the Swift Standard Library.
