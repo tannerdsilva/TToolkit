@@ -34,9 +34,7 @@ internal class ProcessPipes {
 	private var _readHandler:Handler? = nil
 	var readHandler:Handler? {
 		get {
-			return scheduleQueue.sync {
-				return _readHandler
-			}
+			return _readHandler
 		}
 		set {
 			//cancel the old handler source if it exists
@@ -46,9 +44,7 @@ internal class ProcessPipes {
 			
 			//if there is a new handler to schedule...
 			if let hasNewHandler = newValue {
-				scheduleQueue.sync {
-					_readHandler = hasNewHandler
-				}
+				_readHandler = hasNewHandler
 				//schedule the new timer
 				let newSource = DispatchSource.makeReadSource(fileDescriptor:reading.fileDescriptor, queue:scheduleQueue)
 				newSource.setEventHandler { [weak self] in
@@ -70,9 +66,7 @@ internal class ProcessPipes {
 	private var _writeHandler:Handler? = nil
 	var writeHandler:Handler? {
 		get {
-			return scheduleQueue.sync {
-				return _writeHandler
-			}
+			return _writeHandler
 		}
 		set {
 			//cancel the existing writing source if it exists
@@ -81,9 +75,7 @@ internal class ProcessPipes {
 			}
 			//assign the new value and schedule a new writing source if necessary
 			if let hasNewHandler = newValue {
-				scheduleQueue.sync {
-					_writeHandler = hasNewHandler
-				}
+				_writeHandler = hasNewHandler
 				//schedule the new timer
 				let newSource = DispatchSource.makeWriteSource(fileDescriptor:writing.fileDescriptor, queue:scheduleQueue)
 				newSource.setEventHandler { [weak self] in

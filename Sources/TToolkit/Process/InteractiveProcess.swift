@@ -1,5 +1,7 @@
 import Foundation
 
+fileprivate let concurrentExitQueue:DispatchQueue = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", qos:Priority.highest.asDispatchQoS(), attributes:[.concurrent])
+
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     public typealias InputHandler = (InteractiveProcess) -> Void
@@ -90,9 +92,9 @@ public class InteractiveProcess {
 		self.callbackQueue = callbackQueue
 		
 		//create the ProcessHandles that we need to read the data from this process as it runs
-		let standardIn = try ProcessPipes(queue:Priority.highest.globalConcurrentQueue)
-		let standardOut = try ProcessPipes(queue:Priority.highest.globalConcurrentQueue)
-		let standardErr = try ProcessPipes(queue:Priority.highest.globalConcurrentQueue)
+		let standardIn = try ProcessPipes(queue:concurrentExitQueue)
+		let standardOut = try ProcessPipes(queue:concurrentExitQueue)
+		let standardErr = try ProcessPipes(queue:concurrentExitQueue)
 		stdin = standardIn
 		stdout = standardOut
 		stderr = standardErr
@@ -113,7 +115,7 @@ public class InteractiveProcess {
 				self._finishStderrLines()
 				self.state = .exited
 				let rg = self.runGroup
-				self.callbackQueue.async {
+				self.callbackQueue.sync {
 					rg.leave()
 				}
 			}
