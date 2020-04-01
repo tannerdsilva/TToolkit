@@ -12,6 +12,9 @@ fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 	return (_WSTATUS(status) != 0) && (_WSTATUS(status) != 0x7f)
 }
 
+
+fileprivate let concurrentExitQueue:DispatchQueue = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", attributes:[.concurrent])
+
 /*
 	ExecutingProcess is my interpretation of the Process object from the Swift Standard Library.
 	This class looks to cut out most of legacy code from Process to create a much more streamlined data structure.
@@ -171,7 +174,7 @@ internal class ExecutingProcess {
 		isRunning = true
 	
 		//launch a thread on the concurrent queue to wait for this process to finish executing
-		priority.globalConcurrentQueue.async { [weak self] in
+		concurrentExitQueue.async { [weak self] in
 			let schedDate = Date()
 	
 			print(Colors.magenta("launched concurrent thread for waiting in \(schedDate.timeIntervalSince(launchDate))"))
