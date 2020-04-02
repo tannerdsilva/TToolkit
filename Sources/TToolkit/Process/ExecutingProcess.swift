@@ -20,6 +20,8 @@ fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 	Furthermore, the standard 
 */
 
+fileprivate let exitThreads = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", attributes:[.concurrent])
+
 internal class ExecutingProcess {
 	//these are the types of errors that this class can throw
 	public enum ProcessError:Error { 
@@ -36,6 +38,7 @@ internal class ExecutingProcess {
 	
 	let internalCallback:DispatchQueue
 	let internalSync:DispatchQueue
+	let exitQueue:DispatchQueue
 	
 	var executable:URL
 	var arguments:[String]?
@@ -93,6 +96,9 @@ internal class ExecutingProcess {
 		let icb = DispatchQueue(label:"com.tannersilva.instance.executing-process.term-callback", target:callback ?? master)
 		self.internalCallback = icb
 		self._callbackQueue = callback ?? icb
+		
+		let eq = DispatchQueue(label:"com.tannersilva.instance.executing.exit-wait", target:master)
+		self.exitQueue = eq
 		
 		self.executable = execute
 		self.arguments = arguments
@@ -193,7 +199,7 @@ internal class ExecutingProcess {
 			let startDate = Date()
 
 			//launch a thread on the concurrent queue to wait for this process to finish executing
-			syncQueue.async(flags:[.detached]) { [weak self] in
+			exitQueue.async { [weak self] in
 				let launchDate = Date()
 				
 				print(Colors.Yellow("launched exit thread in \(launchDate.timeIntervalSince(startDate)) seconds"))
@@ -244,7 +250,7 @@ internal class ExecutingProcess {
 	}
 	
 	func suspend() -> Bool? {
-		return internalSync.sync(flags:[.inheritQoS]) {
+		return internalSync.sync {
 			guard let pid = processIdentifier else {
 				return nil
 			}
@@ -257,7 +263,7 @@ internal class ExecutingProcess {
 	}
 	
 	func terminate() {
-		internalSync.sync(flags:[.inheritQoS]) {
+		internalSync.sync {
 			guard let pid = processIdentifier else {
 				return
 			}
@@ -266,7 +272,7 @@ internal class ExecutingProcess {
 	}
 	
 	func forceKill() {
-		return internalSync.sync(flags:[.inheritQoS]) {
+		return internalSync.sync {
 			guard let pid = processIdentifier else {
 				return
 			}
@@ -275,7 +281,7 @@ internal class ExecutingProcess {
 	}
 	
 	func resume() -> Bool? {
-		return internalSync.sync(flags:[.inheritQoS]) {
+		return internalSync.sync {
 			guard let pid = processIdentifier else {
 				return nil
 			}
