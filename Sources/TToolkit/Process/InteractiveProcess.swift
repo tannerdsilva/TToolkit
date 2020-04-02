@@ -100,7 +100,7 @@ public class InteractiveProcess {
     	
     	let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:master)
     	let callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:master)
-    	let ioInternal = DispatchQueue(label:"com.tannersilva.instance.process-interactive.io", target:master)
+    	let ioInternal = DispatchQueue(label:"com.tannersilva.instance.process-interactive.io", qos:priority.asDispatchQoS(), target:master)
     	let rg = DispatchGroup()
     	let eg = DispatchGroup()
     	
