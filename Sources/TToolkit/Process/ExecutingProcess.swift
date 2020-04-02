@@ -20,9 +20,9 @@ fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 	Furthermore, the standard 
 */
 
-fileprivate let exitThreads = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", attributes:[.concurrent])
+fileprivate let exitThreads = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", qos:Priority.highest.asDispatchQoS(), attributes:[.concurrent])
 fileprivate let epLocks = DispatchQueue(label:"com.tannersilva.global.process-executing.sync", attributes:[.concurrent])
-fileprivate let serialRun = DispatchQueue(label:"com.tannersilva.global.process-executing.run-serial")
+fileprivate let serialRun = DispatchQueue(label:"com.tannersilva.global.process-executing.run-serial", target:exitThreads)
 
 internal class ExecutingProcess {
 	//these are the types of errors that this class can throw
@@ -69,7 +69,20 @@ internal class ExecutingProcess {
 	}
 	var terminationReason:TerminationReason? = nil
 	var exitCode:Int32? = nil
-	var terminationHandler:TerminationHandler? = nil
+	
+	private var _terminationHandler:TerminationHandler? = nil
+	var terminationHandler:TerminationHandler? {
+		get {
+			return internalSync.sync {
+				return _terminationHandler
+			}
+		}
+		set {
+			internalSync.sync {
+				_terminationHandler = newValue
+			}
+		}
+	}
 	
 	//returns the launchURL as a string path if it is readable and executable
 	//otherwise, returns nil
@@ -108,7 +121,7 @@ internal class ExecutingProcess {
 		self.arguments = arguments
 		self.processIdentifier = nil
 		self.isRunning = false
-		self.terminationHandler = terminationHandler
+		self._terminationHandler = terminationHandler
 	}
 	
 	func run() throws {
@@ -229,13 +242,15 @@ internal class ExecutingProcess {
 					self.stdin?.close()
 					self.stdout?.close()
 					self.stderr?.close()
-					self.internalCallback.async { [weak self] in
-						guard let self = self else {
-							return
-						}
-						if let th = self.terminationHandler {
+					
+					if let th = self._terminationHandler {
+						let workItem = DispatchWorkItem(qos:Priority.highest.asDispatchQoS(), flags:[.enforceQoS, .barrier], block: { [weak self] in
+							guard let self = self else {
+								return
+							}
 							th(self)
-						}
+						})
+						self.internalCallback.async(execute:workItem)
 					}
 				}
 			}
