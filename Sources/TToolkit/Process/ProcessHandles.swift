@@ -18,7 +18,7 @@ import Foundation
 #endif
 
 
-fileprivate let ioThreads = DispatchQueue(label:"com.tannersilva.global.process-handle.io", attributes:[.concurrent])
+fileprivate let ioThreads = DispatchQueue(label:"com.tannersilva.global.process-handle.io", qos:Priority.highest.asDispatchQoS(), attributes:[.concurrent])
 fileprivate let ppLocks = DispatchQueue(label:"com.tannersilva.global.process-pipe.sync", attributes:[.concurrent])
 fileprivate let ppInit = DispatchQueue(label:"com.tannersilva.global.process-pipe.init-serial")
 
@@ -144,7 +144,7 @@ internal class ProcessPipes {
 		self.reading = readWrite.r
 		self.writing = readWrite.w
 		
-		self.concurrentSchedule = DispatchQueue(label:"com.tannersilva.instance.process-pipe.schedule", qos:priority.asDispatchQoS(), target:ioThreads)
+		self.concurrentSchedule = DispatchQueue(label:"com.tannersilva.instance.process-pipe.schedule", target:ioThreads)
 		let ints = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", qos:priority.asDispatchQoS(), target:ppLocks)
 		self.internalSync = ints
 		let icb = DispatchQueue(label:"com.tannersilva.instance.process-pipe.callback", target:callback ?? priority.globalConcurrentQueue)

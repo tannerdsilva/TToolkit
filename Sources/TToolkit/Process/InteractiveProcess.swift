@@ -203,18 +203,15 @@ public class InteractiveProcess {
     		}
     	}
     }
-
     
     public func run() throws {
-    	runGroup.enter()
-		do {
-			try proc.run()
-			internalSync.sync {
+    	try internalSync.sync {
+			runGroup.enter()
+			do {
+				try proc.run()
 				state = .running
-			}
-		} catch let error {
-			runGroup.leave()
-			internalSync.sync {
+			} catch let error {
+				runGroup.leave()
 				state = .failed
 			}
 		}
