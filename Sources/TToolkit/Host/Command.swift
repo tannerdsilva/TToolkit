@@ -77,7 +77,7 @@ extension Context {
     public func runSync(_ thisCommand:String) throws -> CommandResult {
         let commandToRun = build(thisCommand)
         let process = try InteractiveProcess(command:commandToRun, run:false)
-        try process.run()
+//        try process.run()
         let exitCode = process.waitForExitCode()
         let stderrData = process.exportStdErr()
         let stdoutData = process.exportStdOut()
