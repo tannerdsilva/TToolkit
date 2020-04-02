@@ -203,7 +203,7 @@ internal class ProcessHandle {
 	}
 	
 	func write(_ dataObj:Data) throws {
-		try internalSync.sync(flags:[.inheritQoS]) {
+		try internalSync.sync {
 			try dataObj.withUnsafeBytes({
 				if let hasBaseAddress = $0.baseAddress {
 					try write(buf:hasBaseAddress, length:dataObj.count)
@@ -228,7 +228,7 @@ internal class ProcessHandle {
 	}
 	
 	func availableData() -> Data? {
-		internalSync.sync(flags:[.inheritQoS]) {
+		internalSync.sync {
 			var statbuf = stat()
 			if fstat(_fd, &statbuf) < 0 {
 				return nil
@@ -258,7 +258,7 @@ internal class ProcessHandle {
 	}
 	
 	func close() {
-		internalSync.sync(flags:[.inheritQoS]) {
+		internalSync.sync {
 			guard _fd != -1 else {
 				return
 			}

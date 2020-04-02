@@ -218,22 +218,10 @@ public class InteractiveProcess {
 				state = .failed
 			}
 		}
-        try internalSync.sync(flags:[.inheritQoS]) {
-            print("trying to run")
-            do {
-            	runGroup.enter()
-				try proc.run()
-                state = .running
-            } catch let error {
-            	runGroup.leave()
-                state = .failed
-                throw error
-            }
-        }
     }
 	
 	public func suspend() -> Bool? {
-        return internalSync.sync(flags:[.inheritQoS]) {
+        return internalSync.sync {
             if state == .running {
                 if proc.suspend() == true {
                     state = .suspended
@@ -249,7 +237,7 @@ public class InteractiveProcess {
     }
 	
 	public func resume() -> Bool? {
-        return internalSync.sync(flags:[.inheritQoS]) {
+        return internalSync.sync {
             if state == .suspended {
                 if proc.resume() == true {
                     state = .running
@@ -265,13 +253,13 @@ public class InteractiveProcess {
 	}
 		
 	public func exportStdOut() -> Data {
-		return internalSync.sync(flags:[.inheritQoS]) {
+		return internalSync.sync {
 			return stdoutBuff
 		}
 	}
 	
 	public func exportStdErr() -> Data {
-		return internalSync.sync(flags:[.inheritQoS]) {
+		return internalSync.sync {
 			return stderrBuff
 		}
 	}

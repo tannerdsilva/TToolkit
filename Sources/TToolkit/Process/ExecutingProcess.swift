@@ -215,7 +215,7 @@ internal class ExecutingProcess {
 					waitResult = waitpid(lpid, &ec, 0)
 				} while waitResult == -1 && errno == EINTR || WIFEXITED(ec) == false || lpid == 0
 				print(Colors.red("Yay exit"))
-				syncQueue.async(flags:[.barrier]) { [weak self] in
+				syncQueue.async { [weak self] in
 					guard let self = self else {
 						return
 					}
