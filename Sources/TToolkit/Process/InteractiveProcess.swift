@@ -129,7 +129,7 @@ public class InteractiveProcess {
 		proc.terminationHandler = { [weak self] _ in
 			rg.leave()
 			rg.wait()
-			ioInternal.async { [weak self] in
+			syncQueue.sync {
 				guard let self = self else {
 					return
 				}
@@ -138,18 +138,13 @@ public class InteractiveProcess {
 				self.stdout.close()
 				self.stderr.close()
 				
-				syncQueue.async { [weak self] in
-					guard let self = self else {
-						return
-					}
-					self._finishStdoutLines()
-					self._finishStderrLines()
-					self.state = .exited
-					let rg = self.runGroup
-					self.internalCallback.async {
-						eg.leave()
-					}
-				}
+				self._finishStdoutLines()
+				self._finishStderrLines()
+				self.state = .exited
+				
+				rg.wait()
+	
+				eg.leave()
 			}
 		}
         
@@ -336,7 +331,12 @@ public class InteractiveProcess {
 		if var slicedLines = stdoutBuff.lineSlice(removeBOM:false), let outHandler = _stdoutHandler {
 			callbackStdout(lines:slicedLines)
 			stdoutBuff.removeAll(keepingCapacity:false)
+			let rg = runGroup
+			rg.enter()
 			internalCallback.async {
+				defer {
+					rg.leave()
+				}
 				for (_, curLine) in slicedLines.enumerated() {
 					outHandler(curLine)
 				}
@@ -348,7 +348,12 @@ public class InteractiveProcess {
 		if var slicedLines = stderrBuff.lineSlice(removeBOM:false), let errHandler = _stderrHandler {
 			callbackStderr(lines:slicedLines)
 			stderrBuff.removeAll(keepingCapacity:false)
+			let rg = runGroup
+			rg.enter()
 			internalCallback.async {
+				defer {
+					rg.leave()
+				}
 				for (_, curLine) in slicedLines.enumerated() {
 					errHandler(curLine)
 				}
