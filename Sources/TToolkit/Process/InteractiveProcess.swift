@@ -137,7 +137,6 @@ public class InteractiveProcess {
 				self.stdin.close()
 				self.stdout.close()
 				self.stderr.close()
-				print("success")
 				
 				syncQueue.async { [weak self] in
 					guard let self = self else {
@@ -358,7 +357,7 @@ public class InteractiveProcess {
 	}
 		
     public func waitForExitCode() -> Int {
-		runGroup.wait()
+		exitGroup.wait()
         let returnCode = proc.exitCode!
         return Int(returnCode)
     }
