@@ -21,6 +21,7 @@ fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 */
 
 fileprivate let exitThreads = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", attributes:[.concurrent])
+fileprivate let epLocks = DispatchQueue(label:"com.tannersilva.global.process-executing.sync", attributes:[.concurrent])
 
 internal class ExecutingProcess {
 	//these are the types of errors that this class can throw
@@ -91,13 +92,13 @@ internal class ExecutingProcess {
 		return launchString
 	}
 	
-	init(execute:URL, arguments:[String]?, environment:[String:String]?, master:DispatchQueue, callback:DispatchQueue?, _ terminationHandler:TerminationHandler? = nil) {
-		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.executing-process.sync", target:master)
-		let icb = DispatchQueue(label:"com.tannersilva.instance.executing-process.term-callback", target:callback ?? master)
+	init(execute:URL, arguments:[String]?, environment:[String:String]?, priority:Priority = Priority.`default`, callback:DispatchQueue?, _ terminationHandler:TerminationHandler? = nil) {
+		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.executing-process.sync", target:epLocks)
+		let icb = DispatchQueue(label:"com.tannersilva.instance.executing-process.term-callback", target:callback ?? priority.globalConcurrentQueue)
 		self.internalCallback = icb
-		self._callbackQueue = callback ?? icb
+		self._callbackQueue = callback ?? priority.globalConcurrentQueue
 		
-		let eq = DispatchQueue(label:"com.tannersilva.instance.executing.exit-wait", target:master)
+		let eq = DispatchQueue(label:"com.tannersilva.instance.executing.exit-wait", target:exitThreads)
 		self.exitQueue = eq
 		
 		self.executable = execute

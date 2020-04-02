@@ -1,7 +1,7 @@
 import Foundation
 
 
-fileprivate let globalThreads = DispatchQueue(label:"com.tannersilva.global.process-interactive", attributes:[.concurrent])
+fileprivate let ipSync = DispatchQueue(label:"com.tannersilva.global.process-pipe.sync", attributes:[.concurrent])
 
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
@@ -77,10 +77,10 @@ public class InteractiveProcess {
 
     public init<C>(command:C, priority:Priority = .`default`, run:Bool) throws where C:Command {
     	self.priority = priority
-    	
-    	let masterThreads = DispatchQueue(label:"com.tannersilva.instance.process-interactive", qos:priority.asDispatchQoS(), attributes:[.concurrent])
+
+    	let masterThreads = DispatchQueue(label:"com.tannersilva.instance.process-interactive", qos:priority.asDispatchQoS(), attributes:[.concurrent], target:ipSync)
 		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:masterThreads)
-		let callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:masterThreads)
+		let callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:priority.globalConcurrentQueue)
 
 		self.master = masterThreads
 		self.internalSync = syncQueue
@@ -91,20 +91,21 @@ public class InteractiveProcess {
 		runGroup = rg
 				
 		//create the ProcessHandles that we need to read the data from this process as it runs
-		let standardIn = try ProcessPipes(master:masterThreads, callback:syncQueue)
-		let standardOut = try ProcessPipes(master:masterThreads, callback:syncQueue)
-		let standardErr = try ProcessPipes(master:masterThreads, callback:syncQueue)
+		let standardIn = try ProcessPipes(priority:priority, callback:syncQueue)
+		let standardOut = try ProcessPipes(priority:priority, callback:syncQueue)
+		let standardErr = try ProcessPipes(priority:priority, callback:syncQueue)
 		stdin = standardIn
 		stdout = standardOut
 		stderr = standardErr
 		
 		//create the ExecutingProcess
-		proc = ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, master:masterThreads, callback:syncQueue)
+		proc = ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, priority:priority, callback:syncQueue)
 		
 		proc.stdin = standardIn
 		proc.stdout = standardOut
 		proc.stderr = standardErr
-		
+		print("th")
+
 		proc.terminationHandler = { [weak self] _ in
 			guard let self = self else {
 				return
@@ -112,6 +113,7 @@ public class InteractiveProcess {
 			self.state = .exited
 		}
         
+		print("rh")
 		stdout.readHandler = { [weak self] newData in
 			var newLine = false
 			print("attempting to read")
@@ -139,6 +141,7 @@ public class InteractiveProcess {
 			}
 		}
 	
+		print("errh")
 		stderr.readHandler = { [weak self] newData in
 			var newLine = false
 			print("attempting to read")
@@ -207,6 +210,7 @@ public class InteractiveProcess {
     
     public func run() throws {
         try internalSync.sync(flags:[.inheritQoS]) {
+            print("trying to run")
             do {
             	runGroup.enter()
 				try proc.run()
