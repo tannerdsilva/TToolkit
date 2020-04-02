@@ -13,6 +13,7 @@ public class InteractiveProcess {
     private let internalCallback:DispatchQueue	//this is the queue that calls the handlers that the user assigned
     
     private let runGroup:DispatchGroup
+    private let exitGroup:DispatchGroup
     
 	public enum State:UInt8 {
 		case initialized = 0
@@ -99,14 +100,16 @@ public class InteractiveProcess {
     	
     	let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:master)
     	let callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:master)
-    	let ioInternal = DispatchQueue(label:"com.tannersilva.instance.process-interactive.io", target:ioQueue)
+    	let ioInternal = DispatchQueue(label:"com.tannersilva.instance.process-interactive.io", target:master)
     	let rg = DispatchGroup()
+    	let eg = DispatchGroup()
     	
 		self.internalSync = syncQueue
 		self.internalCallback = callbackQueue
 		self._callbackQueue = callbackQueue
 		
 		self.runGroup = rg
+		self.exitGroup = eg
 		
 		//create the ProcessHandles that we need to read the data from this process as it runs
 		let standardIn = try ProcessPipes(queue:ioInternal)
@@ -130,7 +133,6 @@ public class InteractiveProcess {
 				guard let self = self else {
 					return
 				}
-				print("attempting close")
 				//close file handles if they exist
 				self.stdin.close()
 				self.stdout.close()
@@ -146,7 +148,7 @@ public class InteractiveProcess {
 					self.state = .exited
 					let rg = self.runGroup
 					self.internalCallback.async {
-						rg.leave()
+						eg.leave()
 					}
 				}
 			}
@@ -235,10 +237,12 @@ public class InteractiveProcess {
     	try internalSync.sync {
 			do {
 				runGroup.enter()
+				exitGroup.enter()
 				try proc._run()
 				state = .running
 			} catch let error {
 				runGroup.leave()
+				exitGroup.leave()
 				state = .failed
 				throw error
 			}
@@ -333,7 +337,7 @@ public class InteractiveProcess {
 		if var slicedLines = stdoutBuff.lineSlice(removeBOM:false), let outHandler = _stdoutHandler {
 			callbackStdout(lines:slicedLines)
 			stdoutBuff.removeAll(keepingCapacity:false)
-			callbackQueue.async {
+			internalCallback.async {
 				for (_, curLine) in slicedLines.enumerated() {
 					outHandler(curLine)
 				}
@@ -345,7 +349,7 @@ public class InteractiveProcess {
 		if var slicedLines = stderrBuff.lineSlice(removeBOM:false), let errHandler = _stderrHandler {
 			callbackStderr(lines:slicedLines)
 			stderrBuff.removeAll(keepingCapacity:false)
-			callbackQueue.async {
+			internalCallback.async {
 				for (_, curLine) in slicedLines.enumerated() {
 					errHandler(curLine)
 				}
