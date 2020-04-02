@@ -12,7 +12,7 @@ fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 	return (_WSTATUS(status) != 0) && (_WSTATUS(status) != 0x7f)
 }
 
-fileprivate let exitQueue:DispatchQueue = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", qos:Priority.`default`.asDispatchQoS(), attributes:[.concurrent])
+fileprivate let exitQueue:DispatchQueue = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", qos:Priority.highest.asDispatchQoS(), attributes:[.concurrent])
 
 /*
 	ExecutingProcess is my interpretation of the Process object from the Swift Standard Library.
@@ -36,6 +36,7 @@ internal class ExecutingProcess {
 	}
 
 	let priority:Priority
+	let internalSync:DispatchQueue
 			
 	var executable:URL
 	var arguments:[String]?
@@ -74,8 +75,9 @@ internal class ExecutingProcess {
 		return launchString
 	}
 	
-	init(priority:Priority, execute:URL, arguments:[String]?, environment:[String:String]?) {
+	init(priority:Priority, master:DispatchQueue, execute:URL, arguments:[String]?, environment:[String:String]?) {
 		self.priority = priority
+		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-executing.sync", target:master)
 		self.executable = execute
 		self.arguments = arguments
 		self.environment = environment
@@ -224,27 +226,33 @@ internal class ExecutingProcess {
 	}
 	
 	func _terminate() {
-		guard let pid = processIdentifier else {
-			return
+		return internalSync.sync {
+			guard let pid = processIdentifier else {
+				return
+			}
+			kill(pid, SIGTERM)
 		}
-		kill(pid, SIGTERM)
 	}
 	
 	func _forceKill() {
-		guard let pid = processIdentifier else {
-			return
+		return internalSync.sync {
+			guard let pid = processIdentifier else {
+				return
+			}
+			kill(pid, SIGKILL)
 		}
-		kill(pid, SIGKILL)
 	}
 	
 	func _resume() -> Bool? {
-		guard let pid = processIdentifier else {
-			return nil
-		}
-		if kill(pid, SIGCONT) == 0 {
-			return true
-		} else {
-			return false
+		return internalSync.sync {
+			guard let pid = processIdentifier else {
+				return nil
+			}
+			if kill(pid, SIGCONT) == 0 {
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 }

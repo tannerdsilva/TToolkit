@@ -117,21 +117,26 @@ public class InteractiveProcess {
 		stderr = standardErr
 		
 		//create the ExecutingProcess
-		proc = ExecutingProcess(priority:priority, execute:command.executable, arguments:command.arguments, environment:command.environment)
+		proc = ExecutingProcess(priority:priority, master:master, execute:command.executable, arguments:command.arguments, environment:command.environment)
 		
 		proc.stdin = standardIn
 		proc.stdout = standardOut
 		proc.stderr = standardErr
 		
 		proc.terminationHandler = { [weak self] _ in
+			rg.leave()
+			rg.wait()
 			ioInternal.async { [weak self] in
 				guard let self = self else {
 					return
 				}
+				print("attempting close")
 				//close file handles if they exist
 				self.stdin.close()
 				self.stdout.close()
 				self.stderr.close()
+				print("success")
+				
 				syncQueue.async { [weak self] in
 					guard let self = self else {
 						return
@@ -148,6 +153,10 @@ public class InteractiveProcess {
 		}
         
 		stdout.readHandler = { [weak self] handleToRead in
+			rg.enter()
+			defer {
+				rg.leave()
+			}
 			//try to read the data. do we get something?
 			if let newData = handleToRead.availableData() {
 				let bytesCount = newData.count
@@ -168,8 +177,11 @@ public class InteractiveProcess {
 							}
 						}
 					})
-
+					rg.enter()
 					syncQueue.async { [weak self] in
+						defer {
+							rg.leave()
+						}
 						guard let self = self else {
 							return
 						}
@@ -180,6 +192,10 @@ public class InteractiveProcess {
 		}
 	
 		stderr.readHandler = { [weak self] handleToRead in
+			rg.enter()
+			defer {
+				rg.leave()
+			}
 			//try to read the data. do we get something?
 			if let newData = handleToRead.availableData() {
 				let bytesCount = newData.count
@@ -200,8 +216,11 @@ public class InteractiveProcess {
 							}
 						}
 					})
-
+					rg.enter()
 					syncQueue.async { [weak self] in
+						defer {
+							rg.leave()
+						}
 						guard let self = self else {
 							return
 						}
@@ -259,7 +278,12 @@ public class InteractiveProcess {
 	}
 	
 	private func callbackStdout(lines:[Data]) {
+		let rg = runGroup
+		rg.enter()
 		internalCallback.async { [weak self] in
+			defer {
+				rg.leave()
+			}
 			guard let self = self, let outHandler = self.stdoutHandler else {
 				return
 			}
@@ -270,7 +294,12 @@ public class InteractiveProcess {
 	}
 	
 	private func callbackStderr(lines:[Data]) {
+		let rg = runGroup
+		rg.enter()
 		internalCallback.async { [weak self] in
+			defer {
+			    rg.leave()
+			}
 			guard let self = self, let errHandler = self.stderrHandler else {
 				return
 			}
