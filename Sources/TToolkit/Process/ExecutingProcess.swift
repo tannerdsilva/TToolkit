@@ -22,6 +22,7 @@ fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 
 fileprivate let exitThreads = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", attributes:[.concurrent])
 fileprivate let epLocks = DispatchQueue(label:"com.tannersilva.global.process-executing.sync", attributes:[.concurrent])
+fileprivate let serialRun = DispatchQueue(label:"com.tannersilva.global.process-executing.run-serial")
 
 internal class ExecutingProcess {
 	//these are the types of errors that this class can throw
@@ -112,7 +113,6 @@ internal class ExecutingProcess {
 	
 	func run() throws {
 		let syncQueue = internalSync
-		print("trying run")
 		try syncQueue.sync {
 			print("attempting to run")
 			guard isRunning == false else {
@@ -240,9 +240,10 @@ internal class ExecutingProcess {
 				}
 			}
 			queueGroup.wait()
-			
-			guard posix_spawn(&lpid, launchPath, fileActions, nil, argC, envC) == 0 else {
-				throw ProcessError.unableToExecute
+			try serialRun.sync {
+				guard posix_spawn(&lpid, launchPath, fileActions, nil, argC, envC) == 0 else {
+					throw ProcessError.unableToExecute
+				}
 			}
 			runGroup.leave()
 			

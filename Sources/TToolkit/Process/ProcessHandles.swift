@@ -20,6 +20,8 @@ import Foundation
 
 fileprivate let ioThreads = DispatchQueue(label:"com.tannersilva.global.process-handle.io", attributes:[.concurrent])
 fileprivate let ppLocks = DispatchQueue(label:"com.tannersilva.global.process-pipe.sync", attributes:[.concurrent])
+fileprivate let ppInit = DispatchQueue(label:"com.tannersilva.global.process-pipe.init-serial")
+
 internal class ProcessPipes {
 	typealias ReadHandler = (Data) -> Void
 	typealias WriteHandler = (ProcessHandle) -> Void
@@ -156,15 +158,17 @@ internal class ProcessPipes {
 			fds.deallocate()
 		}
 		
-		let rwfds = _pipe(fds)
-		switch rwfds {
-			case 0:
-				let readFD = fds.pointee
-				let writeFD = fds.successor().pointee
+		return try ppInit.sync {
+			let rwfds = _pipe(fds)
+			switch rwfds {
+				case 0:
+					let readFD = fds.pointee
+					let writeFD = fds.successor().pointee
 				
-				return (r:ProcessHandle(fd:readFD, priority:priority), w:ProcessHandle(fd:writeFD, priority:priority))
-			default:
-			throw ExecutingProcess.ProcessError.unableToCreatePipes
+					return (r:ProcessHandle(fd:readFD, priority:priority), w:ProcessHandle(fd:writeFD, priority:priority))
+				default:
+				throw ExecutingProcess.ProcessError.unableToCreatePipes
+			}
 		}
 	}
 	
@@ -182,6 +186,7 @@ internal class ProcessPipes {
 }
 
 fileprivate let phLock = DispatchQueue(label:"com.tannersilva.global.process-handle.sync", attributes:[.concurrent])
+
 internal class ProcessHandle {
 	fileprivate let internalSync:DispatchQueue
 	
