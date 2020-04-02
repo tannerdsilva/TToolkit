@@ -18,11 +18,15 @@ import Foundation
 #endif
 
 
-internal class ProcessPipes {
-	typealias Handler = (ProcessHandle) -> Void
+fileprivate let ioThreads = DispatchQueue(label:"com.tannersilva.global.process-pipes.io-handle", attributes:[.concurrent])
 
-	private let queue:DispatchQueue
-	let priority:Priority
+internal class ProcessPipes {
+	typealias ReadHandler = (Data) -> Void
+	typealias WriteHandler = (ProcessHandle) -> Void
+	
+	private let concurrentSchedule:DispatchQueue
+	private let internalSync:DispatchQueue
+	private let internalCallback:DispatchQueue
 	
 	let reading:ProcessHandle
 	let writing:ProcessHandle
@@ -31,17 +35,32 @@ internal class ProcessPipes {
 	//these are the timing sources that handle the readability and writability handler 
 	private var writeSource:DispatchSourceProtocol? = nil
 	private var readSource:DispatchSourceProtocol? = nil
+	
+	private var _callbackQueue:DispatchQueue
+	var handlerQueue:DispatchQueue {
+		get {
+			return internalSync.sync(flags:[.inheritQoS]) {
+				return _callbackQueue
+			}
+		}
+		set {
+			internalSync.sync(flags:[.inheritQoS]) {
+				_callbackQueue = newValue
+				internalCallback.setTarget(queue:_callbackQueue)
+			}
+		}
+	}
 
 	//readability handler
-	private var _readHandler:Handler? = nil
-	var readHandler:Handler? {
+	private var _readHandler:ReadHandler? = nil
+	var readHandler:ReadHandler? {
 		get {
-			return queue.sync {
+			return internalSync.sync(flags:[.inheritQoS]) {
 				return _readHandler
 			}
 		}
 		set {
-			queue.sync {
+			internalSync.sync(flags:[.inheritQoS]) {
 				//cancel the old handler source if it exists
 				if let hasReadSource = readSource {
 					hasReadSource.cancel()
@@ -52,12 +71,15 @@ internal class ProcessPipes {
 					_readHandler = hasNewHandler
 
 					//schedule the new timer
-					let newSource = DispatchSource.makeReadSource(fileDescriptor:reading.fileDescriptor, queue:priority.globalConcurrentQueue)
+					let newSource = DispatchSource.makeReadSource(fileDescriptor:reading.fileDescriptor, queue:concurrentSchedule)
+					let reader = reading
+					let intCbQueue = internalCallback
 					newSource.setEventHandler { [weak self] in
-						guard let self = self else {
-							return
+						if let newData = reader.availableData() {
+							intCbQueue.async {
+								hasNewHandler(newData)
+							}
 						}
-						hasNewHandler(self.reading)
 					}
 					readSource = newSource
 					newSource.activate()
@@ -70,15 +92,15 @@ internal class ProcessPipes {
 	}
 	
 	//write handler
-	private var _writeHandler:Handler? = nil
-	var writeHandler:Handler? {
+	private var _writeHandler:WriteHandler? = nil
+	var writeHandler:WriteHandler? {
 		get {
-			return queue.sync {
+			return internalSync.sync(flags:[.inheritQoS]) {
 				return _writeHandler
 			}
 		}
 		set {
-			queue.sync {
+			internalSync.sync(flags:[.inheritQoS]) {
 				//cancel the existing writing source if it exists
 				if let hasWriteSource = writeSource {
 					hasWriteSource.cancel()
@@ -88,12 +110,16 @@ internal class ProcessPipes {
 					_writeHandler = hasNewHandler
 					
 					//schedule the new timer
-					let newSource = DispatchSource.makeWriteSource(fileDescriptor:writing.fileDescriptor, queue:priority.globalConcurrentQueue)
+					let newSource = DispatchSource.makeWriteSource(fileDescriptor:writing.fileDescriptor, queue:concurrentSchedule)
+					let writer = writing
+					let intCbQueue = internalCallback
 					newSource.setEventHandler { [weak self] in
-						guard let self = self else {
-							return
+						intCbQueue.async { [weak self] in
+							guard let self = self else {
+								return
+							}
+							hasNewHandler(self.writing)
 						}
-						hasNewHandler(self.writing)
 					}
 					writeSource = newSource
 					newSource.activate()
@@ -105,17 +131,20 @@ internal class ProcessPipes {
 		}
 	}
 	
-	init(priority:Priority) throws {
-		let readWrite = try Self.forReadingAndWriting(priority:priority)
+	init(master:DispatchQueue, callback:DispatchQueue?) throws {
+		let readWrite = try Self.forReadingAndWriting(master:master)
 		
 		self.reading = readWrite.r
 		self.writing = readWrite.w
 		
-		self.priority = priority
-		self.queue = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", qos:priority.asDispatchQoS(), target:priority.globalConcurrentQueue)
+		self.concurrentSchedule = DispatchQueue(label:"com.tannersilva.instance.process-pipe.schedule", qos:master.qos, target:ioThreads)
+		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", target:master)
+		let icb = DispatchQueue(label:"com.tannersilva.instance.process-pipe.callback", target:callback ?? master)
+		self.internalCallback = icb
+		self._callbackQueue = callback ?? icb
 	}
 	
-	fileprivate static func forReadingAndWriting(priority:Priority) throws -> (r:ProcessHandle, w:ProcessHandle) {
+	fileprivate static func forReadingAndWriting(master:DispatchQueue) throws -> (r:ProcessHandle, w:ProcessHandle) {
 		let fds = UnsafeMutablePointer<Int32>.allocate(capacity:2)
 		defer {
 			fds.deallocate()
@@ -127,19 +156,17 @@ internal class ProcessPipes {
 				let readFD = fds.pointee
 				let writeFD = fds.successor().pointee
 				
-				return (r:ProcessHandle(fd:readFD), w:ProcessHandle(fd:writeFD))
+				return (r:ProcessHandle(fd:readFD, master:master), w:ProcessHandle(fd:writeFD, master:master))
 			default:
 			throw ExecutingProcess.ProcessError.unableToCreatePipes
 		}
 	}
 	
 	func close() {
-		queue.sync {
 			reading.close()
 			writing.close()
-		}
-		readHandler = nil
-		writeHandler = nil
+			readHandler = nil
+			writeHandler = nil
 	}
 	
 	deinit {
@@ -149,6 +176,8 @@ internal class ProcessPipes {
 }
 
 internal class ProcessHandle {
+	fileprivate let internalSync:DispatchQueue
+	
 	private var _fd:Int32
 	var fileDescriptor:Int32 {
 		get {
@@ -156,16 +185,19 @@ internal class ProcessHandle {
 		}
 	}
 	
-	init(fd:Int32) {
+	init(fd:Int32, master:DispatchQueue) {
 		self._fd = fd
+		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-handle.sync", target:master)
 	}
 	
 	func write(_ dataObj:Data) throws {
-		try dataObj.withUnsafeBytes({
-			if let hasBaseAddress = $0.baseAddress {
-				try write(buf:hasBaseAddress, length:dataObj.count)
-			}
-		})
+		try internalSync.sync(flags:[.inheritQoS]) {
+			try dataObj.withUnsafeBytes({
+				if let hasBaseAddress = $0.baseAddress {
+					try write(buf:hasBaseAddress, length:dataObj.count)
+				}
+			})
+		}
 	}
 	
 	fileprivate func write(buf:UnsafeRawPointer, length:Int) throws {
@@ -184,47 +216,51 @@ internal class ProcessHandle {
 	}
 	
 	func availableData() -> Data? {
-		var statbuf = stat()
-		if fstat(_fd, &statbuf) < 0 {
-			return nil
-		}
+		internalSync.sync(flags:[.inheritQoS]) {
+			var statbuf = stat()
+			if fstat(_fd, &statbuf) < 0 {
+				return nil
+			}
 		
-		let readBlockSize:Int
-		if statbuf.st_mode & S_IFMT == S_IFREG && statbuf.st_blksize > 0 {
-			readBlockSize = Int(clamping:statbuf.st_blksize)
-		} else {
-			readBlockSize = 1024 * 8
-		}
+			let readBlockSize:Int
+			if statbuf.st_mode & S_IFMT == S_IFREG && statbuf.st_blksize > 0 {
+				readBlockSize = Int(clamping:statbuf.st_blksize)
+			} else {
+				readBlockSize = 1024 * 8
+			}
 		
-		guard var dynamicBuffer = malloc(readBlockSize + 1) else {
-			return nil
-		}
-		defer {
-			free(dynamicBuffer)
-		}
+			guard var dynamicBuffer = malloc(readBlockSize + 1) else {
+				return nil
+			}
+			defer {
+				free(dynamicBuffer)
+			}
 		
-		let amountRead = read(_fd, dynamicBuffer, readBlockSize)
-		guard amountRead > 0 else {
-			return nil
+			let amountRead = read(_fd, dynamicBuffer, readBlockSize)
+			guard amountRead > 0 else {
+				return nil
+			}
+			let bytesBound = dynamicBuffer.bindMemory(to:UInt8.self, capacity:amountRead)
+			return Data(bytes:bytesBound, count:amountRead)
 		}
-		let bytesBound = dynamicBuffer.bindMemory(to:UInt8.self, capacity:amountRead)
-		return Data(bytes:bytesBound, count:amountRead)
 	}
 	
 	func close() {
-		guard _fd != -1 else {
-			return
-		}
+		internalSync.sync(flags:[.inheritQoS]) {
+			guard _fd != -1 else {
+				return
+			}
 		
-		guard _close(_fd) >= 0 else {
-			return
+			guard _close(_fd) >= 0 else {
+				return
+			}
+			_fd = -1
 		}
-		_fd = -1
 	}
 	
 	deinit {
 		if _fd != -1 {
-			close()
+			_ = _close(_fd)
 		}
 	}
 

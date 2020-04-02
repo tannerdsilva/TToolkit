@@ -19,6 +19,7 @@ fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 	ExecutingProcess is distinct from the traditional Process object in that ExecutingProcess does not conform to NSObject. This eliminates significant overhead when executing and handling many ExecutingProcesses simulaneously.
 	Furthermore, the standard 
 */
+
 internal class ExecutingProcess {
 	//these are the types of errors that this class can throw
 	public enum ProcessError:Error { 
@@ -33,8 +34,8 @@ internal class ExecutingProcess {
 		case uncaughtSignal
 	}
 	
-	let queue:DispatchQueue
-	let priority:Priority
+	let internalCallback:DispatchQueue
+	let internalSync:DispatchQueue
 	
 	var executable:URL
 	var arguments:[String]?
@@ -47,6 +48,20 @@ internal class ExecutingProcess {
 	var stdout:ProcessPipes? = nil
 	var stderr:ProcessPipes? = nil
 	
+	private var _callbackQueue:DispatchQueue
+	var terminationQueue:DispatchQueue {
+		get {
+			internalSync.sync {
+				return _callbackQueue
+			}
+		}
+		set {
+			internalSync.sync {
+				_callbackQueue = newValue
+				internalCallback.setTarget(queue:_callbackQueue)
+			}
+		}
+	}
 	var terminationReason:TerminationReason? = nil
 	var exitCode:Int32? = nil
 	var terminationHandler:TerminationHandler? = nil
@@ -73,9 +88,12 @@ internal class ExecutingProcess {
 		return launchString
 	}
 	
-	init(execute:URL, arguments:[String]?, environment:[String:String]?, priority:Priority, _ terminationHandler:TerminationHandler? = nil) {
-		self.queue = DispatchQueue(label:"com.tannersilva.instance.executing-process.sync", qos:priority.asDispatchQoS(), target:priority.globalConcurrentQueue)
-		self.priority = priority
+	init(execute:URL, arguments:[String]?, environment:[String:String]?, master:DispatchQueue, callback:DispatchQueue?, _ terminationHandler:TerminationHandler? = nil) {
+		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.executing-process.sync", target:master)
+		let icb = DispatchQueue(label:"com.tannersilva.instance.executing-process.term-callback", target:callback ?? master)
+		self.internalCallback = icb
+		self._callbackQueue = callback ?? icb
+		
 		self.executable = execute
 		self.arguments = arguments
 		self.environment = environment
@@ -86,7 +104,8 @@ internal class ExecutingProcess {
 	}
 	
 	func run() throws {
-		try queue.sync {
+		let syncQueue = internalSync
+		try syncQueue.sync {
 			guard isRunning == false else {
 				throw ProcessError.processAlreadyRunning
 			}
@@ -164,45 +183,68 @@ internal class ExecutingProcess {
 
 			//launch the process
 			var lpid = pid_t()
-			guard posix_spawn(&lpid, launchPath, fileActions, nil, argC, envC) == 0 else {
-				throw ProcessError.unableToExecute
-			}
-		
-			processIdentifier = lpid
-			isRunning = true
-		
+			
+			let queueGroup = DispatchGroup()
+			let runGroup = DispatchGroup()
+			
+			runGroup.enter()
+			queueGroup.enter()
+			
+			let startDate = Date()
+
 			//launch a thread on the concurrent queue to wait for this process to finish executing
-			priority.globalConcurrentQueue.async { [weak self] in
+			syncQueue.async(flags:[.detached]) { [weak self] in
+				let launchDate = Date()
+				
+				print(Colors.Yellow("launched exit thread in \(launchDate.timeIntervalSince(startDate)) seconds"))
+				
+				queueGroup.leave()
+				runGroup.wait()
 				var waitResult:Int32 = 0
 				var ec:Int32 = 0
 				repeat {
 					waitResult = waitpid(lpid, &ec, 0)
-				} while waitResult == -1 && errno == EINTR || WIFEXITED(ec) == false
-				guard let self = self else {
-					return
-				}
-				self.isRunning = false
-			
-				if WIFSIGNALED(ec) {
-					self.terminationReason = TerminationReason.uncaughtSignal
-				} else {
-					self.terminationReason = TerminationReason.exited
-				}
-				self.exitCode = ec
-			
-				self.stdin?.close()
-				self.stdout?.close() 
-				self.stderr?.close()
-
-				if let th = self.terminationHandler {
-					th(self)
+				} while waitResult == -1 && errno == EINTR || WIFEXITED(ec) == false || lpid == 0
+				print(Colors.red("Yay exit"))
+				syncQueue.async(flags:[.barrier]) { [weak self] in
+					guard let self = self else {
+						return
+					}
+					self.isRunning = false
+					if WIFSIGNALED(ec) {
+						self.terminationReason = TerminationReason.uncaughtSignal
+					} else {
+						self.terminationReason = TerminationReason.exited
+					}
+					self.exitCode = ec
+					self.stdin?.close()
+					self.stdout?.close()
+					self.stderr?.close()
+					self.internalCallback.async { [weak self] in
+						guard let self = self else {
+							return
+						}
+						if let th = self.terminationHandler {
+							th(self)
+						}
+					}
 				}
 			}
+			queueGroup.wait()
+			
+			guard posix_spawn(&lpid, launchPath, fileActions, nil, argC, envC) == 0 else {
+				throw ProcessError.unableToExecute
+			}
+			runGroup.leave()
+			
+			processIdentifier = lpid
+			isRunning = true
+			
 		}
 	}
 	
 	func suspend() -> Bool? {
-		return queue.sync {
+		return internalSync.sync(flags:[.inheritQoS]) {
 			guard let pid = processIdentifier else {
 				return nil
 			}
@@ -215,7 +257,7 @@ internal class ExecutingProcess {
 	}
 	
 	func terminate() {
-		queue.sync {
+		internalSync.sync(flags:[.inheritQoS]) {
 			guard let pid = processIdentifier else {
 				return
 			}
@@ -224,7 +266,7 @@ internal class ExecutingProcess {
 	}
 	
 	func forceKill() {
-		return queue.sync {
+		return internalSync.sync(flags:[.inheritQoS]) {
 			guard let pid = processIdentifier else {
 				return
 			}
@@ -233,7 +275,7 @@ internal class ExecutingProcess {
 	}
 	
 	func resume() -> Bool? {
-		return queue.sync {
+		return internalSync.sync(flags:[.inheritQoS]) {
 			guard let pid = processIdentifier else {
 				return nil
 			}

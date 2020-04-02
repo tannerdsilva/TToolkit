@@ -1,14 +1,19 @@
 import Foundation
 
+
+fileprivate let globalThreads = DispatchQueue(label:"com.tannersilva.global.process-interactive", attributes:[.concurrent])
+
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     public typealias InputHandler = (InteractiveProcess) -> Void
     
+    private let master:DispatchQueue
+	private let internalSync:DispatchQueue				//what serial thread is going to be used to process the data for each class instance?
+	private let internalCallback:DispatchQueue
+	
     public let priority:Priority				//what is the priority of this interactive process. most (if not all) of the asyncronous work for this process and others will be based on this Priority
-    public let queue:DispatchQueue				//what serial thread is going to be used to process the data for each class instance?
     
     private let runGroup:DispatchGroup			//used to signify that the object is still "working"
-    private let dataGroup:DispatchGroup			//used to signify that there is data that has been passed to a handler function that hasn't been appended to the internal buffers yet
     
 	public enum State:UInt8 {
 		case initialized = 0
@@ -31,12 +36,12 @@ public class InteractiveProcess {
     private var _stdoutHandler:OutputHandler? = nil
     public var stdoutHandler:OutputHandler? {
         get {
-        	return queue.sync {
+        	return internalSync.sync {
         		return _stdoutHandler
         	}
         }
         set {
-            queue.sync {
+            internalSync.sync {
                 _stdoutHandler = newValue
             }
         }
@@ -45,12 +50,12 @@ public class InteractiveProcess {
     private var _stderrHandler:OutputHandler? = nil
     public var stderrHandler:OutputHandler? {
         get {
-        	return queue.sync {
+        	return internalSync.sync {
 				return _stderrHandler
         	}   
         }
         set {
-            queue.sync {
+            internalSync.sync {
                 _stderrHandler = newValue
             }
         }
@@ -59,12 +64,12 @@ public class InteractiveProcess {
     private var _stdinHandler:InputHandler? = nil
     public var stdinHandler:InputHandler? {
     	get {
-    		return queue.sync {
+    		return internalSync.sync {
     			return _stdinHandler
     		}
     	}
     	set {
-    		return queue.sync {
+    		return internalSync.sync {
     			_stdinHandler = newValue
     		}
     	}
@@ -72,81 +77,93 @@ public class InteractiveProcess {
 
     public init<C>(command:C, priority:Priority = .`default`, run:Bool) throws where C:Command {
     	self.priority = priority
-		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS())
-		self.queue = syncQueue
+    	
+    	let masterThreads = DispatchQueue(label:"com.tannersilva.instance.process-interactive", qos:priority.asDispatchQoS(), attributes:[.concurrent], target:globalThreads)
+		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:masterThreads)
+		let callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:masterThreads)
+
+		self.master = masterThreads
+		self.internalSync = syncQueue
+		self.internalCallback = callbackQueue
 		
-		let dg = DispatchGroup()
 		let rg = DispatchGroup()
 		
 		runGroup = rg
-		dataGroup = dg
 				
 		//create the ProcessHandles that we need to read the data from this process as it runs
-		let standardIn = try ProcessPipes(priority:priority)
-		let standardOut = try ProcessPipes(priority:priority)
-		let standardErr = try ProcessPipes(priority:priority)
+		let standardIn = try ProcessPipes(master:masterThreads, callback:syncQueue)
+		let standardOut = try ProcessPipes(master:masterThreads, callback:syncQueue)
+		let standardErr = try ProcessPipes(master:masterThreads, callback:syncQueue)
 		stdin = standardIn
 		stdout = standardOut
 		stderr = standardErr
 		
 		//create the ExecutingProcess
-		proc = ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, priority:priority)
+		proc = ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, master:masterThreads, callback:syncQueue)
 		
 		proc.stdin = standardIn
 		proc.stdout = standardOut
 		proc.stderr = standardErr
 		
 		proc.terminationHandler = { [weak self] _ in
-			defer {
-				rg.leave()
-			}
-			dg.wait()
 			guard let self = self else {
 				return
 			}
-			syncQueue.sync {
-				self.state = .exited
-			}
+			self.state = .exited
 		}
         
-		stdout.readHandler = { [weak self] handleToRead in
-			dg.enter()
-			defer {
-				dg.leave()
-			}
-
+		stdout.readHandler = { [weak self] newData in
+			var newLine = false
+			newData.withUnsafeBytes({ byteBuff in
+				if let hasBase = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
+					for i in 0..<newData.count {
+						switch hasBase.advanced(by:i).pointee {
+							case 10, 13:
+								newLine = true
+							default:
+							break;
+						}
+					}
+				}
+			})
 			guard let self = self else {
 				return
 			}
-			syncQueue.sync {
-				if let newData = handleToRead.availableData() {
-					let bytesCount = newData.count
-					if bytesCount > 0 {
-						let bytesCopy = newData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-						self.stdoutBuff.append(bytesCopy)
-					}
-				}
+			self.stdoutBuff.append(newData)
+			if newLine == true, var parsedLines = self.stdoutBuff.lineSlice(removeBOM:false) {
+				let tailData = parsedLines.removeLast()
+				self.stdoutBuff.removeAll(keepingCapacity:true)
+				self.stdoutBuff.append(tailData)
+				self._scheduleOutCallback(lines:parsedLines)
 			}
 		}
 	
-		stderr.readHandler = { [weak self] handleToRead in
+		stderr.readHandler = { [weak self] newData in
+			var newLine = false
+			newData.withUnsafeBytes({ byteBuff in
+				if let hasBase = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
+					for i in 0..<newData.count {
+						switch hasBase.advanced(by:i).pointee {
+							case 10, 13:
+								newLine = true
+							default:
+							break;
+						}
+					}
+				}
+			})
 			guard let self = self else {
 				return
 			}
-			dg.enter()
-			defer {
-				dg.leave()
-			}
-			syncQueue.sync {
-				if let newData = handleToRead.availableData() {
-					let bytesCount = newData.count
-					if bytesCount > 0 {
-						let bytesCopy = newData.withUnsafeBytes({ return Data(bytes:$0, count:bytesCount) })
-						self.stderrBuff.append(bytesCopy)
-					}
-				}
+			self.stderrBuff.append(newData)
+			if newLine == true, var parsedLines = self.stderrBuff.lineSlice(removeBOM:false) {
+				let tailData = parsedLines.removeLast()
+				self.stderrBuff.removeAll(keepingCapacity:true)
+				self.stderrBuff.append(tailData)
+				self._scheduleErrCallback(lines:parsedLines)
 			}
 		}
+		
 		        
 		if run {
             do {
@@ -157,8 +174,37 @@ public class InteractiveProcess {
 		}
     }
     
+    fileprivate func _scheduleOutCallback(lines:[Data]) {
+    	guard let outHandle = _stdoutHandler else {
+    		return
+    	}
+    	internalCallback.async { [weak self] in
+    		guard let self = self else {
+    			return
+    		}
+    		for (_, curLine) in lines.enumerated() {
+    			outHandle(curLine)
+    		}
+    	}
+    }
+    
+	fileprivate func _scheduleErrCallback(lines:[Data]) {
+    	guard let errHandle = _stderrHandler else {
+    		return
+    	}
+    	internalCallback.async { [weak self] in
+    		guard let self = self else {
+    			return
+    		}
+    		for (_, curLine) in lines.enumerated() {
+    			errHandle(curLine)
+    		}
+    	}
+    }
+
+    
     public func run() throws {
-        try queue.sync {
+        try internalSync.sync(flags:[.inheritQoS]) {
             do {
             	runGroup.enter()
 				try proc.run()
@@ -172,7 +218,7 @@ public class InteractiveProcess {
     }
 	
 	public func suspend() -> Bool? {
-        return queue.sync {
+        return internalSync.sync(flags:[.inheritQoS]) {
             if state == .running {
                 if proc.suspend() == true {
                     state = .suspended
@@ -188,7 +234,7 @@ public class InteractiveProcess {
     }
 	
 	public func resume() -> Bool? {
-        return queue.sync {
+        return internalSync.sync(flags:[.inheritQoS]) {
             if state == .suspended {
                 if proc.resume() == true {
                     state = .running
@@ -204,13 +250,13 @@ public class InteractiveProcess {
 	}
 		
 	public func exportStdOut() -> Data {
-		return queue.sync {
+		return internalSync.sync(flags:[.inheritQoS]) {
 			return stdoutBuff
 		}
 	}
 	
 	public func exportStdErr() -> Data {
-		return queue.sync {
+		return internalSync.sync(flags:[.inheritQoS]) {
 			return stderrBuff
 		}
 	}
