@@ -108,12 +108,12 @@ public class InteractiveProcess {
 				return
 			}
 			self.state = .exited
+			rg.leave()
 		}
         
 		print("rh")
 		stdout.readHandler = { [weak self] newData in
 			var newLine = false
-			print("attempting to read")
 			newData.withUnsafeBytes({ byteBuff in
 				if let hasBase = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
 					for i in 0..<newData.count {
@@ -265,7 +265,6 @@ public class InteractiveProcess {
 	}
 
     public func waitForExitCode() -> Int {
-    	runGroup.enter()
 		runGroup.wait()
         let returnCode = proc.exitCode!
         return Int(returnCode)
