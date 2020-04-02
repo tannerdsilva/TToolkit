@@ -7,7 +7,6 @@ public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     public typealias InputHandler = (InteractiveProcess) -> Void
     
-    private let master:DispatchQueue
 	private let internalSync:DispatchQueue				//what serial thread is going to be used to process the data for each class instance?
 	private let internalCallback:DispatchQueue
 	
@@ -82,7 +81,6 @@ public class InteractiveProcess {
 		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:ipSync)
 		let callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:priority.globalConcurrentQueue)
 
-		self.master = masterThreads
 		self.internalSync = syncQueue
 		self.internalCallback = callbackQueue
 		
