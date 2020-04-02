@@ -71,7 +71,7 @@ internal class ProcessPipes {
 					_readHandler = hasNewHandler
 
 					//schedule the new timer
-					let newSource = DispatchSource.makeReadSource(fileDescriptor:reading.fileDescriptor, queue:concurrentSchedule)
+					let newSource = DispatchSource.makeReadSource(fileDescriptor:reading.fileDescriptor, queue:ioThreads)
 					let reader = reading
 					let intCbQueue = internalCallback
 					newSource.setEventHandler { [weak self] in
@@ -115,7 +115,7 @@ internal class ProcessPipes {
 					_writeHandler = hasNewHandler
 					
 					//schedule the new timer
-					let newSource = DispatchSource.makeWriteSource(fileDescriptor:writing.fileDescriptor, queue:concurrentSchedule)
+					let newSource = DispatchSource.makeWriteSource(fileDescriptor:writing.fileDescriptor, queue:ioThreads)
 					let writer = writing
 					let intCbQueue = internalCallback
 					newSource.setEventHandler { [weak self] in
