@@ -1,14 +1,16 @@
 import Foundation
 
-fileprivate let concurrentExitQueue:DispatchQueue = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", qos:Priority.highest.asDispatchQoS(), attributes:[.concurrent])
+fileprivate let ioQueue:DispatchQueue = DispatchQueue(label:"com.tannersilva.global.process-interactive.pipe-io-proc", qos:Priority.`default`.asDispatchQoS(), attributes:[.concurrent])
 
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     public typealias InputHandler = (InteractiveProcess) -> Void
     
+    private let masterQueue:DispatchQueue
+    
     public let priority:Priority				//what is the priority of this interactive process. most (if not all) of the asyncronous work for this process and others will be based on this Priority
     private let internalSync:DispatchQueue		//what serial thread is going to be used to process the data for each class instance?
-    private let callbackQueue:DispatchQueue		//this is the queue that calls the handlers that the user assigned
+    private let internalCallback:DispatchQueue	//this is the queue that calls the handlers that the user assigned
     
     private let runGroup = DispatchGroup()
     
@@ -29,6 +31,21 @@ public class InteractiveProcess {
 
 	internal let proc:ExecutingProcess
 	public var state:State = .initialized
+    
+    private var _callbackQueue:DispatchQueue
+    public var callbackQueue:DispatchQueue {
+    	get {
+    		return internalSync.sync {
+    			return _callbackQueue
+    		}
+    	}
+    	set {
+    		internalSync.sync {
+    			_callbackQueue = newValue
+    			internalCallback.setTarget(queue:_callbackQueue)
+    		}
+    	}
+    }
     
     /*
     	The stdout handler is called every time a new line is detected 
@@ -75,26 +92,22 @@ public class InteractiveProcess {
     	}
     }
 
-    public init<C>(command:C, priority:Priority = .`default`, run:Bool, callback:DispatchQueue? = nil) throws where C:Command {
+    public init<C>(command:C, priority:Priority = .`default`) throws where C:Command {
     	self.priority = priority
+    	let master = DispatchQueue(label:"com.tannersilva.instance.process-interactive.master", qos:priority.asDispatchQoS(), attributes:[.concurrent])
+    	self.masterQueue = master
     	
-    	let globalConcurrent = priority.globalConcurrentQueue
+    	let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:master)
+    	let callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:master)
     	
-    	let callbackQueue:DispatchQueue
-    	if let specifiedCallback = callback {
-    		callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:callback)
-    	} else {
-    		callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:globalConcurrent)
-    	}
-		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:globalConcurrent)
-		
 		self.internalSync = syncQueue
-		self.callbackQueue = callbackQueue
+		self.internalCallback = callbackQueue
+		self._callbackQueue = callbackQueue
 		
 		//create the ProcessHandles that we need to read the data from this process as it runs
-		let standardIn = try ProcessPipes(queue:concurrentExitQueue)
-		let standardOut = try ProcessPipes(queue:concurrentExitQueue)
-		let standardErr = try ProcessPipes(queue:concurrentExitQueue)
+		let standardIn = try ProcessPipes(queue:ioQueue)
+		let standardOut = try ProcessPipes(queue:ioQueue)
+		let standardErr = try ProcessPipes(queue:ioQueue)
 		stdin = standardIn
 		stdout = standardOut
 		stderr = standardErr
@@ -115,7 +128,7 @@ public class InteractiveProcess {
 				self._finishStderrLines()
 				self.state = .exited
 				let rg = self.runGroup
-				self.callbackQueue.sync {
+				self.internalCallback.sync {
 					rg.leave()
 				}
 			}
@@ -124,12 +137,11 @@ public class InteractiveProcess {
 		stdout.readHandler = { [weak self] handleToRead in
 			//try to read the data. do we get something?
 			if let newData = handleToRead.availableData() {
-				print("out")
 				let bytesCount = newData.count
 				
 				//do we have bytes to take action on?
 				if bytesCount > 0 {
-				
+					print("out \(Date().timeIntervalSince1970)")
 					syncQueue.async { [weak self] in
 						//parse the buffer of unsafe bytes for an endline
 						var shouldLineSlice = false
@@ -196,14 +208,6 @@ public class InteractiveProcess {
 				}
 			}
 		}
-		        
-		if run {
-            do {
-                try self.run()
-            } catch let error {
-                throw error
-            }
-		}
     }
     
     public func run() throws {
@@ -253,7 +257,7 @@ public class InteractiveProcess {
 	}
 	
 	private func callbackStdout(lines:[Data]) {
-		callbackQueue.async { [weak self] in
+		internalCallback.async { [weak self] in
 			guard let self = self, let outHandler = self.stdoutHandler else {
 				return
 			}
@@ -264,7 +268,7 @@ public class InteractiveProcess {
 	}
 	
 	private func callbackStderr(lines:[Data]) {
-		callbackQueue.async { [weak self] in
+		internalCallback.async { [weak self] in
 			guard let self = self, let errHandler = self.stderrHandler else {
 				return
 			}

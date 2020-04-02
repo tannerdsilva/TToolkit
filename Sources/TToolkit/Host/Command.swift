@@ -90,7 +90,7 @@ extension Context {
         var errorLines = [Data]()
         var outputLines = [Data]()
         
-        let process = try InteractiveProcess(command:commandToRun, run:false)
+        let process = try InteractiveProcess(command:commandToRun)
         process.proc.environment = environment
         process.stdoutHandler = { someData in
         	outputLines.append(someData)
@@ -107,12 +107,8 @@ extension Context {
     }
     
     public func prepareAsync(priority:Priority = Priority.`default`, _ thisCommand:String) throws -> InteractiveProcess {
-    	return try prepareAsync(priority:priority, callback:nil, thisCommand)
-    }
-    
-    public func prepareAsync(priority:Priority = Priority.`default`, callback:DispatchQueue?, _ thisCommand:String) throws -> InteractiveProcess {
     	let commandToRun = build(thisCommand)
-    	let processToReturn = try InteractiveProcess(command:commandToRun, priority:priority, run:false, callback:callback)
+    	let processToReturn = try InteractiveProcess(command:commandToRun, priority:priority)
     	processToReturn.proc.environment = environment
     	return processToReturn
     }

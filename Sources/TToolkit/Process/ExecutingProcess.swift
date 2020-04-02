@@ -12,6 +12,7 @@ fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 	return (_WSTATUS(status) != 0) && (_WSTATUS(status) != 0x7f)
 }
 
+fileprivate let exitQueue:DispatchQueue = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", qos:Priority.`default`.asDispatchQoS(), attributes:[.concurrent])
 
 /*
 	ExecutingProcess is my interpretation of the Process object from the Swift Standard Library.
@@ -166,7 +167,7 @@ internal class ExecutingProcess {
 		
 		let flightTime = Date()
 
-		priority.globalConcurrentQueue.async { [weak self] in
+		exitQueue.async { [weak self] in
 			timeAlignGroup.leave()
 			launchGroup.wait()
 			//wait for the process to exit and capture its exit code
