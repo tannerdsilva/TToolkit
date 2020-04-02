@@ -12,7 +12,7 @@ public class InteractiveProcess {
     private let internalSync:DispatchQueue		//what serial thread is going to be used to process the data for each class instance?
     private let internalCallback:DispatchQueue	//this is the queue that calls the handlers that the user assigned
     
-    private let runGroup = DispatchGroup()
+    private let runGroup:DispatchGroup
     
 	public enum State:UInt8 {
 		case initialized = 0
@@ -100,10 +100,13 @@ public class InteractiveProcess {
     	let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:master)
     	let callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:master)
     	let ioInternal = DispatchQueue(label:"com.tannersilva.instance.process-interactive.io", target:ioQueue)
+    	let rg = DispatchGroup()
     	
 		self.internalSync = syncQueue
 		self.internalCallback = callbackQueue
 		self._callbackQueue = callbackQueue
+		
+		self.runGroup = rg
 		
 		//create the ProcessHandles that we need to read the data from this process as it runs
 		let standardIn = try ProcessPipes(queue:ioInternal)
@@ -129,18 +132,17 @@ public class InteractiveProcess {
 				self.stdin.close()
 				self.stdout.close()
 				self.stderr.close()
-			}
-
-			syncQueue.async { [weak self] in
-				guard let self = self else {
-					return
-				}
-				self._finishStdoutLines()
-				self._finishStderrLines()
-				self.state = .exited
-				let rg = self.runGroup
-				self.internalCallback.async {
-					rg.leave()
+				syncQueue.async { [weak self] in
+					guard let self = self else {
+						return
+					}
+					self._finishStdoutLines()
+					self._finishStderrLines()
+					self.state = .exited
+					let rg = self.runGroup
+					self.internalCallback.async {
+						rg.leave()
+					}
 				}
 			}
 		}
@@ -153,24 +155,24 @@ public class InteractiveProcess {
 				//do we have bytes to take action on?
 				if bytesCount > 0 {
 					print("out \(Date().timeIntervalSince1970)")
-					//parse the buffer of unsafe bytes for an endline
-					var shouldLineSlice = false
-					let bytesCopy = newData.withUnsafeBytes({ byteBuff -> Data? in
-						if let hasBaseAddress = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
-							for i in 0..<bytesCount {
-								switch hasBaseAddress.advanced(by:i).pointee {
-									case 10, 13:
-										shouldLineSlice = true
-									default:
-									break;
-								}
-							}
-							return Data(bytes:hasBaseAddress, count:bytesCount)
-						} else {
-							return nil
-						}
-					})
 					syncQueue.async { [weak self] in
+						//parse the buffer of unsafe bytes for an endline
+						var shouldLineSlice = false
+						let bytesCopy = newData.withUnsafeBytes({ byteBuff -> Data? in
+							if let hasBaseAddress = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
+								for i in 0..<bytesCount {
+									switch hasBaseAddress.advanced(by:i).pointee {
+										case 10, 13:
+											shouldLineSlice = true
+										default:
+										break;
+									}
+								}
+								return Data(bytes:hasBaseAddress, count:bytesCount)
+							} else {
+								return nil
+							}
+						})
 						//validate the relevant variables before passing to the builder function
 						guard let self = self, let validatedData = bytesCopy else {
 							return
@@ -189,24 +191,24 @@ public class InteractiveProcess {
 				
 				//does this data have bytes that we can take action on?
 				if bytesCount > 0 {
-					//parse the buffer of unsafe bytes for an endline
-					var shouldLineSlice = false
-					let bytesCopy = newData.withUnsafeBytes({ byteBuff -> Data? in
-						if let hasBaseAddress = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
-							for i in 0..<bytesCount {
-								switch hasBaseAddress.advanced(by:i).pointee {
-									case 10, 13:
-										shouldLineSlice = true
-									default:
-									break;
-								}
-							}
-							return Data(bytes:hasBaseAddress, count:bytesCount)
-						} else {
-							return nil
-						}
-					})
 					syncQueue.async { [weak self] in
+						//parse the buffer of unsafe bytes for an endline
+						var shouldLineSlice = false
+						let bytesCopy = newData.withUnsafeBytes({ byteBuff -> Data? in
+							if let hasBaseAddress = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
+								for i in 0..<bytesCount {
+									switch hasBaseAddress.advanced(by:i).pointee {
+										case 10, 13:
+											shouldLineSlice = true
+										default:
+										break;
+									}
+								}
+								return Data(bytes:hasBaseAddress, count:bytesCount)
+							} else {
+								return nil
+							}
+						})
 						//validate the relevant variables before passing to the builder function
 						guard let self = self, let validatedData = bytesCopy else {
 							return
