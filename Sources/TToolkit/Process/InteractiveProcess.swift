@@ -169,10 +169,10 @@ public class InteractiveProcess {
 						}
 					})
 
-					guard let self = self else {
-						return
-					}
-					syncQueue.sync {
+					syncQueue.async { [weak self] in
+						guard let self = self else {
+							return
+						}
 						self._buildStdout(data:newData, lineSlice:shouldLineSlice)
 					}
 				}
@@ -201,10 +201,10 @@ public class InteractiveProcess {
 						}
 					})
 
-					guard let self = self else {
-						return
-					}
-					syncQueue.sync {
+					syncQueue.async { [weak self] in
+						guard let self = self else {
+							return
+						}
 						self._buildStderr(data:newData, lineSlice:shouldLineSlice)
 					}
 				}
