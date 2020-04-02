@@ -75,7 +75,6 @@ public class InteractiveProcess {
     }
 
     public init<C>(command:C, priority:Priority = .`default`, run:Bool) throws where C:Command {
-    	print("can I init?")
     	self.priority = priority
 
 		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:ipSync)
@@ -266,6 +265,7 @@ public class InteractiveProcess {
 	}
 
     public func waitForExitCode() -> Int {
+    	runGroup.enter()
 		runGroup.wait()
         let returnCode = proc.exitCode!
         return Int(returnCode)
