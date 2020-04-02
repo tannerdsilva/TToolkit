@@ -111,7 +111,9 @@ internal class ExecutingProcess {
 	
 	func run() throws {
 		let syncQueue = internalSync
+		print("trying run")
 		try syncQueue.sync {
+			print("attempting to run")
 			guard isRunning == false else {
 				throw ProcessError.processAlreadyRunning
 			}
