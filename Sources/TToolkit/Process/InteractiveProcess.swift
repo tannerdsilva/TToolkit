@@ -1,6 +1,6 @@
 import Foundation
 
-fileprivate let ioQueue:DispatchQueue = DispatchQueue(label:"com.tannersilva.global.process-interactive.pipe-io-proc", qos:Priority.`default`.asDispatchQoS(), attributes:[.concurrent])
+fileprivate let ioQueue:DispatchQueue = DispatchQueue(label:"com.tannersilva.global.process-interactive.pipe-io-proc", qos:Priority.highest.asDispatchQoS(), attributes:[.concurrent])
 
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
@@ -99,15 +99,16 @@ public class InteractiveProcess {
     	
     	let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:master)
     	let callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:master)
+    	let ioInternal = DispatchQueue(label:"com.tannersilva.instance.process-interactive.io", target:ioQueue)
     	
 		self.internalSync = syncQueue
 		self.internalCallback = callbackQueue
 		self._callbackQueue = callbackQueue
 		
 		//create the ProcessHandles that we need to read the data from this process as it runs
-		let standardIn = try ProcessPipes(queue:ioQueue)
-		let standardOut = try ProcessPipes(queue:ioQueue)
-		let standardErr = try ProcessPipes(queue:ioQueue)
+		let standardIn = try ProcessPipes(queue:ioInternal)
+		let standardOut = try ProcessPipes(queue:ioInternal)
+		let standardErr = try ProcessPipes(queue:ioInternal)
 		stdin = standardIn
 		stdout = standardOut
 		stderr = standardErr
