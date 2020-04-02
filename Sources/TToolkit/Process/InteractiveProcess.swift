@@ -76,10 +76,10 @@ public class InteractiveProcess {
     }
 
     public init<C>(command:C, priority:Priority = .`default`, run:Bool) throws where C:Command {
+    	print("can I init?")
     	self.priority = priority
 
-    	let masterThreads = DispatchQueue(label:"com.tannersilva.instance.process-interactive", qos:priority.asDispatchQoS(), attributes:[.concurrent], target:ipSync)
-		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:masterThreads)
+		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:ipSync)
 		let callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:priority.globalConcurrentQueue)
 
 		self.master = masterThreads
