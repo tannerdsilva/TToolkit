@@ -121,6 +121,16 @@ public class InteractiveProcess {
 		proc.stderr = standardErr
 		
 		proc.terminationHandler = { [weak self] _ in
+			ioInternal.async { [weak self] in
+				guard let self = self else {
+					return
+				}
+				//close file handles if they exist
+				self.stdin.close()
+				self.stdout.close()
+				self.stderr.close()
+			}
+
 			syncQueue.async { [weak self] in
 				guard let self = self else {
 					return
@@ -143,25 +153,24 @@ public class InteractiveProcess {
 				//do we have bytes to take action on?
 				if bytesCount > 0 {
 					print("out \(Date().timeIntervalSince1970)")
-					syncQueue.sync {
-						//parse the buffer of unsafe bytes for an endline
-						var shouldLineSlice = false
-						let bytesCopy = newData.withUnsafeBytes({ byteBuff -> Data? in
-							if let hasBaseAddress = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
-								for i in 0..<bytesCount {
-									switch hasBaseAddress.advanced(by:i).pointee {
-										case 10, 13:
-											shouldLineSlice = true
-										default:
-										break;
-									}
+					//parse the buffer of unsafe bytes for an endline
+					var shouldLineSlice = false
+					let bytesCopy = newData.withUnsafeBytes({ byteBuff -> Data? in
+						if let hasBaseAddress = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
+							for i in 0..<bytesCount {
+								switch hasBaseAddress.advanced(by:i).pointee {
+									case 10, 13:
+										shouldLineSlice = true
+									default:
+									break;
 								}
-								return Data(bytes:hasBaseAddress, count:bytesCount)
-							} else {
-								return nil
 							}
-						})
-					
+							return Data(bytes:hasBaseAddress, count:bytesCount)
+						} else {
+							return nil
+						}
+					})
+					syncQueue.async { [weak self] in
 						//validate the relevant variables before passing to the builder function
 						guard let self = self, let validatedData = bytesCopy else {
 							return
@@ -180,26 +189,24 @@ public class InteractiveProcess {
 				
 				//does this data have bytes that we can take action on?
 				if bytesCount > 0 {
-				
-					syncQueue.sync {
-						//parse the buffer of unsafe bytes for an endline
-						var shouldLineSlice = false
-						let bytesCopy = newData.withUnsafeBytes({ byteBuff -> Data? in
-							if let hasBaseAddress = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
-								for i in 0..<bytesCount {
-									switch hasBaseAddress.advanced(by:i).pointee {
-										case 10, 13:
-											shouldLineSlice = true
-										default:
-										break;
-									}
+					//parse the buffer of unsafe bytes for an endline
+					var shouldLineSlice = false
+					let bytesCopy = newData.withUnsafeBytes({ byteBuff -> Data? in
+						if let hasBaseAddress = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
+							for i in 0..<bytesCount {
+								switch hasBaseAddress.advanced(by:i).pointee {
+									case 10, 13:
+										shouldLineSlice = true
+									default:
+									break;
 								}
-								return Data(bytes:hasBaseAddress, count:bytesCount)
-							} else {
-								return nil
 							}
-						})
-					
+							return Data(bytes:hasBaseAddress, count:bytesCount)
+						} else {
+							return nil
+						}
+					})
+					syncQueue.async { [weak self] in
 						//validate the relevant variables before passing to the builder function
 						guard let self = self, let validatedData = bytesCopy else {
 							return

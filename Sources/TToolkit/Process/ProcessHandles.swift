@@ -214,7 +214,7 @@ internal class ProcessHandle {
 	
 	deinit {
 		if _fd != -1 {
-			close()
+			_ = _close(_fd)
 		}
 	}
 

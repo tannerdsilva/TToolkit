@@ -183,10 +183,6 @@ internal class ExecutingProcess {
 			guard let self = self else {
 				return
 			}
-			//close file handles if they exist
-			self.stdin?.close()
-			self.stdout?.close()
-			self.stderr?.close()
 
 			self.isRunning = false
 			if WIFSIGNALED(ec) {
