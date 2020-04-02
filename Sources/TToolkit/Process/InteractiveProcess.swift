@@ -114,6 +114,7 @@ public class InteractiveProcess {
         
 		stdout.readHandler = { [weak self] newData in
 			var newLine = false
+			print("attempting to read")
 			newData.withUnsafeBytes({ byteBuff in
 				if let hasBase = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
 					for i in 0..<newData.count {
@@ -140,6 +141,7 @@ public class InteractiveProcess {
 	
 		stderr.readHandler = { [weak self] newData in
 			var newLine = false
+			print("attempting to read")
 			newData.withUnsafeBytes({ byteBuff in
 				if let hasBase = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
 					for i in 0..<newData.count {
