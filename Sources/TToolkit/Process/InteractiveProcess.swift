@@ -206,6 +206,18 @@ public class InteractiveProcess {
 
     
     public func run() throws {
+    	runGroup.enter()
+		do {
+			try proc.run()
+			internalSync.sync {
+				state = .running
+			}
+		} catch let error {
+			runGroup.leave()
+			internalSync.sync {
+				state = .failed
+			}
+		}
         try internalSync.sync(flags:[.inheritQoS]) {
             print("trying to run")
             do {
