@@ -168,8 +168,10 @@ internal class ExecutingProcess {
 		let flightTime = Date()
 
 		exitQueue.async { [weak self] in
+			//wait for this process to be launched
 			timeAlignGroup.leave()
 			launchGroup.wait()
+			
 			//wait for the process to exit and capture its exit code
 			var waitResult:Int32 = 0
 			var ec:Int32 = 0

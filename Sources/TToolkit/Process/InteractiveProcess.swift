@@ -129,7 +129,7 @@ public class InteractiveProcess {
 				self._finishStderrLines()
 				self.state = .exited
 				let rg = self.runGroup
-				self.internalCallback.sync {
+				self.internalCallback.async {
 					rg.leave()
 				}
 			}
@@ -143,7 +143,7 @@ public class InteractiveProcess {
 				//do we have bytes to take action on?
 				if bytesCount > 0 {
 					print("out \(Date().timeIntervalSince1970)")
-					syncQueue.async { [weak self] in
+					syncQueue.sync {
 						//parse the buffer of unsafe bytes for an endline
 						var shouldLineSlice = false
 						let bytesCopy = newData.withUnsafeBytes({ byteBuff -> Data? in
@@ -181,7 +181,7 @@ public class InteractiveProcess {
 				//does this data have bytes that we can take action on?
 				if bytesCount > 0 {
 				
-					syncQueue.async { [weak self] in
+					syncQueue.sync {
 						//parse the buffer of unsafe bytes for an endline
 						var shouldLineSlice = false
 						let bytesCopy = newData.withUnsafeBytes({ byteBuff -> Data? in
