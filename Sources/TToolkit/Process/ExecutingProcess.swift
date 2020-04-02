@@ -185,15 +185,15 @@ internal class ExecutingProcess {
 			guard let self = self else {
 				return
 			}
-
-			self.isRunning = false
-			if WIFSIGNALED(ec) {
-				self.terminationReason = TerminationReason.uncaughtSignal
-			} else {
-				self.terminationReason = TerminationReason.exited
+			self.internalSync.sync {
+				self.isRunning = false
+				if WIFSIGNALED(ec) {
+					self.terminationReason = TerminationReason.uncaughtSignal
+				} else {
+					self.terminationReason = TerminationReason.exited
+				}
+				self.exitCode = ec
 			}
-			self.exitCode = ec
-			
 			if let th = self.terminationHandler {
 				th(self)
 			}
@@ -209,9 +209,10 @@ internal class ExecutingProcess {
 		print(Colors.green("-> launched"))
 		let launchDate = Date()
 		
-	
-		processIdentifier = lpid
-		isRunning = true
+		internalSync.sync {
+			processIdentifier = lpid
+			isRunning = true
+		}
 	}
 	
 	func _suspend() -> Bool? {
