@@ -153,11 +153,28 @@ public class InteractiveProcess {
 				let bytesCount = newData.count
 				
 				//do we have bytes to take action on?
-				if bytesCount > 0 {
+				if bytesCount > 0 {				
+					//parse the buffer of unsafe bytes for an endline
+					var shouldLineSlice = false
+					newData.withUnsafeBytes({ byteBuff -> Void in
+						if let hasBaseAddress = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
+							for i in 0..<bytesCount {
+								switch hasBaseAddress.advanced(by:i).pointee {
+									case 10, 13:
+										shouldLineSlice = true
+									default:
+									break;
+								}
+							}
+						}
+					})
+
 					guard let self = self else {
 						return
 					}
-					self.outIn(newData)
+					syncQueue.sync {
+						self._buildStdout(data:newData, lineSlice:shouldLineSlice)
+					}
 				}
 			}
 		}
@@ -169,69 +186,29 @@ public class InteractiveProcess {
 				
 				//does this data have bytes that we can take action on?
 				if bytesCount > 0 {
+					//parse the buffer of unsafe bytes for an endline
+					var shouldLineSlice = false
+					newData.withUnsafeBytes({ byteBuff -> Void in
+						if let hasBaseAddress = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
+							for i in 0..<bytesCount {
+								switch hasBaseAddress.advanced(by:i).pointee {
+									case 10, 13:
+										shouldLineSlice = true
+									default:
+									break;
+								}
+							}
+						}
+					})
+
 					guard let self = self else {
 						return
 					}
-					self.errIn(newData)
-				}
-			}
-		}
-    }
-    
-	fileprivate func outIn(_ newData:Data) { 
-		internalSync.async { [weak self] in
-			let bytesCount = newData.count
-			//parse the buffer of unsafe bytes for an endline
-			var shouldLineSlice = false
-			let bytesCopy = newData.withUnsafeBytes({ byteBuff -> Data? in
-				if let hasBaseAddress = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
-					for i in 0..<bytesCount {
-						switch hasBaseAddress.advanced(by:i).pointee {
-							case 10, 13:
-								shouldLineSlice = true
-							default:
-							break;
-						}
+					syncQueue.sync {
+						self._buildStderr(data:newData, lineSlice:shouldLineSlice)
 					}
-					return Data(bytes:hasBaseAddress, count:bytesCount)
-				} else {
-					return nil
 				}
-			})
-			//validate the relevant variables before passing to the builder function
-			guard let self = self, let validatedData = bytesCopy else {
-				return
 			}
-			self._buildStdout(data:validatedData, lineSlice:shouldLineSlice)
-		}
-    }
-    
-    fileprivate func errIn(_ newData:Data) { 
-		internalSync.async { [weak self] in
-			let bytesCount = newData.count
-			print("err")
-			//parse the buffer of unsafe bytes for an endline
-			var shouldLineSlice = false
-			let bytesCopy = newData.withUnsafeBytes({ byteBuff -> Data? in
-				if let hasBaseAddress = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
-					for i in 0..<bytesCount {
-						switch hasBaseAddress.advanced(by:i).pointee {
-							case 10, 13:
-								shouldLineSlice = true
-							default:
-							break;
-						}
-					}
-					return Data(bytes:hasBaseAddress, count:bytesCount)
-				} else {
-					return nil
-				}
-			})
-			//validate the relevant variables before passing to the builder function
-			guard let self = self, let validatedData = bytesCopy else {
-				return
-			}
-			self._buildStderr(data:validatedData, lineSlice:shouldLineSlice)
 		}
     }
     
