@@ -75,9 +75,14 @@ internal class ProcessPipes {
 					let reader = reading
 					let intCbQueue = internalCallback
 					newSource.setEventHandler { [weak self] in
-						if let newData = reader.availableData() {
-							intCbQueue.async {
-								hasNewHandler(newData)
+						guard let self = self else {
+							return
+						}
+						self.internalSync.sync {
+							if let newData = reader.availableData() {
+								intCbQueue.async {
+									hasNewHandler(newData)
+								}
 							}
 						}
 					}
