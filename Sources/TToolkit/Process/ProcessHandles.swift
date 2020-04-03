@@ -185,7 +185,7 @@ internal class ProcessPipes {
 	}
 }
 
-fileprivate let phLock = DispatchQueue(label:"com.tannersilva.global.process-handle.sync", attributes:[.concurrent])
+fileprivate let phLock = DispatchQueue(label:"com.tannersilva.global.process-handle.sync", qos:Priority.low.asDispatchQoS(), attributes:[.concurrent])
 
 internal class ProcessHandle {
 	fileprivate let internalSync:DispatchQueue
@@ -199,7 +199,7 @@ internal class ProcessHandle {
 	
 	init(fd:Int32) {
 		self._fd = fd
-		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-handle.sync", target:phLock)
+		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-handle.sync", qos:Priority.low.asDispatchQoS(), target:phLock)
 	}
 	
 	func write(_ dataObj:Data) throws {
