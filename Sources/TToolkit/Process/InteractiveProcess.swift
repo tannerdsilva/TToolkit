@@ -212,6 +212,7 @@ print("init yay")
     }
     
     public func run() throws {
+    	print("trying to run")
     	try internalSync.sync {
 			runGroup.enter()
 			do {
