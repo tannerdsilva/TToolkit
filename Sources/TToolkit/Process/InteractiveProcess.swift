@@ -108,19 +108,17 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
-			
-			let barrierWork = DispatchWorkItem(qos:Priority.high.asDispatchQoS(), flags:[.barrier, .enforceQoS], block: { [weak self] in
+			print(Colors.red("term handle"))
+			let barrierWork = DispatchWorkItem(flags:[.barrier, .enforceQoS], block: { [weak self] in
 				guard let self = self else {
 					return
 				}
 				self.state = .exited
 				rg.leave()
 			})
-			self.masterQueue.async(execute:barrierWork)
+			self.masterQueue.sync(execute:barrierWork)
 		}
-        print("?")
 		stdout.readHandler = { [weak self] newData in
-			print("rh")
 			var newLine = false
 			newData.withUnsafeBytes({ byteBuff in
 				if let hasBase = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {

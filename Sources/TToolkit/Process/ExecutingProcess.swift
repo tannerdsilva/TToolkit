@@ -112,7 +112,7 @@ internal class ExecutingProcess {
 		self.internalCallback = icb
 		self._callbackQueue = callback
 		
-		let eq = DispatchQueue(label:"com.tannersilva.instance.executing.exit-wait", target:exitThreads)
+		let eq = DispatchQueue(label:"com.tannersilva.instance.executing.exit-wait", qos:Priority.highest.asDispatchQoS(), target:exitThreads)
 		self.exitQueue = eq
 		
 		self.executable = execute
@@ -215,7 +215,7 @@ internal class ExecutingProcess {
 
 			//launch a thread on the concurrent queue to wait for this process to finish executing
 			exitQueue.async { [weak self] in
-				let launchDate = Date()
+				var launchDate = Date()
 				
 				print(Colors.Yellow("launched exit thread in \(launchDate.timeIntervalSince(startDate)) seconds"))
 				
@@ -226,11 +226,16 @@ internal class ExecutingProcess {
 				repeat {
 					waitResult = waitpid(lpid, &ec, 0)
 				} while waitResult == -1 && errno == EINTR || WIFEXITED(ec) == false || lpid == 0
-				print(Colors.red("Yay exit"))
-				syncQueue.async { [weak self] in
+				guard let self = self else {
+					return
+				}
+				
+				let completionWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
 					guard let self = self else {
 						return
 					}
+					let runDate = Date()
+					print(Colors.cyan("started running exit handler in \(launchDate.timeIntervalSince(runDate)) seconds"))
 					self.isRunning = false
 					if WIFSIGNALED(ec) {
 						self.terminationReason = TerminationReason.uncaughtSignal
@@ -241,19 +246,18 @@ internal class ExecutingProcess {
 					self.stdin?.close()
 					self.stdout?.close()
 					self.stderr?.close()
-					
-					if let th = self._terminationHandler {
-						let workItem = DispatchWorkItem(flags:[.assignCurrentContext, .barrier]) { [weak self] in
-							guard let self = self else {
-								return
-							}
-							print("termination handler called")
-							th(self)
+				}
+				
+				if let hasTermHandle = self.terminationHandler {
+					completionWorkItem.notify(flags:[.inheritQoS], queue:self.internalCallback) { [weak self] in
+						guard let self = self else {
+							return
 						}
-						self.internalCallback.async(execute:workItem)
-						print("termination handler scheduled")
+						hasTermHandle(self)
 					}
 				}
+				
+				self.internalSync.sync(execute:completionWorkItem)
 			}
 			queueGroup.wait()
 			try serialRun.sync {
