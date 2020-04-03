@@ -20,7 +20,7 @@ fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 	Furthermore, the standard 
 */
 
-fileprivate let exitThreads = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", attributes:[.concurrent])
+fileprivate let exitThreads = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", qos:Priority.highest.asDispatchQoS(), attributes:[.concurrent])
 fileprivate let epLocks = DispatchQueue(label:"com.tannersilva.global.process-executing.sync", attributes:[.concurrent])
 fileprivate let serialRun = DispatchQueue(label:"com.tannersilva.global.process-executing.run-serial")
 
@@ -256,7 +256,7 @@ internal class ExecutingProcess {
 						hasTermHandle(self)
 					}
 				}
-				self.internalSync.sync(execute:completionWorkItem)
+				self.internalSync.async(execute:completionWorkItem)
 			}
 			exitQueue.async(execute:exitWorkItem)
 			queueGroup.wait()
