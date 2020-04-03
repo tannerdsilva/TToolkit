@@ -126,7 +126,7 @@ internal class ExecutingProcess {
 	
 	func run() throws {
 		let syncQueue = internalSync
-		try syncQueue.sync {
+		return try syncQueue.sync(flags:[.inheritQoS], execute: { () -> Void in
 			print("attempting to run")
 			guard isRunning == false else {
 				throw ProcessError.processAlreadyRunning
@@ -228,7 +228,7 @@ internal class ExecutingProcess {
 					waitResult = waitpid(lpid, &ec, 0)
 				} while waitResult == -1 && errno == EINTR || WIFEXITED(ec) == false || lpid == 0
 				print(Colors.red("Yay exit"))
-				syncQueue.async { [weak self] in
+				syncQueue.async(flags:[.inheritQoS], execute: { [weak self] in
 					guard let self = self else {
 						return
 					}
@@ -244,7 +244,7 @@ internal class ExecutingProcess {
 					self.stderr?.close()
 					
 					if let th = self._terminationHandler {
-						let workItem = DispatchWorkItem(qos:Priority.highest.asDispatchQoS(), flags:[.enforceQoS, .barrier], block: { [weak self] in
+						let workItem = DispatchWorkItem(flags:[.assignCurrentContext, .barrier], block: { [weak self] in
 							guard let self = self else {
 								return
 							}
@@ -252,7 +252,7 @@ internal class ExecutingProcess {
 						})
 						self.internalCallback.async(execute:workItem)
 					}
-				}
+				})
 			}
 			queueGroup.wait()
 			try serialRun.sync {
@@ -264,12 +264,11 @@ internal class ExecutingProcess {
 			
 			processIdentifier = lpid
 			isRunning = true
-			
-		}
+		})
 	}
 	
 	func suspend() -> Bool? {
-		return internalSync.sync {
+		return internalSync.sync(flags:[.inheritQoS], execute: { () -> Bool? in
 			guard let pid = processIdentifier else {
 				return nil
 			}
@@ -278,29 +277,29 @@ internal class ExecutingProcess {
 			} else {
 				return false
 			}
-		}
+		})
 	}
 	
 	func terminate() {
-		internalSync.sync {
+		internalSync.sync(flags:[.inheritQoS], execute: { () -> Void in
 			guard let pid = processIdentifier else {
 				return
 			}
 			kill(pid, SIGTERM)
-		}
+		})
 	}
 	
 	func forceKill() {
-		return internalSync.sync {
+		internalSync.sync(flags:[.inheritQoS], execute: { () -> Void in
 			guard let pid = processIdentifier else {
 				return
 			}
 			kill(pid, SIGKILL)
-		}
+		})
 	}
 	
 	func resume() -> Bool? {
-		return internalSync.sync {
+		return internalSync.sync(flags:[.inheritQoS], execute: { () -> Bool? in
 			guard let pid = processIdentifier else {
 				return nil
 			}
@@ -309,6 +308,6 @@ internal class ExecutingProcess {
 			} else {
 				return false
 			}
-		}
+		})
 	}
 }

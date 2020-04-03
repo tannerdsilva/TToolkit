@@ -18,7 +18,7 @@ import Foundation
 #endif
 
 
-fileprivate let ioThreads = DispatchQueue(label:"com.tannersilva.global.process-handle.io", qos:Priority.highest.asDispatchQoS(), attributes:[.concurrent])
+fileprivate let ioThreads = DispatchQueue(label:"com.tannersilva.global.process-handle.io", attributes:[.concurrent])
 fileprivate let ppLocks = DispatchQueue(label:"com.tannersilva.global.process-pipe.sync", attributes:[.concurrent])
 fileprivate let ppInit = DispatchQueue(label:"com.tannersilva.global.process-pipe.init-serial")
 
@@ -41,15 +41,15 @@ internal class ProcessPipes {
 	private var _callbackQueue:DispatchQueue
 	var handlerQueue:DispatchQueue {
 		get {
-			return internalSync.sync {
+			return internalSync.sync(flags:[.inheritQoS], execute: { () -> DispatchQueue in
 				return _callbackQueue
-			}
+			})
 		}
 		set {
-			internalSync.sync {
+			internalSync.sync(flags:[.inheritQoS], execute: { () -> Void in
 				_callbackQueue = newValue
 				internalCallback.setTarget(queue:_callbackQueue)
-			}
+			})
 		}
 	}
 
@@ -57,12 +57,12 @@ internal class ProcessPipes {
 	private var _readHandler:ReadHandler? = nil
 	var readHandler:ReadHandler? {
 		get {
-			return internalSync.sync {
+			return internalSync.sync(flags:[.inheritQoS], execute: { () -> ReadHandler? in
 				return _readHandler
-			}
+			})
 		}
 		set {
-			internalSync.sync {
+			internalSync.sync(flags:[.inheritQoS], execute: { () -> Void in
 				//cancel the old handler source if it exists
 				if let hasReadSource = readSource {
 					hasReadSource.cancel()
@@ -94,7 +94,7 @@ internal class ProcessPipes {
 					_readHandler = nil
 					readSource = nil
 				}
-			}
+			})
 		}
 	}
 	
@@ -102,12 +102,12 @@ internal class ProcessPipes {
 	private var _writeHandler:WriteHandler? = nil
 	var writeHandler:WriteHandler? {
 		get {
-			return internalSync.sync {
+			return internalSync.sync(flags:[.inheritQoS], execute: { () -> WriteHandler? in
 				return _writeHandler
-			}
+			})
 		}
 		set {
-			internalSync.sync {
+			internalSync.sync(flags:[.inheritQoS], execute: { () -> Void in
 				//cancel the existing writing source if it exists
 				if let hasWriteSource = writeSource {
 					hasWriteSource.cancel()
@@ -134,7 +134,7 @@ internal class ProcessPipes {
 					_writeHandler = nil
 					writeSource = nil
 				}
-			}
+			})
 		}
 	}
 	
@@ -199,17 +199,17 @@ internal class ProcessHandle {
 	
 	init(fd:Int32, priority:Priority = Priority.`default`) {
 		self._fd = fd
-		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-handle.sync", qos:priority.asDispatchQoS(), target:phLock)
+		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-handle.sync", target:phLock)
 	}
 	
 	func write(_ dataObj:Data) throws {
-		try internalSync.sync {
+		try internalSync.sync(flags:[.inheritQoS], execute: { () -> Void in
 			try dataObj.withUnsafeBytes({
 				if let hasBaseAddress = $0.baseAddress {
 					try write(buf:hasBaseAddress, length:dataObj.count)
 				}
 			})
-		}
+		})
 	}
 	
 	fileprivate func write(buf:UnsafeRawPointer, length:Int) throws {
@@ -228,7 +228,7 @@ internal class ProcessHandle {
 	}
 	
 	func availableData() -> Data? {
-		internalSync.sync {
+		internalSync.sync(flags:[.inheritQoS], execute: { () -> Data? in
 			var statbuf = stat()
 			if fstat(_fd, &statbuf) < 0 {
 				return nil
@@ -254,11 +254,11 @@ internal class ProcessHandle {
 			}
 			let bytesBound = dynamicBuffer.bindMemory(to:UInt8.self, capacity:amountRead)
 			return Data(bytes:bytesBound, count:amountRead)
-		}
+		})
 	}
 	
 	func close() {
-		internalSync.sync {
+		internalSync.sync(flags:[.inheritQoS], execute: { () -> Void in
 			guard _fd != -1 else {
 				return
 			}
@@ -267,7 +267,7 @@ internal class ProcessHandle {
 				return
 			}
 			_fd = -1
-		}
+		})
 	}
 	
 	deinit {
