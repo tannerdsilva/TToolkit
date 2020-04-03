@@ -41,15 +41,15 @@ internal class ProcessPipes {
 	private var _callbackQueue:DispatchQueue
 	var handlerQueue:DispatchQueue {
 		get {
-			return internalSync.sync(flags:[.inheritQoS], execute: { () -> DispatchQueue in
+			return internalSync.sync {
 				return _callbackQueue
-			})
+			}
 		}
 		set {
-			internalSync.sync(flags:[.inheritQoS], execute: { () -> Void in
+			internalSync.sync {
 				_callbackQueue = newValue
 				internalCallback.setTarget(queue:_callbackQueue)
-			})
+			}
 		}
 	}
 
@@ -57,12 +57,12 @@ internal class ProcessPipes {
 	private var _readHandler:ReadHandler? = nil
 	var readHandler:ReadHandler? {
 		get {
-			return internalSync.sync(flags:[.inheritQoS], execute: { () -> ReadHandler? in
+			return internalSync.sync {
 				return _readHandler
-			})
+			}
 		}
 		set {
-			internalSync.sync(flags:[.inheritQoS], execute: { () -> Void in
+			internalSync.sync {
 				//cancel the old handler source if it exists
 				if let hasReadSource = readSource {
 					hasReadSource.cancel()
@@ -94,7 +94,7 @@ internal class ProcessPipes {
 					_readHandler = nil
 					readSource = nil
 				}
-			})
+			}
 		}
 	}
 	
@@ -102,12 +102,12 @@ internal class ProcessPipes {
 	private var _writeHandler:WriteHandler? = nil
 	var writeHandler:WriteHandler? {
 		get {
-			return internalSync.sync(flags:[.inheritQoS], execute: { () -> WriteHandler? in
+			return internalSync.sync {
 				return _writeHandler
-			})
+			}
 		}
 		set {
-			internalSync.sync(flags:[.inheritQoS], execute: { () -> Void in
+			internalSync.sync {
 				//cancel the existing writing source if it exists
 				if let hasWriteSource = writeSource {
 					hasWriteSource.cancel()
@@ -134,7 +134,7 @@ internal class ProcessPipes {
 					_writeHandler = nil
 					writeSource = nil
 				}
-			})
+			}
 		}
 	}
 	
@@ -199,17 +199,17 @@ internal class ProcessHandle {
 	
 	init(fd:Int32, priority:Priority = Priority.`default`) {
 		self._fd = fd
-		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-handle.sync", target:phLock)
+		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-handle.sync", qos:priority.asDispatchQoS(), target:phLock)
 	}
 	
 	func write(_ dataObj:Data) throws {
-		try internalSync.sync(flags:[.inheritQoS], execute: { () -> Void in
+		try internalSync.sync {
 			try dataObj.withUnsafeBytes({
 				if let hasBaseAddress = $0.baseAddress {
 					try write(buf:hasBaseAddress, length:dataObj.count)
 				}
 			})
-		})
+		}
 	}
 	
 	fileprivate func write(buf:UnsafeRawPointer, length:Int) throws {
