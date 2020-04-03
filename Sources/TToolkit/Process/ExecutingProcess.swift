@@ -212,9 +212,8 @@ internal class ExecutingProcess {
 			queueGroup.enter()
 			
 			let startDate = Date()
-
-			//launch a thread on the concurrent queue to wait for this process to finish executing
-			exitQueue.async { [weak self] in
+			
+			let exitWorkItem = DispatchWorkItem(qos:Priority.highest.asDispatchQoS(), flags:[.enforceQoS]) { [weak self] in
 				var launchDate = Date()
 				
 				print(Colors.Yellow("launched exit thread in \(launchDate.timeIntervalSince(startDate)) seconds"))
@@ -226,10 +225,10 @@ internal class ExecutingProcess {
 				repeat {
 					waitResult = waitpid(lpid, &ec, 0)
 				} while waitResult == -1 && errno == EINTR || WIFEXITED(ec) == false || lpid == 0
+				
 				guard let self = self else {
 					return
 				}
-				
 				let completionWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
 					guard let self = self else {
 						return
@@ -247,7 +246,6 @@ internal class ExecutingProcess {
 					self.stdout?.close()
 					self.stderr?.close()
 				}
-				
 				if let hasTermHandle = self.terminationHandler {
 					completionWorkItem.notify(flags:[.inheritQoS], queue:self.internalCallback) { [weak self] in
 						guard let self = self else {
@@ -256,9 +254,9 @@ internal class ExecutingProcess {
 						hasTermHandle(self)
 					}
 				}
-				
 				self.internalSync.sync(execute:completionWorkItem)
 			}
+			exitQueue.async(execute:exitWorkItem)
 			queueGroup.wait()
 			try serialRun.sync {
 				guard posix_spawn(&lpid, launchPath, fileActions, nil, argC, envC) == 0 else {
