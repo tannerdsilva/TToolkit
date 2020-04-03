@@ -118,7 +118,7 @@ print("init yay")
 			})
 			self.masterQueue.async(execute:barrierWork)
 		}
-        
+        print("?")
 		stdout.readHandler = { [weak self] newData in
 			print("rh")
 			var newLine = false
@@ -145,7 +145,7 @@ print("init yay")
 				self._scheduleOutCallback(lines:parsedLines)
 			}
 		}
-	
+		print("??")
 		stderr.readHandler = { [weak self] newData in
 			print("errh")
 			var newLine = false
@@ -172,7 +172,7 @@ print("init yay")
 				self._scheduleErrCallback(lines:parsedLines)
 			}
 		}
-		
+		print("????")
 		        
 		if run {
             do {
