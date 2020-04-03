@@ -203,7 +203,7 @@ internal class ProcessHandle {
 	}
 	
 	func write(_ dataObj:Data) throws {
-		try internalSync.sync {
+		try internalSync.sync(flags:[DispatchWorkItemFlags.inheritQoS]) {
 			try dataObj.withUnsafeBytes({
 				if let hasBaseAddress = $0.baseAddress {
 					try write(buf:hasBaseAddress, length:dataObj.count)
@@ -228,7 +228,7 @@ internal class ProcessHandle {
 	}
 	
 	func availableData() -> Data? {
-		internalSync.sync(flags:[.inheritQoS], execute: { () -> Data? in
+		internalSync.sync(flags:[DispatchWorkItemFlags.inheritQoS]) {
 			var statbuf = stat()
 			if fstat(_fd, &statbuf) < 0 {
 				return nil
@@ -254,11 +254,11 @@ internal class ProcessHandle {
 			}
 			let bytesBound = dynamicBuffer.bindMemory(to:UInt8.self, capacity:amountRead)
 			return Data(bytes:bytesBound, count:amountRead)
-		})
+		}
 	}
 	
 	func close() {
-		internalSync.sync(flags:[.inheritQoS], execute: { () -> Void in
+		internalSync.sync(flags:[DispatchWorkItemFlags.inheritQoS]) {
 			guard _fd != -1 else {
 				return
 			}
@@ -267,7 +267,7 @@ internal class ProcessHandle {
 				return
 			}
 			_fd = -1
-		})
+		}
 	}
 	
 	deinit {

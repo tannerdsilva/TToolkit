@@ -244,12 +244,13 @@ internal class ExecutingProcess {
 					self.stderr?.close()
 					
 					if let th = self._terminationHandler {
-						let workItem = DispatchWorkItem(flags:[.assignCurrentContext, .barrier], block: { [weak self] in
+						let workItem = DispatchWorkItem(flags:[.assignCurrentContext, .barrier]) { [weak self] in
 							guard let self = self else {
 								return
 							}
+							print("termination handler called")
 							th(self)
-						})
+						}
 						self.internalCallback.async(execute:workItem)
 					}
 				}

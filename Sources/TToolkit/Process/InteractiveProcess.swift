@@ -75,7 +75,7 @@ public class InteractiveProcess {
     }
 
     public init<C>(command:C, run:Bool) throws where C:Command {
-print("init yay")
+		print("init yay")
 		let masterQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.master", attributes:[.concurrent], target:ipSync)
 		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", target:masterQueue)
 		let callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", target:masterQueue)
