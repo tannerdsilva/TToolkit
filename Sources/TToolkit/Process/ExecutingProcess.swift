@@ -20,9 +20,9 @@ fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 	Furthermore, the standard 
 */
 
-fileprivate let exitThreads = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", attributes:[.concurrent, .initiallyInactive])
-fileprivate let epLocks = DispatchQueue(label:"com.tannersilva.global.process-executing.sync", attributes:[.concurrent, .initiallyInactive])
-fileprivate let serialRun = DispatchQueue(label:"com.tannersilva.global.process-executing.run-serial", attributes:[.initiallyInactive])
+fileprivate let exitThreads = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", attributes:[.concurrent])
+fileprivate let epLocks = DispatchQueue(label:"com.tannersilva.global.process-executing.sync", attributes:[.concurrent])
+fileprivate let serialRun = DispatchQueue(label:"com.tannersilva.global.process-executing.run-serial")
 
 internal class ExecutingProcess {
 	//these are the types of errors that this class can throw

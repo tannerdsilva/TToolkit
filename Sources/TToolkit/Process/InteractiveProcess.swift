@@ -1,7 +1,7 @@
 import Foundation
 
 
-fileprivate let ipSync = DispatchQueue(label:"com.tannersilva.global.process-pipe.sync", attributes:[.concurrent, .initiallyInactive])
+fileprivate let ipSync = DispatchQueue(label:"com.tannersilva.global.process-pipe.sync", attributes:[.concurrent])
 
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void

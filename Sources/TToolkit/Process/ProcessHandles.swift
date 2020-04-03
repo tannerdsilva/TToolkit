@@ -18,9 +18,9 @@ import Foundation
 #endif
 
 
-fileprivate let ioThreads = DispatchQueue(label:"com.tannersilva.global.process-handle.io", attributes:[.concurrent, .initiallyInactive])
-fileprivate let ppLocks = DispatchQueue(label:"com.tannersilva.global.process-pipe.sync", attributes:[.concurrent, .initiallyInactive])
-fileprivate let ppInit = DispatchQueue(label:"com.tannersilva.global.process-pipe.init-serial", attributes:[.initiallyInactive])
+fileprivate let ioThreads = DispatchQueue(label:"com.tannersilva.global.process-handle.io", attributes:[.concurrent])
+fileprivate let ppLocks = DispatchQueue(label:"com.tannersilva.global.process-pipe.sync", attributes:[.concurrent])
+fileprivate let ppInit = DispatchQueue(label:"com.tannersilva.global.process-pipe.init-serial")
 
 internal class ProcessPipes {
 	typealias ReadHandler = (Data) -> Void
