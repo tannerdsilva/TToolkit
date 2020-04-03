@@ -203,7 +203,9 @@ internal class ProcessHandle {
 	}
 	
 	func write(_ dataObj:Data) throws {
+		let start = Date()
 		try internalSync.sync {
+			print(Colors.dim("PH syncronized in \(start.timeIntervalSinceNow) seconds"))
 			try dataObj.withUnsafeBytes({
 				if let hasBaseAddress = $0.baseAddress {
 					try write(buf:hasBaseAddress, length:dataObj.count)
@@ -228,7 +230,9 @@ internal class ProcessHandle {
 	}
 	
 	func availableData() -> Data? {
-		internalSync.sync {
+		let start = Date()
+		return internalSync.sync {
+			print(Colors.dim("PH syncronized in \(start.timeIntervalSinceNow) seconds"))
 			var statbuf = stat()
 			if fstat(_fd, &statbuf) < 0 {
 				return nil
@@ -258,7 +262,9 @@ internal class ProcessHandle {
 	}
 	
 	func close() {
+		let start = Date()
 		internalSync.sync {
+			print(Colors.dim("PH syncronized in \(start.timeIntervalSinceNow) seconds"))
 			guard _fd != -1 else {
 				return
 			}
