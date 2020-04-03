@@ -30,6 +30,12 @@ public enum Priority:UInt8 {
 		}
 	}
 	
+	public func asDispatchQoS(relative value:Int) -> DispatchQoS {
+		let qosClass:DispatchQoS.QoSClass = self.asDispatchQoS()
+		return DispatchQoS(qosClass:qosClass, relativePriority:value)
+	}
+
+	
 	public func asDispatchQoS() -> DispatchQoS {
 		switch self {
 			case .highest:

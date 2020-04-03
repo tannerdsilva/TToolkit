@@ -1,17 +1,17 @@
 import Foundation
 
 
-fileprivate let ipSync = DispatchQueue(label:"com.tannersilva.global.process-pipe.sync", attributes:[.concurrent])
+fileprivate let ipSync = DispatchQueue(label:"com.tannersilva.global.process-pipe.sync", attributes:[.concurrent, .initiallyInactive])
 
 public class InteractiveProcess {
     public typealias OutputHandler = (Data) -> Void
     public typealias InputHandler = (InteractiveProcess) -> Void
     
+    private let masterQueue:DispatchQueue
+    
 	private let internalSync:DispatchQueue				//what serial thread is going to be used to process the data for each class instance?
 	private let internalCallback:DispatchQueue
-	
-    public let priority:Priority				//what is the priority of this interactive process. most (if not all) of the asyncronous work for this process and others will be based on this Priority
-    
+	    
     private let runGroup:DispatchGroup			//used to signify that the object is still "working"
     
 	public enum State:UInt8 {
@@ -74,12 +74,14 @@ public class InteractiveProcess {
     	}
     }
 
-    public init<C>(command:C, priority:Priority = .`default`, run:Bool) throws where C:Command {
-    	self.priority = priority
+    public init<C>(command:C, run:Bool) throws where C:Command {
 
-		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:ipSync)
-		let callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:priority.globalConcurrentQueue)
-
+		let masterQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.master", attributes:[.concurrent], target:ipSync)
+		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", target:masterQueue)
+		let callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", target:masterQueue)
+		
+		self.masterQueue = masterQueue
+		
 		self.internalSync = syncQueue
 		self.internalCallback = callbackQueue
 		
@@ -88,20 +90,19 @@ public class InteractiveProcess {
 		runGroup = rg
 				
 		//create the ProcessHandles that we need to read the data from this process as it runs
-		let standardIn = try ProcessPipes(priority:priority, callback:syncQueue)
-		let standardOut = try ProcessPipes(priority:priority, callback:syncQueue)
-		let standardErr = try ProcessPipes(priority:priority, callback:syncQueue)
+		let standardIn = try ProcessPipes(callback:syncQueue)
+		let standardOut = try ProcessPipes(callback:syncQueue)
+		let standardErr = try ProcessPipes(callback:syncQueue)
 		stdin = standardIn
 		stdout = standardOut
 		stderr = standardErr
 		
 		//create the ExecutingProcess
-		proc = ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, priority:priority, callback:syncQueue)
+		proc = ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, callback:syncQueue)
 		
 		proc.stdin = standardIn
 		proc.stdout = standardOut
 		proc.stderr = standardErr
-		print("th")
 
 		proc.terminationHandler = { [weak self] _ in
 			guard let self = self else {

@@ -20,9 +20,9 @@ fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 	Furthermore, the standard 
 */
 
-fileprivate let exitThreads = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", qos:Priority.highest.asDispatchQoS(), attributes:[.concurrent])
-fileprivate let epLocks = DispatchQueue(label:"com.tannersilva.global.process-executing.sync", attributes:[.concurrent])
-fileprivate let serialRun = DispatchQueue(label:"com.tannersilva.global.process-executing.run-serial", target:exitThreads)
+fileprivate let exitThreads = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", attributes:[.concurrent, .initiallyInactive])
+fileprivate let epLocks = DispatchQueue(label:"com.tannersilva.global.process-executing.sync", attributes:[.concurrent, .initiallyInactive])
+fileprivate let serialRun = DispatchQueue(label:"com.tannersilva.global.process-executing.run-serial", attributes:[.initiallyInactive])
 
 internal class ExecutingProcess {
 	//these are the types of errors that this class can throw
@@ -106,11 +106,11 @@ internal class ExecutingProcess {
 		return launchString
 	}
 	
-	init(execute:URL, arguments:[String]?, environment:[String:String]?, priority:Priority = Priority.`default`, callback:DispatchQueue?, _ terminationHandler:TerminationHandler? = nil) {
+	init(execute:URL, arguments:[String]?, environment:[String:String]?, callback:DispatchQueue, _ terminationHandler:TerminationHandler? = nil) {
 		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.executing-process.sync", target:epLocks)
-		let icb = DispatchQueue(label:"com.tannersilva.instance.executing-process.term-callback", target:callback ?? priority.globalConcurrentQueue)
+		let icb = DispatchQueue(label:"com.tannersilva.instance.executing-process.term-callback", target:callback)
 		self.internalCallback = icb
-		self._callbackQueue = callback ?? priority.globalConcurrentQueue
+		self._callbackQueue = callback
 		
 		let eq = DispatchQueue(label:"com.tannersilva.instance.executing.exit-wait", target:exitThreads)
 		self.exitQueue = eq
@@ -126,7 +126,7 @@ internal class ExecutingProcess {
 	
 	func run() throws {
 		let syncQueue = internalSync
-		return try syncQueue.sync(flags:[.inheritQoS], execute: { () -> Void in
+		return try syncQueue.sync {
 			print("attempting to run")
 			guard isRunning == false else {
 				throw ProcessError.processAlreadyRunning
@@ -228,7 +228,7 @@ internal class ExecutingProcess {
 					waitResult = waitpid(lpid, &ec, 0)
 				} while waitResult == -1 && errno == EINTR || WIFEXITED(ec) == false || lpid == 0
 				print(Colors.red("Yay exit"))
-				syncQueue.async(flags:[.inheritQoS], execute: { [weak self] in
+				syncQueue.async { [weak self] in
 					guard let self = self else {
 						return
 					}
@@ -252,7 +252,7 @@ internal class ExecutingProcess {
 						})
 						self.internalCallback.async(execute:workItem)
 					}
-				})
+				}
 			}
 			queueGroup.wait()
 			try serialRun.sync {
@@ -264,11 +264,11 @@ internal class ExecutingProcess {
 			
 			processIdentifier = lpid
 			isRunning = true
-		})
+		}
 	}
 	
 	func suspend() -> Bool? {
-		return internalSync.sync(flags:[.inheritQoS], execute: { () -> Bool? in
+		return internalSync.sync {
 			guard let pid = processIdentifier else {
 				return nil
 			}
@@ -277,29 +277,29 @@ internal class ExecutingProcess {
 			} else {
 				return false
 			}
-		})
+		}
 	}
 	
 	func terminate() {
-		internalSync.sync(flags:[.inheritQoS], execute: { () -> Void in
+		internalSync.sync {
 			guard let pid = processIdentifier else {
 				return
 			}
 			kill(pid, SIGTERM)
-		})
+		}
 	}
 	
 	func forceKill() {
-		internalSync.sync(flags:[.inheritQoS], execute: { () -> Void in
+		internalSync.sync {
 			guard let pid = processIdentifier else {
 				return
 			}
 			kill(pid, SIGKILL)
-		})
+		}
 	}
 	
 	func resume() -> Bool? {
-		return internalSync.sync(flags:[.inheritQoS], execute: { () -> Bool? in
+		return internalSync.sync {
 			guard let pid = processIdentifier else {
 				return nil
 			}
@@ -308,6 +308,6 @@ internal class ExecutingProcess {
 			} else {
 				return false
 			}
-		})
+		}
 	}
 }

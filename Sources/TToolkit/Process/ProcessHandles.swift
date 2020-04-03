@@ -18,9 +18,9 @@ import Foundation
 #endif
 
 
-fileprivate let ioThreads = DispatchQueue(label:"com.tannersilva.global.process-handle.io", attributes:[.concurrent])
-fileprivate let ppLocks = DispatchQueue(label:"com.tannersilva.global.process-pipe.sync", attributes:[.concurrent])
-fileprivate let ppInit = DispatchQueue(label:"com.tannersilva.global.process-pipe.init-serial")
+fileprivate let ioThreads = DispatchQueue(label:"com.tannersilva.global.process-handle.io", attributes:[.concurrent, .initiallyInactive])
+fileprivate let ppLocks = DispatchQueue(label:"com.tannersilva.global.process-pipe.sync", attributes:[.concurrent, .initiallyInactive])
+fileprivate let ppInit = DispatchQueue(label:"com.tannersilva.global.process-pipe.init-serial", attributes:[.initiallyInactive])
 
 internal class ProcessPipes {
 	typealias ReadHandler = (Data) -> Void
@@ -138,21 +138,21 @@ internal class ProcessPipes {
 		}
 	}
 	
-	init(priority:Priority = Priority.`default`, callback:DispatchQueue? = nil) throws {
-		let readWrite = try Self.forReadingAndWriting(priority:priority)
+	init(callback:DispatchQueue) throws {
+		let readWrite = try Self.forReadingAndWriting()
 		
 		self.reading = readWrite.r
 		self.writing = readWrite.w
 		
 		self.concurrentSchedule = DispatchQueue(label:"com.tannersilva.instance.process-pipe.schedule", target:ioThreads)
-		let ints = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", qos:priority.asDispatchQoS(), target:ppLocks)
+		let ints = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", target:ppLocks)
 		self.internalSync = ints
-		let icb = DispatchQueue(label:"com.tannersilva.instance.process-pipe.callback", target:callback ?? priority.globalConcurrentQueue)
+		let icb = DispatchQueue(label:"com.tannersilva.instance.process-pipe.callback", target:callback)
 		self.internalCallback = icb
-		self._callbackQueue = callback ?? priority.globalConcurrentQueue
+		self._callbackQueue = callback
 	}
 	
-	fileprivate static func forReadingAndWriting(priority:Priority = Priority.`default`) throws -> (r:ProcessHandle, w:ProcessHandle) {
+	fileprivate static func forReadingAndWriting() throws -> (r:ProcessHandle, w:ProcessHandle) {
 		let fds = UnsafeMutablePointer<Int32>.allocate(capacity:2)
 		defer {
 			fds.deallocate()
@@ -165,7 +165,7 @@ internal class ProcessPipes {
 					let readFD = fds.pointee
 					let writeFD = fds.successor().pointee
 				
-					return (r:ProcessHandle(fd:readFD, priority:priority), w:ProcessHandle(fd:writeFD, priority:priority))
+					return (r:ProcessHandle(fd:readFD), w:ProcessHandle(fd:writeFD))
 				default:
 				throw ExecutingProcess.ProcessError.unableToCreatePipes
 			}
@@ -173,10 +173,10 @@ internal class ProcessPipes {
 	}
 	
 	func close() {
-			reading.close()
-			writing.close()
-			readHandler = nil
-			writeHandler = nil
+		reading.close()
+		writing.close()
+		readHandler = nil
+		writeHandler = nil
 	}
 	
 	deinit {
@@ -197,9 +197,9 @@ internal class ProcessHandle {
 		}
 	}
 	
-	init(fd:Int32, priority:Priority = Priority.`default`) {
+	init(fd:Int32) {
 		self._fd = fd
-		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-handle.sync", qos:priority.asDispatchQoS(), target:phLock)
+		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-handle.sync", target:phLock)
 	}
 	
 	func write(_ dataObj:Data) throws {
