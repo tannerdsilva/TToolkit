@@ -225,11 +225,11 @@ internal class ExecutingProcess {
 				repeat {
 					waitResult = waitpid(lpid, &ec, 0)
 				} while waitResult == -1 && errno == EINTR || WIFEXITED(ec) == false || lpid == 0
-				
+				launchDate = Date()
 				guard let self = self else {
 					return
 				}
-				let completionWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
+				let completionWorkItem = DispatchWorkItem(qos:Priority.highest.asDispatchQoS(), flags:[.enforceQoS]) { [weak self] in
 					guard let self = self else {
 						return
 					}
@@ -247,10 +247,12 @@ internal class ExecutingProcess {
 					self.stderr?.close()
 				}
 				if let hasTermHandle = self.terminationHandler {
-					completionWorkItem.notify(flags:[.inheritQoS], queue:self.internalCallback) { [weak self] in
+					completionWorkItem.notify(qos:Priority.highest.asDispatchQoS(), flags:[.enforceQoS], queue:self.internalCallback) { [weak self] in
 						guard let self = self else {
 							return
 						}
+						let notifyDate = Date()
+						print(Colors.magenta("exit notified \(notifyDate.timeIntervalSince(launchDate)) seconds after true exitT"))
 						hasTermHandle(self)
 					}
 				}
