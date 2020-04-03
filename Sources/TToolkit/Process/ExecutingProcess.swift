@@ -127,7 +127,6 @@ internal class ExecutingProcess {
 	func run() throws {
 		let syncQueue = internalSync
 		return try syncQueue.sync {
-			print("attempting to run")
 			guard isRunning == false else {
 				throw ProcessError.processAlreadyRunning
 			}
@@ -252,6 +251,7 @@ internal class ExecutingProcess {
 							th(self)
 						}
 						self.internalCallback.async(execute:workItem)
+						print("termination handler scheduled")
 					}
 				}
 			}

@@ -144,7 +144,7 @@ internal class ProcessPipes {
 		self.reading = readWrite.r
 		self.writing = readWrite.w
 		
-		self.concurrentSchedule = DispatchQueue(label:"com.tannersilva.instance.process-pipe.schedule", target:ioThreads)
+		self.concurrentSchedule = DispatchQueue(label:"com.tannersilva.instance.process-pipe.schedule", qos:Priority.high.asDispatchQoS(), target:ioThreads)
 		let ints = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", target:ppLocks)
 		self.internalSync = ints
 		let icb = DispatchQueue(label:"com.tannersilva.instance.process-pipe.callback", target:callback)
@@ -203,7 +203,7 @@ internal class ProcessHandle {
 	}
 	
 	func write(_ dataObj:Data) throws {
-		try internalSync.sync(flags:[DispatchWorkItemFlags.inheritQoS]) {
+		try internalSync.sync {
 			try dataObj.withUnsafeBytes({
 				if let hasBaseAddress = $0.baseAddress {
 					try write(buf:hasBaseAddress, length:dataObj.count)
@@ -228,7 +228,7 @@ internal class ProcessHandle {
 	}
 	
 	func availableData() -> Data? {
-		internalSync.sync(flags:[DispatchWorkItemFlags.inheritQoS]) {
+		internalSync.sync {
 			var statbuf = stat()
 			if fstat(_fd, &statbuf) < 0 {
 				return nil
@@ -258,7 +258,7 @@ internal class ProcessHandle {
 	}
 	
 	func close() {
-		internalSync.sync(flags:[DispatchWorkItemFlags.inheritQoS]) {
+		internalSync.sync {
 			guard _fd != -1 else {
 				return
 			}
