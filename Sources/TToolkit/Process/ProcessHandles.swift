@@ -107,8 +107,11 @@ internal class ProcessPipes {
 					_readHandler = hasNewHandler
 					globalPR.scheduleForReading(reading, queue:internalCallback, work:hasNewHandler)
 				} else {
+					if _readHandler != nil {
+											globalPR.unschedule(reading)
+
+					}
 					_readHandler = nil
-					globalPR.unschedule(reading)
 				}
 			}
 		}
@@ -190,7 +193,6 @@ internal class ProcessPipes {
 	func close() {
 		reading.close()
 		writing.close()
-		readHandler = nil
 	}
 	
 	deinit {
