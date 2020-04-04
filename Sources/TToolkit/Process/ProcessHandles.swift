@@ -42,6 +42,7 @@ internal class PipeReader {
 		let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:scheduleQueue)
 		newSource.setEventHandler {
 			if let newData = handle.availableData() {
+				print(Colors.Green("read \(newData.count) bytes"))
 				let workItem = DispatchWorkItem(flags:[.inheritQoS]) {
 					work(newData)
 				}
@@ -108,8 +109,7 @@ internal class ProcessPipes {
 					globalPR.scheduleForReading(reading, queue:internalCallback, work:hasNewHandler)
 				} else {
 					if _readHandler != nil {
-											globalPR.unschedule(reading)
-
+						globalPR.unschedule(reading)
 					}
 					_readHandler = nil
 				}
