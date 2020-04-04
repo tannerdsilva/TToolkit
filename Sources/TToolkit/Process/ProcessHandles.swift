@@ -256,9 +256,7 @@ internal class ProcessHandle:Hashable {
 	}
 	
 	func availableData() -> Data? {
-		let start = Date()
 		return internalSync.sync {
-			print(Colors.dim("PH syncronized in \(start.timeIntervalSinceNow) seconds"))
 			guard _isClosed != true else {
 				return nil
 			}
@@ -291,16 +289,11 @@ internal class ProcessHandle:Hashable {
 	}
 	
 	func close() {
-		let start = Date()
 		internalSync.sync {
-			print(Colors.dim("PH syncronized in \(start.timeIntervalSinceNow) seconds"))
-			guard _isClosed != true else {
+			guard _isClosed != true, _close(_fd) >= 0 else {
 				return
 			}
 		
-			guard _close(_fd) >= 0 else {
-				return
-			}
 			_isClosed = true
 		}
 	}
