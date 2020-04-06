@@ -124,10 +124,13 @@ public class InteractiveProcess {
 		print("3.1")
 		let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, callback:ioq)
 		self.proc = externalProcess
-        print("4")
+        print(Colors.cyan("4"))
 		externalProcess.stdin = input
+		print(Colors.Green("5"))
 		externalProcess.stdout = output
+		print(Colors.Magenta("6"))
 		externalProcess.stderr = err
+		print(Colors.Yellow("7"))
 		
 		let termHandle = DispatchWorkItem(flags:[.barrier, .inheritQoS]) { [weak self] in
 			guard let self = self else {
