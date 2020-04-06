@@ -44,6 +44,7 @@ internal class PipeReader {
 	
 	func scheduleForReading(_ handle:ProcessHandle, queue:DispatchQueue, group:DispatchGroup, work:@escaping(ReadHandler)) {
 		internalSync.sync {
+			print("successfully syncronized")
 			let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:scheduleQueue)
 			group.enter()
 			newSource.setEventHandler {
