@@ -98,37 +98,30 @@ public class InteractiveProcess {
 	}
 	
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
-		print("0")
 		let ioq = DispatchQueue(label:"com.tannersilva.instance.process.interactive.io.concurrent", qos:priority.asDispatchQoS(relative:100), attributes:[.concurrent])
 		let iog = DispatchGroup()
 		let cb = DispatchQueue(label:"com.tannersilva.instance.process.interactive.callback.sync")
 		let isync = DispatchQueue(label:"com.tannersilva.instance.process.interactive.sync")
 		let rg = DispatchGroup()
-		print("1")
 		self.ioQueue = ioq
 		self.ioGroup = iog
 		self.internalSync = isync
 		self.callbackSync = cb
 		self.runGroup = rg
-		print("2")
 		self._state = .initialized
 		
 		let input = try ProcessPipes(callback:ioq, group:iog)
 		let output = try ProcessPipes(callback:ioq, group:iog)
 		let err = try ProcessPipes(callback:ioq, group:iog)
-		print("3")
 		
 		self.stdin = input
 		self.stdout = output
 		self.stderr = err
-		print("3.1")
+		print("0")
 		let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, callback:ioq)
 		self.proc = externalProcess
-        print(Colors.cyan("4"))
 		externalProcess.stdin = input
-		print(Colors.Green("5"))
 		externalProcess.stdout = output
-		print(Colors.Magenta("6"))
 		externalProcess.stderr = err
 		print(Colors.Yellow("7"))
 		
@@ -148,8 +141,10 @@ public class InteractiveProcess {
 				self.runGroup.leave()
 			}
 		}
+		print(Colors.cyan("8"))
 		externalProcess.terminationHandler = termHandle
-		
+		print(Colors.Green("9"))
+
 		output.readHandler = { [weak self] someData in
 			guard let self = self else {
 				return
@@ -158,7 +153,8 @@ public class InteractiveProcess {
 				self.callbackStdout(lines:hasLines)
 			}
 		}
-		
+		print(Colors.Magenta("10"))
+
 		err.readHandler = { [weak self] someData in
 			guard let self = self else {
 				return
