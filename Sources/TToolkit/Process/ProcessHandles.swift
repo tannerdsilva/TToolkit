@@ -18,36 +18,44 @@ import Foundation
 #endif
 
 internal typealias ReadHandler = (Data) -> Void
-internal typealias WriteHandler = (ProcessHandle) -> Void
+internal typealias WriteHandler = () -> Void
 
 fileprivate let ioThreads = DispatchQueue(label:"com.tannersilva.global.process-handle.io", attributes:[.concurrent])
 fileprivate let ppLocks = DispatchQueue(label:"com.tannersilva.global.process-pipe.sync", attributes:[.concurrent])
 fileprivate let ppInit = DispatchQueue(label:"com.tannersilva.global.process-pipe.init-serial")
 
-fileprivate let prThreads = DispatchQueue(label:"com.tannersilva.global.process-pipe.reader", qos:Priority.highest.asDispatchQoS(), attributes:[.concurrent])
+/*
+	When external processes are launched, there is no way of influencing the rate of which that processess will output data.
+	The PipeReader class is used to immediately read data from available file descriptors. after a Data object is captured, Pipereader will call the completion handler at a specified dispatch queue while respecting that queues QoS
+	This internal class allows data to be captured from the pipe handles immediately while potentially diverting the actual handling of that data for a later time based on the destination queue's QoS
+*/
 internal class PipeReader {
-	
+	fileprivate static let prThreads = DispatchQueue(label:"com.tannersilva.global.process-pipe.reader", qos:maximumPriority, attributes:[.concurrent])
 	let internalSync:DispatchQueue
 	let scheduleQueue:DispatchQueue
 	
 	var handleQueue:[ProcessHandle:DispatchSourceProtocol]
 	
 	init() {
-		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.sync", target:prThreads)
-		self.scheduleQueue = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.concurrent", qos:Priority.high.asDispatchQoS(), attributes:[.concurrent], target:prThreads)
+		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.sync", target:Self.prThreads)
+		self.scheduleQueue = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.concurrent", qos:Priority.high.asDispatchQoS(), attributes:[.concurrent], target:Self.prThreads)
 		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
 	}
 	
-	func scheduleForReading(_ handle:ProcessHandle, queue:DispatchQueue, work:@escaping(ReadHandler)) {
+	func scheduleForReading(_ handle:ProcessHandle, queue:DispatchQueue, group:DispatchGroup, work:@escaping(ReadHandler)) {
 		let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:scheduleQueue)
+		group.enter()
 		newSource.setEventHandler {
 			if let newData = handle.availableData() {
 				print(Colors.Green("read \(newData.count) bytes"))
 				let workItem = DispatchWorkItem(flags:[.inheritQoS]) {
 					work(newData)
 				}
-				queue.async(execute:workItem)
+				queue.async(group:group, execute:workItem)
 			}
+		}
+		newSource.setCancelHandler {
+			group.leave()
 		}
 		internalSync.sync {
 			if let hasExisting = handleQueue[handle] {
@@ -71,6 +79,48 @@ internal class PipeReader {
 }
 internal let globalPR = PipeReader()
 
+internal class WriteWatcher {
+	fileprivate static let whThreads = DispatchQueue(label:"com.tannerdsilva.global.process.pipe.write-handler", qos:maximumPriority, attributes:[.concurrent])
+	let internalSync = DispatchQueue(label:"com.tannersilva.instance.process.pipe.write-handler.sync", target:whThreads)
+	
+	var handleQueue:[ProcessHandle:DispatchSourceProtocol]
+	
+	init() {
+		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
+	}
+	
+	func scheduleWriteAvailability(_ handle:ProcessHandle, queue:DispatchQueue, group:DispatchGroup, work:@escaping(WriteHandler)) {
+		let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:queue)
+		group.enter()
+		newSource.setEventHandler {
+			group.enter()
+			work()
+			group.leave()
+		}
+		newSource.setCancelHandler {
+			group.leave()
+		}
+		internalSync.sync {
+			if let hasExisting = handleQueue[handle] {
+				hasExisting.cancel()
+			}
+			handleQueue[handle] = newSource
+			newSource.activate()
+		}
+		print(Colors.magenta("[\(handle.fileDescriptor)] scheduled for writing."))
+	}
+	
+	func unschedule(_ handle:ProcessHandle) {
+		internalSync.sync {
+			if let hasExisting = handleQueue[handle] {
+				hasExisting.cancel()
+				handleQueue[handle] = nil
+			}
+		}
+		print(Colors.magenta("[\(handle.fileDescriptor)] unscheduled from writing"))
+	}
+}
+internal let globalWH = WriteWatcher()
 
 internal class ProcessPipes {
 	private let internalSync:DispatchQueue
@@ -78,7 +128,9 @@ internal class ProcessPipes {
 	
 	let reading:ProcessHandle
 	let writing:ProcessHandle
-
+	
+	private var _callbackGroup:DispatchGroup	
+	
 	private var _callbackQueue:DispatchQueue
 	var handlerQueue:DispatchQueue {
 		get {
@@ -106,7 +158,7 @@ internal class ProcessPipes {
 			internalSync.sync {
 				if let hasNewHandler = newValue {
 					_readHandler = hasNewHandler
-					globalPR.scheduleForReading(reading, queue:internalCallback, work:hasNewHandler)
+					globalPR.scheduleForReading(reading, queue:internalCallback, group:_callbackGroup, work:hasNewHandler)
 				} else {
 					if _readHandler != nil {
 						globalPR.unschedule(reading)
@@ -118,50 +170,34 @@ internal class ProcessPipes {
 	}
 	
 //	write handler
-//	private var _writeHandler:WriteHandler? = nil
-//	var writeHandler:WriteHandler? {
-//		get {
-//			return internalSync.sync {
-//				return _writeHandler
-//			}
-//		}
-//		set {
-//			internalSync.sync {
-//				cancel the existing writing source if it exists
-//				if let hasWriteSource = writeSource {
-//					hasWriteSource.cancel()
-//				}
-//				assign the new value and schedule a new writing source if necessary
-//				if let hasNewHandler = newValue {
-//					_writeHandler = hasNewHandler
-//					
-//					schedule the new timer
-//					let newSource = DispatchSource.makeWriteSource(fileDescriptor:writing.fileDescriptor, queue:concurrentSchedule)
-//					let writer = writing
-//					let intCbQueue = internalCallback
-//					newSource.setEventHandler { [weak self] in
-//						intCbQueue.async { [weak self] in
-//							guard let self = self else {
-//								return
-//							}
-//							hasNewHandler(self.writing)
-//						}
-//					}
-//					writeSource = newSource
-//					newSource.activate()
-//				} else {
-//					_writeHandler = nil
-//					writeSource = nil
-//				}
-//			}
-//		}
-//	}
+	private var _writeHandler:WriteHandler? = nil
+	var writeHandler:WriteHandler? {
+		get {
+			return internalSync.sync {
+				return _writeHandler
+			}
+		}
+		set {
+			internalSync.sync {
+				if let hasNewHandler = newValue {
+					_writeHandler = hasNewHandler
+					globalWH.scheduleWriteAvailability(writing, queue:internalCallback, group:_callbackGroup, work:hasNewHandler)
+				} else {
+					if _writeHandler != nil {
+						globalWH.unschedule(writing)
+					}
+				}
+			}
+		}
+	}
 	
-	init(callback:DispatchQueue) throws {
+	init(callback:DispatchQueue, group:DispatchGroup) throws {
 		let readWrite = try Self.forReadingAndWriting()
 		
 		self.reading = readWrite.r
 		self.writing = readWrite.w
+		
+		self._callbackGroup = group
 		
 		let ints = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", target:ppLocks)
 		self.internalSync = ints
@@ -185,7 +221,7 @@ internal class ProcessPipes {
 				
 					return (r:ProcessHandle(fd:readFD), w:ProcessHandle(fd:writeFD))
 				default:
-				throw ExecutingProcess.ProcessError.unableToCreatePipes
+				throw ExecutingProcess.ExecutingProcessError.unableToCreatePipes
 			}
 		}
 	}
@@ -193,15 +229,19 @@ internal class ProcessPipes {
 	func close() {
 		reading.close()
 		writing.close()
+		readHandler = nil
+		writeHandler = nil
 	}
 	
 	deinit {
 		readHandler = nil
+		writeHandler = nil
 	}
 }
 
-fileprivate let sq = DispatchQueue(label:"com.tannersilva.global.process-handle.sync", attributes:[.concurrent])
 internal class ProcessHandle:Hashable {
+	fileprivate static let globalQueue = DispatchQueue(label:"com.tannersilva.global.process.handle.sync", attributes:[.concurrent])
+
 	fileprivate let internalSync:DispatchQueue
 	
 	private var _isClosed:Bool
@@ -224,7 +264,7 @@ internal class ProcessHandle:Hashable {
 	
 	init(fd:Int32) {
 		self._fd = fd
-		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-handle.sync", target:sq)
+		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-handle.sync", target:Self.globalQueue)
 		self._isClosed = false
 	}
 	

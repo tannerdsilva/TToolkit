@@ -13,48 +13,334 @@ fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 }
 
 /*
+	The ExitWatcher is a class that guarantees its availability to monitor an external process for exits.
+	ExitWatcher is able to provide this functionality by launching an external thread on initialization, and sleeping the thread until a process is ready to be monitored.
+	ExitWatcher is not reusable. After a process has exited and the handler is called, exithandler should be discarded.
+*/
+internal class ExitWatcher {
+	typealias ExitHandler = (Int32, Date) -> Void
+	enum ExitWatcherError:Error {
+		case unableToLaunchThread
+		case engagementError
+	}
+	
+	private enum ExitWatcherState {
+		case initialized
+		case engaged
+		case failed
+		case exited
+	}
+
+	fileprivate static let exitThreadsGlobal = DispatchQueue(label:"com.tannersilva.global.process.exit-watch.detached", qos:Priority.highest.asDispatchQoS(), attributes:[.concurrent])
+	fileprivate static let globalLockQueue = DispatchQueue(label:"com.tannersilva.global.process.exit-watch.sync", attributes:[.concurrent])
+	
+	private let backgroundQueue:DispatchQueue
+	private let internalSync:DispatchQueue
+	
+	private let flightGroup:DispatchGroup			//this group represents the external thread that is "in flight" 
+	private let engageWaitGroup:DispatchGroup		//this is the group that instructs the external thread when it should be waiting to engage
+	private let engageResponseGroup:DispatchGroup	//this is the group that the external thread uses to signal its engagement response
+	private let didExitGroup:DispatchGroup			//this is the group that the external thread uses to signal that the external process has exited
+	
+	private var pid:pid_t
+	private var state:ExitWatcherState
+	
+	private var _handler:ExitHandler? = nil
+	
+	init() throws {
+		let bgThread = DispatchQueue(label:"com.tannersilva.instance.process-executing.exit-watch", qos:Priority.highest.asDispatchQoS(), target:Self.exitThreadsGlobal)
+		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-executing.exit-watch.sync", target:Self.globalLockQueue)
+		self.backgroundQueue = bgThread
+		self.internalSync = syncQueue
+		
+		let flight = DispatchGroup()
+		let engageWait = DispatchGroup()
+		let didExit = DispatchGroup()
+		let engageResponse = DispatchGroup()
+		engageWait.enter()
+		
+		self.flightGroup = flight
+		self.engageWaitGroup = engageWait
+		self.engageResponseGroup = engageResponse
+		self.didExitGroup = didExit
+		
+		var internalFail:Bool = false
+		
+		self.pid = pid_t()
+		self.state = ExitWatcherState.initialized
+		
+		let threadLaunchedGroup = DispatchGroup()
+		threadLaunchedGroup.enter()
+		bgThread.async { [weak self] in
+			//state 1: guarantee initialization of this async work
+			flight.enter()
+			defer {
+				flight.leave()
+			}
+			guard let self = self else {
+				syncQueue.sync {
+					internalFail = true
+				}
+				threadLaunchedGroup.leave()
+				return
+			}
+			didExit.enter()
+			engageResponse.enter()
+			threadLaunchedGroup.leave()
+			
+			//stage 2: wait for a pid to be assigned
+			engageWait.wait()
+			
+			//stage 3: validate the state of self and start watching the pid if configured to do so (else, return from this thread)
+			var pidCapture:Int32? = nil
+			var stateCapture:ExitWatcherState? = nil
+			var handleCapture:ExitHandler? = nil
+			syncQueue.sync {
+				pidCapture = self.pid
+				stateCapture = self.state
+				handleCapture = self._handler
+			}
+			guard var pidWatch = pidCapture, var validatedState = stateCapture, let validHandler = handleCapture, pidWatch != 0 && validatedState == .initialized else {
+				syncQueue.sync {
+					self.state = .failed
+				}
+				didExit.leave()
+				engageResponse.leave()
+				return
+			}
+			syncQueue.sync {
+				self.state = .engaged
+			}
+			engageResponse.leave()
+			var waitResult:Int32 = 0
+			var exitCode:Int32 = 0
+			repeat {
+				waitResult = waitpid(pidWatch, &exitCode, 0)
+			} while waitResult == -1 && errno == EINTR || WIFEXITED(exitCode) == false
+			let exitTime = Date()
+			validHandler(exitCode, exitTime)
+			syncQueue.sync {
+				self.state = .exited
+			}
+			didExit.leave()
+		}
+		threadLaunchedGroup.wait()
+		try syncQueue.sync {
+			guard internalFail == false else {
+				engageWait.leave()
+				throw ExitWatcherError.unableToLaunchThread
+			}
+		}
+	}
+	
+	func engage(pid:pid_t, _ handler:@escaping(ExitHandler)) throws {
+		try internalSync.sync {
+			guard self.state == .initialized else {
+				throw ExitWatcherError.engagementError
+			}
+			self.pid = pid
+			self._handler = handler
+		}
+		engageWaitGroup.leave()
+		engageResponseGroup.wait()
+		try internalSync.sync {
+			guard self.state == .engaged else {
+				throw ExitWatcherError.engagementError
+			}
+		}
+	}
+	
+	deinit {
+		var capturedState = internalSync.sync {
+			return self.state
+		}
+		switch capturedState {
+			case .initialized:
+				internalSync.sync {
+					self.state = .failed
+				}
+				engageWaitGroup.leave()
+				engageResponseGroup.wait()
+				flightGroup.wait()
+			case .engaged:
+				didExitGroup.wait()
+				flightGroup.wait()
+			default:
+				flightGroup.wait()
+		}
+	}
+}
+
+/*
 	ExecutingProcess is my interpretation of the Process object from the Swift Standard Library.
 	This class looks to cut out most of legacy code from Process to create a much more streamlined data structure.
 	
 	ExecutingProcess is distinct from the traditional Process object in that ExecutingProcess does not conform to NSObject. This eliminates significant overhead when executing and handling many ExecutingProcesses simulaneously.
 	Furthermore, the standard 
 */
-
-fileprivate let exitThreads = DispatchQueue(label:"com.tannersilva.global.process-executing.exit-wait", qos:Priority.highest.asDispatchQoS(), attributes:[.concurrent])
-fileprivate let epLocks = DispatchQueue(label:"com.tannersilva.global.process-executing.sync", attributes:[.concurrent])
-fileprivate let serialRun = DispatchQueue(label:"com.tannersilva.global.process-executing.run-serial")
-
 internal class ExecutingProcess {
-	//these are the types of errors that this class can throw
-	public enum ProcessError:Error { 
-		case unableToExecute
+	public enum ExecutingProcessError:Error {
 		case processAlreadyRunning
-		case unableToCreatePipes
+		case unableToExecute
+        case unableToCreatePipes
 	}
+	
+	fileprivate static let globalLockQueue = DispatchQueue(label:"com.tannersilva.global.process.execute.sync", attributes:[.concurrent])
+	fileprivate static let globalSerialRun = DispatchQueue(label:"com.tannersilva.global.process.execute.serial-launch.sync", target:globalLockQueue)
 
-	typealias TerminationHandler = (ExecutingProcess) -> Void
-	enum TerminationReason:UInt8 {
-		case exited
-		case uncaughtSignal
+	/*
+		These variables define what is going to be executed, and how it is going to be executed.
+		- Executable File Path
+		- Arguments
+		- Environment Variables
+	*/
+	private let internalSync:DispatchQueue
+	private var _executable:URL
+	private var _arguments:[String]? = nil
+	private var _environment:[String:String]? = nil
+	var executable:URL {
+		get {
+			return internalSync.sync {
+				return _executable
+			}
+		}
+		set {
+			internalSync.sync {
+				_executable = newValue
+			}
+		}
+	}
+	var arguments:[String]? {
+		get {
+			return internalSync.sync {
+				return _arguments
+			}
+		}
+		set {
+			internalSync.sync {
+				_arguments = newValue
+			}
+		}
+	}
+	var environment:[String:String]? {
+		get {
+			return internalSync.sync {
+				return _environment
+			}
+		}
+		set {
+			internalSync.sync {
+				_environment = newValue
+			}
+		}
 	}
 	
-	let internalCallback:DispatchQueue
-	let internalSync:DispatchQueue
-	let exitQueue:DispatchQueue
+	/*
+		These variables are related to the execution state of the process.
+		- Process Identifier
+		- Exit code
+		- Is running?
+	*/
+	private var _launchTime:Date? = nil
+	private var _exitTime:Date? = nil
+	private var _exitWatcher:ExitWatcher
+	private var _exitCode:Int32? = nil
+	private var _processId:Int32? = nil
+	var processIdentifier:Int32? {
+		get {
+			return internalSync.sync {
+				return _processId
+			}
+		}
+	}
 	
-	var executable:URL
-	var arguments:[String]?
-	var environment:[String:String]?
+	var exitCode:Int32? {
+		get {
+			return internalSync.sync {
+				return _exitCode
+			}
+		}
+	}
+	private var _isRunning:Bool {
+		get {
+			if _processId == nil {
+				return false
+			} else if _processId != nil && _exitCode != nil {
+				return false
+			}
+			return true
+		}
+	}
+	var isRunning:Bool {
+		get {
+			return internalSync.sync {
+				return _isRunning
+			}
+		}
+	}
 	
-	var processIdentifier:Int32?
-	var isRunning:Bool
+	/*
+		These variables are related to the I/O of the process in question
+	*/
+	private var _stderr:ProcessPipes? = nil
+	private var _stdout:ProcessPipes? = nil
+	private var _stdin:ProcessPipes? = nil
 	
-	var stdin:ProcessPipes? = nil
-	var stdout:ProcessPipes? = nil
-	var stderr:ProcessPipes? = nil
+	var stdin:ProcessPipes? { 
+		get {
+			return internalSync.sync {
+				return _stdin
+			}
+		}
+		set {
+			internalSync.sync {
+				_stdin = newValue
+			}
+		}
+	}
+	var stdout:ProcessPipes? { 
+		get {
+			return internalSync.sync {
+				return _stdout
+			}
+		}
+		set {
+			internalSync.sync {
+				_stdout = newValue
+			}
+		}
+	}
+	var stderr:ProcessPipes? { 
+		get {
+			return internalSync.sync {
+				return _stderr
+			}
+		}
+		set {
+			internalSync.sync {
+				_stderr = newValue
+			}
+		}
+	}
 	
+	//which queue will the termination handler be called?
+	private var _terminationHandler:DispatchWorkItem? = nil
 	private var _callbackQueue:DispatchQueue
-	var terminationQueue:DispatchQueue {
+	private var _callbackGroup:DispatchGroup? = nil
+	
+	var callbackGroup:DispatchGroup? {
+		get {
+			internalSync.sync {
+				return _callbackGroup
+			}
+		}
+		set {
+			internalSync.sync {
+				_callbackGroup = newValue
+			}
+		}
+	}
+	var callbackQueue:DispatchQueue {
 		get {
 			internalSync.sync {
 				return _callbackQueue
@@ -63,16 +349,12 @@ internal class ExecutingProcess {
 		set {
 			internalSync.sync {
 				_callbackQueue = newValue
-				internalCallback.setTarget(queue:_callbackQueue)
 			}
 		}
 	}
-	var terminationReason:TerminationReason? = nil
-	var exitCode:Int32? = nil
-	
-	private var _terminationHandler:TerminationHandler? = nil
-	var terminationHandler:TerminationHandler? {
-		get {
+
+	var terminationHandler:DispatchWorkItem? {
+		get{
 			return internalSync.sync {
 				return _terminationHandler
 			}
@@ -84,8 +366,6 @@ internal class ExecutingProcess {
 		}
 	}
 	
-	//returns the launchURL as a string path if it is readable and executable
-	//otherwise, returns nil
 	fileprivate class func isLaunchURLExecutable(_ launchURL:URL) -> String? {
 		let launchString = launchURL.path
 		
@@ -106,37 +386,27 @@ internal class ExecutingProcess {
 		return launchString
 	}
 	
-	init(execute:URL, arguments:[String]?, environment:[String:String]?, callback:DispatchQueue, _ terminationHandler:TerminationHandler? = nil) {
-		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.executing-process.sync", target:epLocks)
-		let icb = DispatchQueue(label:"com.tannersilva.instance.executing-process.term-callback", target:callback)
-		self.internalCallback = icb
+	init(execute:URL, arguments:[String]?, environment:[String:String]?, callback:DispatchQueue) throws {
+		self._executable = execute
+		self._arguments = arguments
+		self._environment = environment
+		
+		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.execute.sync", target:Self.globalLockQueue)
 		self._callbackQueue = callback
-		
-		let eq = DispatchQueue(label:"com.tannersilva.instance.executing.exit-wait", qos:Priority.highest.asDispatchQoS(), target:exitThreads)
-		self.exitQueue = eq
-		
-		self.executable = execute
-		self.arguments = arguments
-		self.environment = environment
-		self.arguments = arguments
-		self.processIdentifier = nil
-		self.isRunning = false
-		self._terminationHandler = terminationHandler
+		self._exitWatcher = try ExitWatcher()
 	}
 	
 	func run() throws {
-		let syncQueue = internalSync
-		return try syncQueue.sync {
-			guard isRunning == false else {
-				throw ProcessError.processAlreadyRunning
-			}
-		
-			guard let launchPath = Self.isLaunchURLExecutable(executable) else {
-				throw ProcessError.unableToExecute
+		try internalSync.sync {
+			guard _isRunning == false && _exitCode == nil else {
+				throw ExecutingProcessError.processAlreadyRunning
+			}			
+			guard let launchPath = Self.isLaunchURLExecutable(_executable) else {
+				throw ExecutingProcessError.unableToExecute
 			}
 			var argBuild = [launchPath]
-			if let args = self.arguments {
-				argBuild.append(contentsOf:args)
+			if let hasArguments = _arguments {
+				argBuild.append(contentsOf:hasArguments)
 			}
 			
 			//convert the arguments into C compatible variables
@@ -153,12 +423,12 @@ internal class ExecutingProcess {
 				}
 				argC.deallocate()
 			}
-		
-			//convert the environment variables to C compatible variables
+			
+			//convert the environment variables into c compatible variables
 			var env:[String:String]
-			if let e = environment {
+			if let e = _environment {
 				env = e
-			} else { 
+			} else {
 				env = [String:String]()
 			}
 			let envCount = env.count
@@ -171,20 +441,18 @@ internal class ExecutingProcess {
 				}
 				envC.deallocate()
 			}
-		
-			//bind the file handle descriptors to the pipes that we are associating with this process 
+
 			var fHandles = [Int32:Int32]()
-			if let hasStdin = stdin {
+			if let hasStdin = _stdin {
 				fHandles[STDIN_FILENO] = hasStdin.reading.fileDescriptor
 			}
-			if let hasStdout = stdout {
+			if let hasStdout = _stdout {
 				fHandles[STDOUT_FILENO] = hasStdout.writing.fileDescriptor
 			}
-			if let hasStderr = stderr {
+			if let hasStderr = _stderr {
 				fHandles[STDERR_FILENO] = hasStderr.writing.fileDescriptor
 			}
-		
-		
+			
 			//there are some weird differences between Linux and macOS in terms of their preference with optionals
 			//here, the specific allocators and deallocators for each platform are specified
 	#if os(macOS)
@@ -201,80 +469,45 @@ internal class ExecutingProcess {
 			for (destination, source) in fHandles {
 				let result = posix_spawn_file_actions_adddup2(fileActions, source, destination)
 			}
-
-			//launch the process
+			
 			var lpid = pid_t()
-			
-			let queueGroup = DispatchGroup()
-			let runGroup = DispatchGroup()
-			
-			runGroup.enter()
-			queueGroup.enter()
-			
-			let startDate = Date()
-			
-			let exitWorkItem = DispatchWorkItem(qos:Priority.highest.asDispatchQoS(), flags:[.enforceQoS]) { [weak self] in
-				var launchDate = Date()
-				
-				print(Colors.Yellow("launched exit thread in \(launchDate.timeIntervalSince(startDate)) seconds"))
-				
-				queueGroup.leave()
-				runGroup.wait()
-				var waitResult:Int32 = 0
-				var ec:Int32 = 0
-				repeat {
-					waitResult = waitpid(lpid, &ec, 0)
-				} while waitResult == -1 && errno == EINTR || WIFEXITED(ec) == false || lpid == 0
-				launchDate = Date()
-				guard let self = self else {
-					return
+            try ExecutingProcess.globalSerialRun.sync {
+				guard posix_spawn(&lpid, launchPath, fileActions, nil, argC, envC) == 0 && lpid != 0 else {
+					throw ExecutingProcessError.unableToExecute
 				}
-				let completionWorkItem = DispatchWorkItem(qos:Priority.highest.asDispatchQoS(), flags:[.enforceQoS]) { [weak self] in
+			}
+			
+			_launchTime = Date()
+			_processId = lpid
+
+			do {
+				try _exitWatcher.engage(pid:lpid) { [weak self] exitCode, exitDate in
 					guard let self = self else {
 						return
 					}
-					let runDate = Date()
-					print(Colors.cyan("started running exit handler in \(launchDate.timeIntervalSince(runDate)) seconds"))
-					self.isRunning = false
-					if WIFSIGNALED(ec) {
-						self.terminationReason = TerminationReason.uncaughtSignal
-					} else {
-						self.terminationReason = TerminationReason.exited
-					}
-					self.exitCode = ec
-					self.stdin?.close()
-					self.stdout?.close()
-					self.stderr?.close()
-				}
-				if let hasTermHandle = self.terminationHandler {
-					completionWorkItem.notify(qos:Priority.highest.asDispatchQoS(), flags:[.enforceQoS], queue:self.internalCallback) { [weak self] in
-						guard let self = self else {
-							return
+					print(Colors.Red("Exit triggered"))
+					self.internalSync.sync {
+						self._exitCode = exitCode
+						self._exitTime = exitDate
+                        if let hasTerminationHandler = self._terminationHandler {
+							if let hasAsyncGroup = self._callbackGroup {
+								self._callbackQueue.async(group:hasAsyncGroup, execute:hasTerminationHandler)
+							} else {
+								self._callbackQueue.async(execute:hasTerminationHandler)
+							}
 						}
-						let notifyDate = Date()
-						print(Colors.magenta("exit notified \(notifyDate.timeIntervalSince(launchDate)) seconds after true exitT"))
-						hasTermHandle(self)
 					}
 				}
-				self.internalSync.async(execute:completionWorkItem)
+			} catch let error {
+				kill(lpid, SIGKILL)
+				throw error
 			}
-			exitQueue.async(execute:exitWorkItem)
-			queueGroup.wait()
-			try serialRun.sync {
-				guard posix_spawn(&lpid, launchPath, fileActions, nil, argC, envC) == 0 else {
-					throw ProcessError.unableToExecute
-				}
-			}
-			runGroup.leave()
-			
-			processIdentifier = lpid
-			isRunning = true
 		}
 	}
 	
 	func suspend() -> Bool? {
 		return internalSync.sync {
-			guard let pid = processIdentifier else {
+			guard let pid = _processId else {
 				return nil
 			}
 			if kill(pid, SIGSTOP) == 0 {
@@ -287,7 +520,7 @@ internal class ExecutingProcess {
 	
 	func terminate() {
 		internalSync.sync {
-			guard let pid = processIdentifier else {
+			guard let pid = _processId else {
 				return
 			}
 			kill(pid, SIGTERM)
@@ -296,7 +529,7 @@ internal class ExecutingProcess {
 	
 	func forceKill() {
 		internalSync.sync {
-			guard let pid = processIdentifier else {
+			guard let pid = _processId else {
 				return
 			}
 			kill(pid, SIGKILL)
@@ -305,7 +538,7 @@ internal class ExecutingProcess {
 	
 	func resume() -> Bool? {
 		return internalSync.sync {
-			guard let pid = processIdentifier else {
+			guard let pid = _processId else {
 				return nil
 			}
 			if kill(pid, SIGCONT) == 0 {

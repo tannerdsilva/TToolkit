@@ -4,6 +4,8 @@ import Foundation
 	The priority enum allows you to easily access relevant asynchronous computing threads based on the required priority.
 */
 
+internal let maximumPriority = Priority.highest.asDispatchQoS(relative:Int.max)
+
 public enum Priority:UInt8 {
 	case highest
 	case high
