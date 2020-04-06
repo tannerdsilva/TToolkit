@@ -9,10 +9,10 @@ public class InteractiveProcess {
 	/*
 	I/O events for the interactive process are handled in an asyncronous queue that calls into two secondary syncronous queues (one for internal handling, the other for callback handling
 	*/
- 	private let internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync", target:globalQueue)
+ 	private let internalSync:DispatchQueue
 	private let ioQueue:DispatchQueue	//not initialized here because it is qos dependent (qos passed to initializer)
 	private let ioGroup:DispatchGroup
-	private let callbackSync = DispatchQueue(label:"com.tannersilva.instance.process.callback.sync", target:globalQueue)
+	private let callbackSync:DispatchQueue
 	private let runGroup:DispatchGroup
 	
 	public enum InteractiveProcessState:UInt8 {
@@ -98,11 +98,18 @@ public class InteractiveProcess {
 	}
 	
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
-		let ioq = DispatchQueue(label:"com.tannersilva.instance.process.interactive.io", qos:priority.asDispatchQoS(relative:300), attributes:[.concurrent], target:Self.globalQueue)
+		let ioq = DispatchQueue(label:"com.tannersilva.instance.process.interactive.io.concurrent", qos:priority.asDispatchQoS(relative:100), attributes:[.concurrent])
 		let iog = DispatchGroup()
+		let cb = DispatchQueue(label:"com.tannersilva.instance.process.interactive.callback.sync", target:ioq)
+		let isync = DispatchQueue(label:"com.tannersilva.instance.process.interactive.sync", target:ioq)
+		let rg = DispatchGroup()
 		
 		self.ioQueue = ioq
 		self.ioGroup = iog
+		self.internalSync = isync
+		self.callbackSync = cb
+		self.runGroup = rg
+		
 		self._state = .initialized
 		
 		let input = try ProcessPipes(callback:ioq, group:iog)
@@ -115,7 +122,6 @@ public class InteractiveProcess {
 		
 		let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, callback:ioQueue)
 		self.proc = externalProcess
-        self.runGroup = DispatchGroup()
         
 		externalProcess.stdin = input
 		externalProcess.stdout = output
