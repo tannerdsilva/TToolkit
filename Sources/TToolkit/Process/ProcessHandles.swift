@@ -155,6 +155,7 @@ internal class ProcessPipes {
 			}
 		}
 		set {
+			print("woa?")
 			internalSync.sync {
 				if let hasNewHandler = newValue {
 					_readHandler = hasNewHandler
