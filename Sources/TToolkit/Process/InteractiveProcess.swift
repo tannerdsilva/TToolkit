@@ -120,7 +120,7 @@ public class InteractiveProcess {
 		self.stdout = output
 		self.stderr = err
 		
-		let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, callback:ioQueue)
+		let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, callback:ioq)
 		self.proc = externalProcess
         
 		externalProcess.stdin = input
