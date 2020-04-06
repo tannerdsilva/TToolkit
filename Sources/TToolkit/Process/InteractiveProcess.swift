@@ -100,8 +100,8 @@ public class InteractiveProcess {
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
 		let ioq = DispatchQueue(label:"com.tannersilva.instance.process.interactive.io.concurrent", qos:priority.asDispatchQoS(relative:100), attributes:[.concurrent])
 		let iog = DispatchGroup()
-		let cb = DispatchQueue(label:"com.tannersilva.instance.process.interactive.callback.sync", target:ioq)
-		let isync = DispatchQueue(label:"com.tannersilva.instance.process.interactive.sync", target:ioq)
+		let cb = DispatchQueue(label:"com.tannersilva.instance.process.interactive.callback.sync")
+		let isync = DispatchQueue(label:"com.tannersilva.instance.process.interactive.sync")
 		let rg = DispatchGroup()
 		
 		self.ioQueue = ioq
@@ -112,15 +112,15 @@ public class InteractiveProcess {
 		
 		self._state = .initialized
 		
-		let input = try ProcessPipes(callback:ioq, group:iog)
-		let output = try ProcessPipes(callback:ioq, group:iog)
-		let err = try ProcessPipes(callback:ioq, group:iog)
+		let input = try ProcessPipes(callback:ioq, group:cb)
+		let output = try ProcessPipes(callback:ioq, group:cb)
+		let err = try ProcessPipes(callback:ioq, group:cb)
 		
 		self.stdin = input
 		self.stdout = output
 		self.stderr = err
 		
-		let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, callback:ioq)
+		let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, callback:cb)
 		self.proc = externalProcess
         
 		externalProcess.stdin = input

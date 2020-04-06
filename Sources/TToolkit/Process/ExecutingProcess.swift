@@ -391,7 +391,7 @@ internal class ExecutingProcess {
 		self._arguments = arguments
 		self._environment = environment
 		
-		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.execute.sync", target:Self.globalLockQueue)
+		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.execute.sync")
 		self._callbackQueue = callback
 		self._exitWatcher = try ExitWatcher()
 	}
