@@ -155,10 +155,10 @@ internal class ProcessPipes {
 			}
 		}
 		set {
-			print("woa?")
 			internalSync.sync {
 				if let hasNewHandler = newValue {
 					_readHandler = hasNewHandler
+					print("woa?")
 					globalPR.scheduleForReading(reading, queue:internalCallback, group:_callbackGroup, work:hasNewHandler)
 				} else {
 					if _readHandler != nil {
