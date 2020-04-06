@@ -43,21 +43,21 @@ internal class PipeReader {
 	}
 	
 	func scheduleForReading(_ handle:ProcessHandle, queue:DispatchQueue, group:DispatchGroup, work:@escaping(ReadHandler)) {
-		let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:scheduleQueue)
-		group.enter()
-		newSource.setEventHandler {
-			if let newData = handle.availableData() {
-				print(Colors.Green("read \(newData.count) bytes"))
-				let workItem = DispatchWorkItem(flags:[.inheritQoS]) {
-					work(newData)
-				}
-				queue.async(group:group, execute:workItem)
-			}
-		}
-		newSource.setCancelHandler {
-			group.leave()
-		}
 		internalSync.sync {
+			let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:scheduleQueue)
+			group.enter()
+			newSource.setEventHandler {
+				if let newData = handle.availableData() {
+					print(Colors.Green("read \(newData.count) bytes"))
+					let workItem = DispatchWorkItem(flags:[.inheritQoS]) {
+						work(newData)
+					}
+					queue.async(group:group, execute:workItem)
+				}
+			}
+			newSource.setCancelHandler {
+				group.leave()
+			}
 			if let hasExisting = handleQueue[handle] {
 				hasExisting.cancel()
 			}
