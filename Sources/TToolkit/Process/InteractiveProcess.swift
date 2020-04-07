@@ -145,8 +145,9 @@ public class InteractiveProcess {
 			self.internalSync.sync {
 				self._finishStderr()
 				self._finishStdout()
-				
+				print("finished")
 				self.callbackQueue.sync {
+					print("callback syncronized")
 					if let hasErrH = self._stderrHandler {
 						for (_, curLine) in self._stderrLines.enumerated() {
 							hasErrH(curLine)
@@ -160,6 +161,7 @@ public class InteractiveProcess {
 						self._stdoutLines.removeAll(keepingCapacity:false)
 					}
 				}
+				print("left")
 				self._state = .exited
 				self.runGroup.leave()
 			}
