@@ -152,40 +152,39 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
-			print(Colors.dim("RH called"))
-			let newWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
-				guard let self = self else {
-					return
-				}
-				if let hasLines = self.incomingStdout(someData) {
-					self.internalSync.sync {
-						for (_, curLine) in hasLines.enumerated() {
-							self._stdoutLines.append(curLine)
-						}
+			let newLines = someData.withUnsafeBytes { unsafeRawBufferPointer -> [Data]? in
+				let boundBuffer = unsafeRawBufferPointer.bindMemory(to:UInt8.self)
+				let hasEndline = boundBuffer.contains(where: { $0 == 10 || $0 == 13 })
+				var completeLines:[Data]? = self.internalSync.sync {
+					self._stdoutBuffer.append(boundBuffer)
+					if hasEndline == true, var parsedLines = self._stdoutBuffer.lineSlice(removeBOM:false) {
+						let tailData = parsedLines.removeLast()
+						self._stdoutBuffer.removeAll(keepingCapacity:true)
+						self._stdoutBuffer.append(tailData)
+						return parsedLines
+					} else {
+						return nil
 					}
 				}
+				return completeLines
 			}
-			newWorkItem.notify(flags:[.inheritQoS], queue:self.callback) { [weak self] in 
-				guard let self = self else {
-					return
-				}
-				print(Colors.magenta("callbacks beinning"))
-				let lines = self.internalSync.sync { return self._stdoutLines }
-				if lines.count > 0 {
+			if let hasNewLines = newLines {
+				let newWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in 
+					guard let self = self else {
+						return
+					}
+					print(Colors.magenta("callbacks beinning"))
 					let callback = self.internalSync.sync {
 						return self._stdoutHandler
 					}
 					if let hasCallback = callback {
-						self.internalSync.sync {
-							self._stdoutLines.removeAll(keepingCapacity:true)
-						}
-						for (_, curLine) in lines.enumerated() {
+						for (_, curLine) in hasNewLines.enumerated() {
 							hasCallback(curLine)
 						}
 					}
 				}
+				self.callback.async(execute:newWorkItem)
 			}
-			ioq.async(execute:newWorkItem)
 		}
 
 		err.readHandler = { [weak self] someData in
