@@ -7,6 +7,8 @@ internal class ProcessMonitor {
 	
 	var announceTimer:TTimer
 	
+	var processHashes = [InteractiveProcess:Int]()
+	
 	var processes = [InteractiveProcess:Date]()
 	var sortedProcesses:[(key:InteractiveProcess, value:Date)] {
 		get {
@@ -24,9 +26,19 @@ internal class ProcessMonitor {
 			self.internalSync.sync {
 				let sortedProcs = self.sortedProcesses
 				for (_, curProcess) in sortedProcs.enumerated() {
-					print(Colors.Cyan("\(curProcess.key.identifier)\t\t"), terminator:"")
+					print(Colors.Cyan("\(curProcess.key._uniqueID)\t\t"), terminator:"")
 					print(Colors.yellow("\(curProcess.value.timeIntervalSinceNow)\t"), terminator:"")
-					print(Colors.green("\(curProcess.key.dhash)\t"), terminator:"")
+					let hash = curProcess.key.dhash
+					if let hasHash = self.processHashes[curProcess.key] {
+						if hasHash != hash {
+							print(Colors.green("\(curProcess.key.dhash)\t"), terminator:"")
+						} else {
+							print(Colors.dim("\(curProcess.key.dhash)\t"), terminator:"")
+						}
+					} else {
+						self.processHashes[curProcess.key] = hash
+					}
+					
 					print(Colors.green("\(curProcess.key.status)\t"), terminator:"\n")
 				}
 				print(Colors.Blue("There are \(self.processes.count) processes in flight"))
@@ -51,16 +63,28 @@ internal class ProcessMonitor {
 fileprivate let pmon = ProcessMonitor()
 
 public class InteractiveProcess:Hashable {
-	internal var identifier:Int64 = Int64.random(in:Int64.min..<Int64.max)
+	private var _id = UUID()
+	internal var _uniqueID:String {
+		get {
+			return _id.uuidString
+		}
+	}
+	internal var processIdentifier:Int32 {
+		get {
+			return internalSync.sync {
+				return proc.processIdentifier ?? 0
+			}
+		}
+	}
 	
 	internal var dhash:Int = 0
 	
 	public func hash(into hasher:inout Hasher) {
-		hasher.combine(identifier)
+		hasher.combine(_uniqueID)
 	}
 	
 	public static func == (lhs:InteractiveProcess, rhs:InteractiveProcess) -> Bool {
-		return lhs.identifier == rhs.identifier
+		return lhs._id == rhs._id
 	}
 	
     public typealias OutputHandler = (Data) -> Void
