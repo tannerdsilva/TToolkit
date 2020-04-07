@@ -165,6 +165,42 @@ public class InteractiveProcess {
 		}
 		externalProcess.terminationHandler = termHandle
 
+		let stderrWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
+			guard let self = self else {
+				return
+			}
+			self.internalSync.sync {
+				if var parsedLines = self._stderrBuffer.lineSlice(removeBOM:false) {
+					let tailData = parsedLines.removeLast()
+					self._stderrBuffer.removeAll(keepingCapacity:true)
+					self._stderrBuffer.append(tailData)
+					self._stderrLines.append(contentsOf:parsedLines)
+					
+					let callbackWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
+						guard let self = self else {
+							return
+						}
+						var lines = self.internalSync.sync { return self._stderrLines }
+						if lines.count > 0 {
+							let callback = self.internalSync.sync {
+								return self._stderrHandler
+							}
+							if let hasCallback = callback {
+								self.internalSync.sync {
+									lines = self._stderrLines
+									self._stderrLines.removeAll(keepingCapacity:true)
+								}
+								for (_, curLine) in lines.enumerated() {
+									hasCallback(curLine)
+								}
+							}
+						}
+					}
+					self.callbackQueue.async(execute:callbackWorkItem)
+				}
+			}
+		}
+		
 		let stdoutWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
 			guard let self = self else {
 				return
@@ -200,6 +236,7 @@ public class InteractiveProcess {
 				}
 			}
 		}
+		
 		output.readHandler = { [weak self] someData in
 			guard let self = self else {
 				return
@@ -211,15 +248,16 @@ public class InteractiveProcess {
 			self.outputQueue.async(execute:stdoutWorkItem)
 		}
 
-//		err.readHandler = { [weak self] someData in
-//			guard let self = self else {
-//				return
-//			}
-//			if let hasLines = self.incomingStderr(someData) {
-////				print(Colors.magenta("lines found"))
-////				self.callbackStderr(lines:hasLines)
-//			}
-//		}
+		err.readHandler = { [weak self] someData in
+			guard let self = self else {
+				return
+			}
+			self.internalSync.sync {
+				self._stderrBuffer.append(someData)
+			}
+			
+			self.outputQueue.async(execute:stderrWorkItem)
+		}
 	}
 	
 //	fileprivate func callbackStderr(lines:[Data]) {
