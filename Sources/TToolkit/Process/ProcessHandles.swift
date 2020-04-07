@@ -47,12 +47,7 @@ internal class PipeReader {
 			group.enter()
 			newSource.setEventHandler {
 				if let newData = handle.availableData() {
-					print(Colors.Green("read \(newData.count) bytes"))
 					work(newData)
-//					let workItem = DispatchWorkItem(flags:[.inheritQoS]) {
-//						work(newData)
-//					}
-//					queue.async(group:group, execute:workItem)
 				}
 			}
 			newSource.setCancelHandler {

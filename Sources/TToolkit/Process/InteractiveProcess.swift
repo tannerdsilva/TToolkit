@@ -155,45 +155,42 @@ public class InteractiveProcess {
 			self.internalSync.sync {
 				self._stdoutBuffer.append(someData)
 			}
-//			let newLines = someData.withUnsafeBytes { unsafeRawBufferPointer -> [Data]? in
-//				let boundBuffer = unsafeRawBufferPointer.bindMemory(to:UInt8.self)
-//				let hasEndline = boundBuffer.contains(where: { $0 == 10 || $0 == 13 })
-//				var completeLines:[Data]? = self.internalSync.sync {
-//					self._stdoutBuffer.append(boundBuffer)
-//					if hasEndline == true, var parsedLines = self._stdoutBuffer.lineSlice(removeBOM:false) {
-//						let tailData = parsedLines.removeLast()
-//						self._stdoutBuffer.removeAll(keepingCapacity:true)
-//						self._stdoutBuffer.append(tailData)
-//						return parsedLines
-//					} else {
-//						return nil
-//					}
-//				}
-//				return completeLines
-//			}
-//			if let hasData = newLines {
-//				self.internalSync.sync {
-//					self._stdoutLines.append(contentsOf:hasData)
-//				}
-//			}
-//			print(Colors.Yellow("New data found: \(newLines)"))
-//			if let hasNewLines = newLines {
-//				let newWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in 
-//					guard let self = self else {
-//						return
-//					}
-//					print(Colors.magenta("callbacks beinning"))
-//					let callback = self.internalSync.sync {
-//						return self._stdoutHandler
-//					}
-//					if let hasCallback = callback {
-//						for (_, curLine) in self._stdoutLines.enumerated() {
-//							hasCallback(curLine)
-//						}
-//					}
-//				}
-//				self.callback.async(execute:newWorkItem)
-//			}
+			let newWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
+				guard let self = self else {
+					return
+				}
+				print(Colors.cyan("parsing"))
+				self.internalSync.sync {
+					if var parsedLines = self._stdoutBuffer.lineSlice(removeBOM:false) {
+						let tailData = parsedLines.removeLast()
+						self._stdoutBuffer.removeAll(keepingCapacity:true)
+						self._stdoutBuffer.append(tailData)
+						self._stdoutLines.append(contentsOf:parsedLines)
+					}
+				}
+			}
+			newWorkItem.notify(flags:[.inheritQoS], queue:self.callback) { [weak self] in 
+				guard let self = self else {
+					return
+				}
+				print(Colors.magenta("callbacks beinning"))
+				let lines = self.internalSync.sync { return self._stdoutLines }
+				if lines.count > 0 {
+					let callback = self.internalSync.sync {
+						return self._stdoutHandler
+					}
+					if let hasCallback = callback {
+						self.internalSync.sync {
+							self._stdoutLines.removeAll(keepingCapacity:true)
+						}
+						for (_, curLine) in lines.enumerated() {
+							hasCallback(curLine)
+						}
+					}
+				}
+			}
+			print(Colors.red("scheduled"))
+			self.ioQueue.async(execute:newWorkItem)
 		}
 
 //		err.readHandler = { [weak self] someData in
