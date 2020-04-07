@@ -140,41 +140,42 @@ public class InteractiveProcess {
 			input.close()
 			output.close()
 			err.close()
-			
+			print("Exit\t1")
 			self.internalSync.sync {
 				self._finishStderr()
 				self._finishStdout()
+				rg.leave()
 			}
 		}
-		termHandle.notify(qos:hiPri, flags:[.barrier, .enforceQoS], queue:cb) { [weak self] in
-			guard let self = self else {
-				return
-			}
-			print("EXIT\t2")
-			if let hasErrH = self.stderrHandler {
-				let errLines = self.internalSync.sync { return self._stderrLines }
-				for (_, curLine) in errLines.enumerated() {
-					hasErrH(curLine)
-				}
-				self.internalSync.sync {
-					self._stderrLines.removeAll(keepingCapacity:false)
-				}
-			}
-			if let hasOutH = self._stdoutHandler {
-				let outLines = self.internalSync.sync { return self._stdoutLines }
-				for (_, curLine) in outLines.enumerated() {
-					hasOutH(curLine)
-				}
-				self.internalSync.sync {
-					self._stdoutLines.removeAll(keepingCapacity:false)
-				}
-			}
-			self.internalSync.sync {
-				self._state = .exited
-				self.runGroup.leave()
-			}
-
-		}
+		//termHandle.notify(qos:hiPri, flags:[.barrier, .enforceQoS], queue:cb) { [weak self] in
+//			guard let self = self else {
+//				return
+//			}
+//			print("EXIT\t2")
+//			if let hasErrH = self.stderrHandler {
+//				let errLines = self.internalSync.sync { return self._stderrLines }
+//				for (_, curLine) in errLines.enumerated() {
+//					hasErrH(curLine)
+//				}
+//				self.internalSync.sync {
+//					self._stderrLines.removeAll(keepingCapacity:false)
+//				}
+//			}
+//			if let hasOutH = self._stdoutHandler {
+//				let outLines = self.internalSync.sync { return self._stdoutLines }
+//				for (_, curLine) in outLines.enumerated() {
+//					hasOutH(curLine)
+//				}
+//				self.internalSync.sync {
+//					self._stdoutLines.removeAll(keepingCapacity:false)
+//				}
+//			}
+//			self.internalSync.sync {
+//				self._state = .exited
+//				self.runGroup.leave()
+//			}
+//
+//		}
 		externalProcess.terminationHandler = termHandle
 
 		let stderrWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
