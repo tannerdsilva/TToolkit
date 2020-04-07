@@ -103,6 +103,7 @@ public class InteractiveProcess {
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
 		let cmaster = DispatchQueue(label:"com.tannersilva.instance.process.interactive.master", qos:priority.asDispatchQoS(relative:300), attributes:[.concurrent])
 		let ioq = DispatchQueue(label:"com.tannersilva.instance.process.interactive.io.concurrent", qos:priority.asDispatchQoS(relative:100), target:cmaster)
+		let dataIn = DispatchQueue(label:"com.tannersilva.instance.process.interactive.io.concurrent", qos:priority.asDispatchQoS(relative:200), target:cmaster)
 		let iog = DispatchGroup()
 		let cb = DispatchQueue(label:"com.tannersilva.instance.process.interactive.callback.sync", qos:priority.asDispatchQoS(relative:50), target:cmaster)
 		let isync = DispatchQueue(label:"com.tannersilva.instance.process.interactive.sync")
@@ -116,9 +117,9 @@ public class InteractiveProcess {
 		self.runGroup = rg
 		self._state = .initialized
 		
-		let input = try ProcessPipes(callback:cmaster, group:iog)
-		let output = try ProcessPipes(callback:cmaster, group:iog)
-		let err = try ProcessPipes(callback:cmaster, group:iog)
+		let input = try ProcessPipes(callback:dataIn, group:iog)
+		let output = try ProcessPipes(callback:dataIn, group:iog)
+		let err = try ProcessPipes(callback:dataIn, group:iog)
 		
 		self.stdin = input
 		self.stdout = output
