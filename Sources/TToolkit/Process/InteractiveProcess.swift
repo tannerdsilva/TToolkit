@@ -36,8 +36,10 @@ internal class ProcessMonitor {
 						} else {
 							print(Colors.dim("\(curProcess.key.dhash)\t"), terminator:"")
 						}
-					} else {
 						self.processHashes[curProcess.key] = hash
+					} else {
+						print(Colors.red("\(curProcess.key.dhash)\t"), terminator:"")
+						self.processHashes[curProcess.key] = hash					
 					}
 					
 					print(Colors.green("\(curProcess.key.status)\t"), terminator:"\n")
