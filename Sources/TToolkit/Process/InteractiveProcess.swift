@@ -245,6 +245,7 @@ public class InteractiveProcess {
 			if let hasNewLines = newLines, let hasCallback = self.stdoutHandler {
 				self.callbackQueue.sync {
 					for (_, curLine) in hasNewLines.enumerated() {
+						print(Colors.magenta("calling back"))
 						hasCallback(curLine)
 					}
 				}
