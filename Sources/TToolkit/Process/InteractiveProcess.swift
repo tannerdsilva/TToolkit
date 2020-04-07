@@ -116,9 +116,9 @@ public class InteractiveProcess {
 		self.runGroup = rg
 		self._state = .initialized
 		
-		let input = try ProcessPipes(callback:ioq, group:iog)
-		let output = try ProcessPipes(callback:ioq, group:iog)
-		let err = try ProcessPipes(callback:ioq, group:iog)
+		let input = try ProcessPipes(callback:Priority.highest.globalConcurrentQueue, group:iog)
+		let output = try ProcessPipes(callback:Priority.highest.globalConcurrentQueue, group:iog)
+		let err = try ProcessPipes(callback:Priority.highest.globalConcurrentQueue, group:iog)
 		
 		self.stdin = input
 		self.stdout = output
@@ -152,16 +152,38 @@ public class InteractiveProcess {
 				return
 			}
 			
-			let newWorkItem = DispatchWorkItem(flags:[.interitQoS]) { [weak self] in
+			let newWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
 				guard let self = self else {
 					return
 				}
-				
+				if let hasLines = self.incomingStdout(someData) {
+					self.internalSync.sync {
+						for (_, curLine) in hasLines.enumerated() {
+							self._stdoutLines.append(curLine)
+						}
+					}
+				}
 			}
-			if let hasLines = self.incomingStdout(someData) {
-				print(Colors.magenta("lines found"))
-				self.callbackStdout(lines:hasLines)
+			newWorkItem.notify(flags:[.inheritQoS], queue:self.callback) { [weak self] in 
+				guard let self = self else {
+					return
+				}
+				let lines = self.internalSync.sync { return self._stdoutLines }
+				if lines.count > 0 {
+					let callback = self.internalSync.sync {
+						return self._stdoutHandler
+					}
+					if let hasCallback = callback {
+						self.internalSync.sync {
+							self._stdoutLines.removeAll(keepingCapacity:true)
+						}
+						for (_, curLine) in lines.enumerated() {
+							hasCallback(curLine)
+						}
+					}
+				}
 			}
+			ioq.async(execute:newWorkItem)
 		}
 
 		err.readHandler = { [weak self] someData in
@@ -169,31 +191,22 @@ public class InteractiveProcess {
 				return
 			}
 			if let hasLines = self.incomingStderr(someData) {
-				print(Colors.magenta("lines found"))
-				self.callbackStderr(lines:hasLines)
+//				print(Colors.magenta("lines found"))
+//				self.callbackStderr(lines:hasLines)
 			}
 		}
 	}
 	
-	fileprivate func callbackStderr(lines:[Data]) {
-		if let hasCallback = stderrHandler {
-			callbackSync.async {
-				for (_, curLine) in lines.enumerated() {
-					hasCallback(curLine)
-				}
-			}
-		}
-	}
+//	fileprivate func callbackStderr(lines:[Data]) {
+//		if let hasCallback = stderrHandler {
+//			callbackSync.async {
+//				for (_, curLine) in lines.enumerated() {
+//					hasCallback(curLine)
+//				}
+//			}
+//		}
+//	}
 	
-	fileprivate func callbackStdout(lines:[Data]) {
-		if let hasCallback = stdoutHandler {
-			callbackSync.async {
-				for (_, curLine) in lines.enumerated() {
-					hasCallback(curLine)
-				}
-			}
-		}
-	}
 	
 	fileprivate func incomingStdout(_ inputData:Data) -> [Data]? {
 		return inputData.withUnsafeBytes { unsafeRawBufferPointer in
