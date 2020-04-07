@@ -229,22 +229,25 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
-			var howManyLines:Int? = self.internalSync.sync {
+			var newLines:[Data]? = self.internalSync.sync {
 				if var parsedLines = self._stdoutBuffer.lineSlice(removeBOM:false) {
 					let tailData = parsedLines.removeLast()
 					self._stdoutBuffer.removeAll(keepingCapacity:true)
 					self._stdoutBuffer.append(tailData)
-					self._stdoutLines.append(contentsOf:parsedLines)
-					return parsedLines.count
+					if parsedLines.count > 0 {
+						return parsedLines
+					} else {
+						return nil
+					}
 				}
 				return nil
 			}
-			print("data consumed")
-			self.callbackQueue.sync {
-				print("callback syncronized")
-			}
-			if howManyLines != nil && howManyLines! > 0 {
-				
+			if let hasNewLines = newLines, let hasCallback = self.stdoutHandler {
+				self.callbackQueue.sync {
+					for (_, curLine) in hasNewLines.enumerated() {
+						hasCallback(curLine)
+					}
+				}
 			}
 //					let callbackWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
 //						guard let self = self else {
@@ -290,7 +293,7 @@ public class InteractiveProcess {
 				self._stderrBuffer.append(someData)
 			}
 			
-			self.outputQueue.async(execute:stderrWorkItem)
+//			self.outputQueue.async(execute:stderrWorkItem)
 		}
 	}
 	
