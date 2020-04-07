@@ -127,16 +127,17 @@ public class InteractiveProcess {
 		self.stdin = input
 		self.stdout = output
 		self.stderr = err
-		let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, callback:cmaster)
+		let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, callback:cb)
 		self.proc = externalProcess
 		externalProcess.stdin = input
 		externalProcess.stdout = output
 		externalProcess.stderr = err
 		
-		let termHandle = DispatchWorkItem(qos:hiPri, flags:[.barrier, .enforceQoS]) { [weak self] in
+		let termHandle = DispatchWorkItem(flags:[.barrier, .inheritQoS]) { [weak self] in
 			guard let self = self else {
 				return
 			}
+			print("hoping to get something done here")
 			input.close()
 			output.close()
 			err.close()
