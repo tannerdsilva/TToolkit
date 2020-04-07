@@ -26,7 +26,8 @@ internal class ProcessMonitor {
 				for (_, curProcess) in sortedProcs.enumerated() {
 					print(Colors.Cyan("\(curProcess.key.identifier)\t\t"), terminator:"")
 					print(Colors.yellow("\(curProcess.value.timeIntervalSinceNow)\t"), terminator:"")
-					print(Colors.green("\(curProcess.key.dhash)\t"))
+					print(Colors.green("\(curProcess.key.dhash)\t"), terminator:"")
+					print(Colors.green("\(curProcess.key.status)\t"), terminator:"")
 				}
 				print(Colors.Blue("There are \(self.processes.count) processes in flight"))
 			}
@@ -95,7 +96,7 @@ public class InteractiveProcess:Hashable {
 	}
 	
 	private var _status:String = ""
-	private var status:String {
+	internal var status:String {
 		get {
 			return internalSync.sync {
 				return _status
