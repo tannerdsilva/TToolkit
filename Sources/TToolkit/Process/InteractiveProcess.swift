@@ -147,6 +147,10 @@ public class InteractiveProcess {
 				print("finished")
 				
 				let finalItem = DispatchWorkItem(flags:[.barrier, .enforceQoS]) { [weak self] in
+					guard let self = self else {
+						return
+					}
+
 					print("callback syncronized")
 					if let hasErrH = self._stderrHandler {
 						for (_, curLine) in self._stderrLines.enumerated() {
