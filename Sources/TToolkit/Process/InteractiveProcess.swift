@@ -8,9 +8,9 @@ internal class ProcessMonitor {
 	var announceTimer:TTimer
 	
 	var processes = [InteractiveProcess:Date]()
-	var sortedProcesses:[InteractiveProcess] {
+	var sortedProcesses:[(key:InteractiveProcess, value:Date)] {
 		get {
-			return processes.sorted(by: { $0.value > $1.value }).compactMap { $0.key }
+			return processes.sorted(by: { $0.value > $1.value })
 		}
 	}
 	
@@ -21,7 +21,15 @@ internal class ProcessMonitor {
 			guard let self = self else {
 				return
 			}
-			print(Colors.Blue("There are \(self.processes.count) processes in flight"))
+			self.internalSync.sync {
+				let sortedProcs = self.sortedProcesses
+				for (_, curProcess) in sortedProcs.enumerated() {
+					print(Colors.Cyan("\(curProcess.key.identifier)\t\t"), terminator:"")
+					print(Colors.yellow("\(curProcess.value.timeIntervalSinceNow)\t"), terminator:"")
+					print(Colors.green("\(curProcess.key.dhash)\t"))
+				}
+				print(Colors.Blue("There are \(self.processes.count) processes in flight"))
+			}
 		}
 		announceTimer.activate()
 	}
@@ -42,8 +50,10 @@ internal class ProcessMonitor {
 fileprivate let pmon = ProcessMonitor()
 
 public class InteractiveProcess:Hashable {
-	private var identifier:Int64 = Int64.random(in:Int64.min..<Int64.max)
-
+	internal var identifier:Int64 = Int64.random(in:Int64.min..<Int64.max)
+	
+	internal var dhash:Int = 0
+	
 	public func hash(into hasher:inout Hasher) {
 		hasher.combine(identifier)
 	}
@@ -84,11 +94,19 @@ public class InteractiveProcess:Hashable {
 		}
 	}
 	
+	private var _status:String = ""
+	private var status:String {
+		get {
+			return internalSync.sync {
+				return _status
+			}
+		}
+	}
+	
 	internal var stdin:ProcessPipes
 	internal var stdout:ProcessPipes
 	internal var stderr:ProcessPipes
 	
-	internal var _stdoutLines = [Data]()
 	internal var _stdoutBuffer = Data()
 	public var stdoutBuffer:Data {
 		get {
@@ -98,7 +116,6 @@ public class InteractiveProcess:Hashable {
 		}
 	}
 	
-	internal var _stderrLines = [Data]()
 	internal var _stderrBuffer = Data()
 	public var stderrBuffer:Data {
 		get {
@@ -192,7 +209,15 @@ public class InteractiveProcess:Hashable {
 			output.close()
 			err.close()
 			
+			self.internalSync.sync {
+				self._status = "pipes closed (waiting)"
+			}
+			
 			iog.wait()
+
+			self.internalSync.sync {
+				self._status = "completed io"
+			}
 
 			let errLines = self.internalSync.sync { return self._finishStderr() }
 			let outLines = self.internalSync.sync { return self._finishStdout() }
@@ -204,6 +229,10 @@ public class InteractiveProcess:Hashable {
 					}
 				}
 			}
+			self.internalSync.sync {
+				self._status = "cb1 completed"
+			}
+
 			
 			if let hasOutLines = outLines, let hasCallback = self.stdoutHandler {
 				self.callbackQueue.sync {
@@ -213,6 +242,9 @@ public class InteractiveProcess:Hashable {
 				}
 			}
 			rg.leave()
+			self.internalSync.sync {
+				self._status = "left"
+			}
 			pmon.processEnded(self)
 			print(Colors.cyan("left"))
 		}
@@ -275,13 +307,18 @@ public class InteractiveProcess:Hashable {
 			guard let self = self else {
 				return
 			}
+			var hasher = Hasher()
+			let currentHash = self.internalSync.sync { return self.dhash }
 			let isNewLine = someData.withUnsafeBytes({ usRawBuffPoint -> Bool in
+				hasher.combine(bytes:usRawBuffPoint)
 				if usRawBuffPoint.contains(where: { $0 == 10 || $0 == 13 }) {
 					return true
 				}
 				return false
 			})
+			hasher.combine(currentHash)
 			self.internalSync.sync {
+				self.dhash = hasher.finalize()
 				self._stdoutBuffer.append(someData)
 			}
 			if isNewLine == true {
@@ -293,19 +330,26 @@ public class InteractiveProcess:Hashable {
 			guard let self = self else {
 				return
 			}
+			var hasher = Hasher()
+			let currentHash = self.internalSync.sync { return self.dhash }
 			let isNewLine = someData.withUnsafeBytes({ usRawBuffPoint -> Bool in
+				hasher.combine(bytes:usRawBuffPoint)
 				if usRawBuffPoint.contains(where: { $0 == 10 || $0 == 13 }) {
 					return true
 				}
 				return false
 			})
+			hasher.combine(currentHash)
 			self.internalSync.sync {
+				self.dhash = hasher.finalize()
 				self._stderrBuffer.append(someData)
 			}
 			if isNewLine == true {
 				self.outputQueue.async(group:self.ioGroup, execute:stderrWorkItem)
 			}
 		}
+		
+		_status = "initialized"
 	}
 	
 //	fileprivate func callbackStderr(lines:[Data]) {
@@ -343,6 +387,7 @@ public class InteractiveProcess:Hashable {
         try internalSync.sync {
             runGroup.enter()
             do {
+            	_status = "running"
             	pmon.processLaunched(self)
                 try proc.run()
                 _state = .running
