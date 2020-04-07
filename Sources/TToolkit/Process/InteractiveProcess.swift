@@ -27,6 +27,7 @@ internal class ProcessMonitor {
 				let sortedProcs = self.sortedProcesses
 				for (_, curProcess) in sortedProcs.enumerated() {
 					print(Colors.Cyan("\(curProcess.key._uniqueID)\t\t"), terminator:"")
+					print(Colors.blue("\(curProcess.key.processIdentifier)\t\t"), terminator:"")
 					print(Colors.yellow("\(curProcess.value.timeIntervalSinceNow)\t"), terminator:"")
 					let hash = curProcess.key.dhash
 					if let hasHash = self.processHashes[curProcess.key] {
