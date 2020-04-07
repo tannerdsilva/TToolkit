@@ -70,7 +70,6 @@ internal class ExitWatcher {
 		threadLaunchedGroup.enter()
 		let launchtime = Date()
 		bgThread.async { [weak self] in
-			print(Colors.Yellow("Exit watcher launched in \(launchtime.timeIntervalSinceNow) seconds"))
 			//state 1: guarantee initialization of this async work
 			flight.enter()
 			defer {

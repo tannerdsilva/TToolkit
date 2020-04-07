@@ -133,7 +133,7 @@ public class InteractiveProcess {
 		externalProcess.stdout = output
 		externalProcess.stderr = err
 		
-		let termHandle = DispatchWorkItem(flags:[.barrier, .inheritQoS]) { [weak self] in
+		let termHandle = DispatchWorkItem(qos:hiPri, flags:[.barrier, .enforceQoS]) { [weak self] in
 			guard let self = self else {
 				return
 			}
@@ -141,28 +141,39 @@ public class InteractiveProcess {
 			output.close()
 			err.close()
 			
-			print("EXITER")
 			self.internalSync.sync {
 				self._finishStderr()
 				self._finishStdout()
-				
-				self.callbackQueue.sync {
-					if let hasErrH = self._stderrHandler {
-						for (_, curLine) in self._stderrLines.enumerated() {
-							hasErrH(curLine)
-						}
-						self._stderrLines.removeAll(keepingCapacity:false)
-					}
-					if let hasOutH = self._stdoutHandler {
-						for (_, curLine) in self._stdoutLines.enumerated() {
-							hasOutH(curLine)
-						}
-						self._stdoutLines.removeAll(keepingCapacity:false)
-					}
+			}
+		}
+		termHandle.notify(qos:hiPri, flags:[.barrier, .enforceQoS], queue:cb) { [weak self] in
+			guard let self = self else {
+				return
+			}
+			print("EXIT\t2")
+			if let hasErrH = self.stderrHandler {
+				let errLines = self.internalSync.sync { return self._stderrLines }
+				for (_, curLine) in errLines.enumerated() {
+					hasErrH(curLine)
 				}
+				self.internalSync.sync {
+					self._stderrLines.removeAll(keepingCapacity:false)
+				}
+			}
+			if let hasOutH = self._stdoutHandler {
+				let outLines = self.internalSync.sync { return self._stdoutLines }
+				for (_, curLine) in outLines.enumerated() {
+					hasOutH(curLine)
+				}
+				self.internalSync.sync {
+					self._stdoutLines.removeAll(keepingCapacity:false)
+				}
+			}
+			self.internalSync.sync {
 				self._state = .exited
 				self.runGroup.leave()
 			}
+
 		}
 		externalProcess.terminationHandler = termHandle
 
