@@ -110,12 +110,14 @@ internal class ExitWatcher {
 				self.state = .engaged
 			}
 			engageResponse.leave()
+			pmon.exiterEngaged(pidWatch)
 			var waitResult:Int32 = 0
 			var exitCode:Int32 = 0
 			repeat {
 				waitResult = waitpid(pidWatch, &exitCode, 0)
 			} while waitResult == -1 && errno == EINTR || WIFEXITED(exitCode) == false
 			let exitTime = Date()
+			pmon.exiterDisengaged(pidWatch)
 			validHandler(exitCode, exitTime)
 			syncQueue.sync {
 				self.state = .exited

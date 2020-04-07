@@ -6,8 +6,10 @@ internal class ProcessMonitor {
 	let internalSync = DispatchQueue(label:"com.tannersilva.process.monitor.sync")
 	
 	var announceTimer:TTimer
-	
 	var processHashes = [InteractiveProcess:Int]()
+	
+	var engagements = Set<Int32>()
+	var disengagements = Set<Int32>()
 	
 	var processes = [InteractiveProcess:Date]()
 	var sortedProcesses:[(key:InteractiveProcess, value:Date)] {
@@ -41,13 +43,31 @@ internal class ProcessMonitor {
 						print(Colors.red("\(curProcess.key.dhash)\t"), terminator:"")
 						self.processHashes[curProcess.key] = hash					
 					}
-					
+					let pid = curProcess.key.processIdentifier
+					if (self.engagements.contains(pid)) {
+						print(Colors.Magenta("E\t"), terminator:"")
+					} else if self.disengagements.contains(pid) {
+						print(Colors.Red("D!\t"), terminator:"")
+					}
 					print(Colors.green("\(curProcess.key.status)\t"), terminator:"\n")
 				}
 				print(Colors.Blue("There are \(self.processes.count) processes in flight"))
 			}
 		}
 		announceTimer.activate()
+	}
+	
+	func exiterEngaged(_ p:Int32) {
+		internalSync.sync {
+			engagements.update(with:p)
+		}
+	}
+	
+	func exiterDisengaged(_ p:Int32) {
+		internalSync.sync {
+			engagements.remove(p)
+			disengagements.update(with:p)
+		}
 	}
 	
 	func processLaunched(_ p:InteractiveProcess) {
@@ -63,7 +83,7 @@ internal class ProcessMonitor {
 	}
 }
 
-fileprivate let pmon = ProcessMonitor()
+internal let pmon = ProcessMonitor()
 
 public class InteractiveProcess:Hashable {
 	private var _id = UUID()
