@@ -117,19 +117,16 @@ public class InteractiveProcess {
 		self.stdin = input
 		self.stdout = output
 		self.stderr = err
-		print("0")
 		let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, callback:ioq)
 		self.proc = externalProcess
 		externalProcess.stdin = input
 		externalProcess.stdout = output
 		externalProcess.stderr = err
-		print(Colors.Yellow("7"))
 		
 		let termHandle = DispatchWorkItem(flags:[.barrier, .inheritQoS]) { [weak self] in
 			guard let self = self else {
 				return
 			}
-			print("yay term totally called")
 			input.close()
 			output.close()
 			err.close()
@@ -141,9 +138,7 @@ public class InteractiveProcess {
 				self.runGroup.leave()
 			}
 		}
-		print(Colors.cyan("8"))
 		externalProcess.terminationHandler = termHandle
-		print(Colors.Green("9"))
 
 		output.readHandler = { [weak self] someData in
 			guard let self = self else {
@@ -153,7 +148,6 @@ public class InteractiveProcess {
 				self.callbackStdout(lines:hasLines)
 			}
 		}
-		print(Colors.Magenta("10"))
 
 		err.readHandler = { [weak self] someData in
 			guard let self = self else {
