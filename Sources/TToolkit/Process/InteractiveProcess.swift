@@ -133,7 +133,7 @@ public class InteractiveProcess {
 		externalProcess.stdout = output
 		externalProcess.stderr = err
 		
-		let termHandle = DispatchWorkItem(flags:[.barrier, .inheritQoS]) { [weak self] in
+		let termHandle = DispatchWorkItem(qos:hiPri, flags:[.barrier, .enforceQoS]) { [weak self] in
 			guard let self = self else {
 				return
 			}
@@ -141,12 +141,12 @@ public class InteractiveProcess {
 			output.close()
 			err.close()
 			
-			print("EXITER")
 			self.internalSync.sync {
 				self._finishStderr()
 				self._finishStdout()
 				print("finished")
-				self.callbackQueue.sync {
+				
+				let finalItem = DispatchWorkItem(flags:[.barrier, .enforceQoS]) { [weak self] in
 					print("callback syncronized")
 					if let hasErrH = self._stderrHandler {
 						for (_, curLine) in self._stderrLines.enumerated() {
@@ -160,10 +160,13 @@ public class InteractiveProcess {
 						}
 						self._stdoutLines.removeAll(keepingCapacity:false)
 					}
+					self.internalSync.sync {
+						print("left")
+						self._state = .exited
+						self.runGroup.leave()
+					}
 				}
-				print("left")
-				self._state = .exited
-				self.runGroup.leave()
+				self.concurrentMaster.async(execute:finalItem)
 			}
 		}
 		externalProcess.terminationHandler = termHandle
