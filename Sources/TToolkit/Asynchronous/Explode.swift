@@ -9,6 +9,8 @@ import Foundation
 
 //explosions allow for multi-threaded collection mapping
 
+		let globemerge = DispatchQueue(label:"com.tannersilva.global.function.explode.merge")
+
 extension Collection {
 	//explode a collection - no return values	
 	public func explode(lanes:Int = ProcessInfo.processInfo.activeProcessorCount, qos:Priority = .`default`, using thisFunction:@escaping (Int, Element) throws -> Void) {
@@ -24,7 +26,7 @@ extension Collection {
 		
 		concurrent.sync {
 			DispatchQueue.concurrentPerform(iterations:lanes) { n in
-				print("\(n)")
+				globemerge.sync { print("\(n)") }
 				while let curItem = popItem() {
 					try? thisFunction(n, curItem)
 				}
@@ -48,7 +50,7 @@ extension Collection {
 		
 		concurrent.sync {
 			DispatchQueue.concurrentPerform(iterations:lanes) { n in
-				print("\(n)")
+				globemerge.sync { print("\(n)") }
 				while let curItem = popItem() {
 					if let returnedValue = try? thisFunction(n, curItem) {
 						mergeSync.sync {
@@ -76,7 +78,7 @@ extension Collection {
 		
 		concurrent.sync {
 			DispatchQueue.concurrentPerform(iterations:lanes) { n in
-				print("\(n)")
+				globemerge.sync { print("\(n)") }
 				while let curItem = popItem() {
 					if let returnedValue = try? thisFunction(n, curItem) {
 						mergeSync.sync {
@@ -106,7 +108,7 @@ extension Collection {
 		
 		concurrent.sync {
 			DispatchQueue.concurrentPerform(iterations:lanes) { n in
-				print("\(n)")
+				globemerge.sync { print("\(n)") }
 				while let curItem = popItem() {
 					if let returnedValue = try? thisFunction(n, curItem) {
 						if returnedValue.value != nil {
