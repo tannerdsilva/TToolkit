@@ -27,7 +27,7 @@ internal class ProcessMonitor {
 					print(Colors.Cyan("\(curProcess.key.identifier)\t\t"), terminator:"")
 					print(Colors.yellow("\(curProcess.value.timeIntervalSinceNow)\t"), terminator:"")
 					print(Colors.green("\(curProcess.key.dhash)\t"), terminator:"")
-					print(Colors.green("\(curProcess.key.status)\t"), terminator:"")
+					print(Colors.green("\(curProcess.key.status)\t"), terminator:"\n")
 				}
 				print(Colors.Blue("There are \(self.processes.count) processes in flight"))
 			}
