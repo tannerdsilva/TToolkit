@@ -30,19 +30,19 @@ fileprivate let ppInit = DispatchQueue(label:"com.tannersilva.global.process-pip
 	This internal class allows data to be captured from the pipe handles immediately while potentially diverting the actual handling of that data for a later time based on the destination queue's QoS
 */
 internal class PipeReader {
-	fileprivate static let prThreads = DispatchQueue(label:"com.tannersilva.global.process-pipe.reader", qos:maximumPriority, attributes:[.concurrent])
 	let internalSync:DispatchQueue
 	let scheduleQueue:DispatchQueue
 	
 	var handleQueue:[ProcessHandle:DispatchSourceProtocol]
 	
 	init() {
-		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.sync", target:Self.prThreads)
-		self.scheduleQueue = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.concurrent", qos:Priority.high.asDispatchQoS(), attributes:[.concurrent], target:Self.prThreads)
+		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.sync")
+		self.scheduleQueue = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.concurrent", qos:Priority.highest.asDispatchQoS(relative:500), attributes:[.concurrent])
 		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
 	}
 	
 	func scheduleForReading(_ handle:ProcessHandle, queue:DispatchQueue, group:DispatchGroup, work:@escaping(ReadHandler)) {
+		print("pre syncronization")
 		internalSync.sync {
 			print("successfully syncronized")
 			let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:scheduleQueue)
