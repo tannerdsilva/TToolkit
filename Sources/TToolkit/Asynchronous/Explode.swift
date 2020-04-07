@@ -14,6 +14,7 @@ import Foundation
 extension Collection {
 	//explode a collection - no return values	
 	public func explode(lanes:Int = ProcessInfo.processInfo.activeProcessorCount, qos:Priority = .`default`, using thisFunction:@escaping (Int, Element) throws -> Void) {
+		let flightGroup = DispatchGroup()
 		let concurrent = DispatchQueue(label:"com.tannersilva.function.explode.async", qos:qos.asDispatchQoS(), attributes:[.concurrent])
 		let internalSync = DispatchQueue(label:"com.tannersilva.function.explode.sync")
 		var iterator = makeIterator()
@@ -24,19 +25,23 @@ extension Collection {
 			}
 		}
 		
-		concurrent.sync {
+		flightGroup.enter()
+		concurrent.async {
 			DispatchQueue.concurrentPerform(iterations:lanes) { n in
 				globemerge.sync { print("\(n)") }
 				while let curItem = popItem() {
 					try? thisFunction(n, curItem)
 				}
 			}
+			flightGroup.leave()
 		}
+		flightGroup.wait()
 	}
 
 	//explode a collection - allows the user to handle the merging of data themselves.
 	//return values of the primary `explode` block are passed to a serial thread where the user can handle the data as necessary	
 	public func explode<T>(lanes:Int = ProcessInfo.processInfo.activeProcessorCount, qos:Priority = .`default`, using thisFunction:@escaping (Int, Element) throws -> T?, merge mergeFunction:@escaping (Int, T) throws -> Void) {
+		let flightGroup = DispatchGroup()
 		let concurrent = DispatchQueue(label:"com.tannersilva.function.explode.async", qos:qos.asDispatchQoS(), attributes:[.concurrent])
 		let internalSync = DispatchQueue(label:"com.tannersilva.function.explode.sync")
 		let mergeSync = DispatchQueue(label:"com.tannersilva.function.explode.merge")
@@ -48,7 +53,8 @@ extension Collection {
 			}
 		}
 		
-		concurrent.sync {
+		flightGroup.enter()
+		concurrent.async {
 			DispatchQueue.concurrentPerform(iterations:lanes) { n in
 				globemerge.sync { print("\(n)") }
 				while let curItem = popItem() {
@@ -59,11 +65,13 @@ extension Collection {
 					}
 				}
 			}
+			flightGroup.leave()
 		}
 	}
 
 	//explode a collection - returns a set of hashable objects
 	public func explode<T>(lanes:Int = ProcessInfo.processInfo.activeProcessorCount, qos:Priority = .`default`, using thisFunction:@escaping (Int, Element) throws -> T?) -> Set<T> where T:Hashable {	
+		let flightGroup = DispatchGroup()
 		let concurrent = DispatchQueue(label:"com.tannersilva.function.explode.async", qos:qos.asDispatchQoS(), attributes:[.concurrent])
 		let internalSync = DispatchQueue(label:"com.tannersilva.function.explode.sync")
 		let mergeSync = DispatchQueue(label:"com.tannersilva.function.explode.merge")
@@ -76,6 +84,7 @@ extension Collection {
 			}
 		}
 		
+		flightGroup.enter()
 		concurrent.sync {
 			DispatchQueue.concurrentPerform(iterations:lanes) { n in
 				globemerge.sync { print("\(n)") }
@@ -87,13 +96,16 @@ extension Collection {
 					}
 				}
 			}
+			flightGroup.leave()
 		}
+		flightGroup.wait()
 		return buildData
 	}
 
 
 	//explode a collection - returns a dictionary
 	public func explode<T, U>(lanes:Int = ProcessInfo.processInfo.activeProcessorCount, qos:Priority = .`default`, using thisFunction:@escaping (Int, Element) throws -> (key:T, value:U)) -> [T:U] where T:Hashable {
+		let flightGroup = DispatchGroup()
 		let concurrent = DispatchQueue(label:"com.tannersilva.function.explode.async", qos:qos.asDispatchQoS(), attributes:[.concurrent])
 		let internalSync = DispatchQueue(label:"com.tannersilva.function.explode.sync")
 		let mergeSync = DispatchQueue(label:"com.tannersilva.function.explode.merge")
@@ -106,6 +118,7 @@ extension Collection {
 			}
 		}
 		
+		flightGroup.enter()
 		concurrent.sync {
 			DispatchQueue.concurrentPerform(iterations:lanes) { n in
 				globemerge.sync { print("\(n)") }
@@ -119,7 +132,9 @@ extension Collection {
 					}
 				}
 			}
+			flightGroup.leave()
 		}
+		flightGroup.wait()
 		return buildData
 	}
 }
