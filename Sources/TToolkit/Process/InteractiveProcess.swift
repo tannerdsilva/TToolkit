@@ -116,9 +116,9 @@ public class InteractiveProcess {
 		self.runGroup = rg
 		self._state = .initialized
 		
-		let input = try ProcessPipes(callback:Priority.highest.globalConcurrentQueue, group:iog)
-		let output = try ProcessPipes(callback:Priority.highest.globalConcurrentQueue, group:iog)
-		let err = try ProcessPipes(callback:Priority.highest.globalConcurrentQueue, group:iog)
+		let input = try ProcessPipes(callback:cmaster, group:iog)
+		let output = try ProcessPipes(callback:cmaster, group:iog)
+		let err = try ProcessPipes(callback:cmaster, group:iog)
 		
 		self.stdin = input
 		self.stdout = output
