@@ -159,37 +159,38 @@ public class InteractiveProcess {
 				guard let self = self else {
 					return
 				}
-				print(Colors.cyan("parsing"))
 				self.internalSync.sync {
+					print(Colors.cyan("parsing"))
 					if var parsedLines = self._stdoutBuffer.lineSlice(removeBOM:false) {
 						let tailData = parsedLines.removeLast()
 						self._stdoutBuffer.removeAll(keepingCapacity:true)
 						self._stdoutBuffer.append(tailData)
 						self._stdoutLines.append(contentsOf:parsedLines)
+						
+						let callbackWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
+							guard let self = self else {
+								return
+							}
+							let lines = self.internalSync.sync { return self._stdoutLines }
+							print(Colors.magenta("callbacks beinning"))
+							if lines.count > 0 {
+								let callback = self.internalSync.sync {
+									return self._stdoutHandler
+								}
+								if let hasCallback = callback {
+									self.internalSync.sync {
+										self._stdoutLines.removeAll(keepingCapacity:true)
+									}
+									for (_, curLine) in lines.enumerated() {
+										hasCallback(curLine)
+									}
+								}
+							}
+						}
+						self.callback.async(execute:callbackWorkItem)
 					}
 				}
 			}
-			newWorkItem.notify(flags:[.inheritQoS], queue:self.callback) { [weak self] in 
-				guard let self = self else {
-					return
-				}
-				print(Colors.magenta("callbacks beinning"))
-				let lines = self.internalSync.sync { return self._stdoutLines }
-				if lines.count > 0 {
-					let callback = self.internalSync.sync {
-						return self._stdoutHandler
-					}
-					if let hasCallback = callback {
-						self.internalSync.sync {
-							self._stdoutLines.removeAll(keepingCapacity:true)
-						}
-						for (_, curLine) in lines.enumerated() {
-							hasCallback(curLine)
-						}
-					}
-				}
-			}
-			print(Colors.red("scheduled"))
 			self.ioQueue.async(execute:newWorkItem)
 		}
 
