@@ -80,7 +80,7 @@ extension Context {
         var outputLines = [Data]()
         var errorLines = [Data]()
         
-        let process = try InteractiveProcess(command:commandToRun, priority: Priority.`default`, run:false)
+        let process = try InteractiveProcess(command:commandToRun, priority: Priority.high, run:false)
         try process.run()
         process.stdoutHandler = { someData in
             outputLines.append(someData)

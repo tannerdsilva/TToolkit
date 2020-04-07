@@ -102,6 +102,7 @@ public class InteractiveProcess {
 	}
 	
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
+		let hiPri = priority.asDispatchQoS(relative:300)
 		let cmaster = DispatchQueue(label:"com.tannersilva.instance.process.interactive.master", qos:priority.asDispatchQoS(relative:300), attributes:[.concurrent])
 		let inputIo = DispatchQueue(label:"com.tannersilva.instance.process.interactive.stdin", qos:priority.asDispatchQoS(relative:200), target:cmaster)
 		let outputIo = DispatchQueue(label:"com.tannersilva.instance.process.interactive.io", qos:priority.asDispatchQoS(relative:100), target:cmaster)
@@ -140,7 +141,7 @@ public class InteractiveProcess {
 			output.close()
 			err.close()
 			
-
+			print("EXITER")
 			self.internalSync.sync {
 				self._finishStderr()
 				self._finishStdout()
