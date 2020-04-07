@@ -317,6 +317,10 @@ public class InteractiveProcess {
         let returnCode = proc.exitCode!
         return Int(returnCode)
     }
+    
+    deinit {
+    	print(Colors.yellow("ip was deinit"))
+    }
 }
 
 //public class InteractiveProcess {
