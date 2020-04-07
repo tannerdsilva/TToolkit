@@ -205,7 +205,7 @@ public class InteractiveProcess {
 ////				self.callbackStderr(lines:hasLines)
 //			}
 //		}
-//	}
+	}
 	
 //	fileprivate func callbackStderr(lines:[Data]) {
 //		if let hasCallback = stderrHandler {
