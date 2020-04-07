@@ -136,14 +136,29 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
-			print(Colors.red("exit"))
 			input.close()
 			output.close()
 			err.close()
 			
-			iog.wait()
-			
+
 			self.internalSync.sync {
+				self._finishStderr()
+				self._finishStdout()
+				
+				self.callbackQueue.sync {
+					if let hasErrH = self._stderrHandler {
+						for (_, curLine) in self._stderrLines.enumerated() {
+							hasErrH(curLine)
+						}
+						self._stderrLines.removeAll(keepingCapacity:false)
+					}
+					if let hasOutH = self._stdoutHandler {
+						for (_, curLine) in self._stdoutLines.enumerated() {
+							hasOutH(curLine)
+						}
+						self._stdoutLines.removeAll(keepingCapacity:false)
+					}
+				}
 				self._state = .exited
 				self.runGroup.leave()
 			}
@@ -218,41 +233,17 @@ public class InteractiveProcess {
 //	}
 	
 	
-	fileprivate func incomingStdout(_ inputData:Data) -> [Data]? {
-		return inputData.withUnsafeBytes { unsafeRawBufferPointer in
-			let boundBuffer = unsafeRawBufferPointer.bindMemory(to:UInt8.self)
-			let hasEndline = boundBuffer.contains(where: { $0 == 10 || $0 == 13 })
-			var completeLines:[Data]? = internalSync.sync {
-				_stdoutBuffer.append(boundBuffer)
-				if hasEndline == true, var parsedLines = self._stdoutBuffer.lineSlice(removeBOM:false) {
-					let tailData = parsedLines.removeLast()
-					self._stdoutBuffer.removeAll(keepingCapacity:true)
-					self._stdoutBuffer.append(tailData)
-					return parsedLines
-				} else {
-					return nil
-				}
-			}
-			return completeLines
+	fileprivate func _finishStdout() {
+		if var parsedLines = _stdoutBuffer.lineSlice(removeBOM:false) {
+			self._stdoutBuffer.removeAll(keepingCapacity:false)
+			self._stdoutLines.append(contentsOf:parsedLines)
 		}
 	}
 	
-	fileprivate func incomingStderr(_ inputData:Data) -> [Data]? {
-		return inputData.withUnsafeBytes { unsafeRawBufferPointer in
-			let boundBuffer = unsafeRawBufferPointer.bindMemory(to:UInt8.self)
-			let hasEndline = boundBuffer.contains(where: { $0 == 10 || $0 == 13 })
-			var completeLines:[Data]? = internalSync.sync {
-				_stderrBuffer.append(boundBuffer)
-				if hasEndline == true, var parsedLines = self.stderrBuffer.lineSlice(removeBOM:false) {
-					let tailData = parsedLines.removeLast()
-					self._stderrBuffer.removeAll(keepingCapacity:true)
-					self._stderrBuffer.append(tailData)
-					return parsedLines
-				} else {
-					return nil
-				}
-			}
-            return completeLines
+	fileprivate func _finishStderr() {
+		if var parsedLines = _stderrBuffer.lineSlice(removeBOM:false) {
+			self._stderrBuffer.removeAll(keepingCapacity:false)
+			self._stderrLines.append(contentsOf:parsedLines)
 		}
 	}
     

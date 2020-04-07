@@ -167,6 +167,7 @@ internal class ExitWatcher {
 			default:
 				flightGroup.wait()
 		}
+		print(Colors.dim("Successfully deinitted ExitWatcher"))
 	}
 }
 

@@ -41,7 +41,7 @@ internal class PipeReader {
 		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
 	}
 	
-	func scheduleForReading(_ handle:ProcessHandle, queue:DispatchQueue, group:DispatchGroup, work:@escaping(ReadHandler)) {
+	func scheduleForReading(_ handle:ProcessHandle, group:DispatchGroup, work:@escaping(ReadHandler)) {
 		internalSync.sync {
 			let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:Priority.high.globalConcurrentQueue)
 			group.enter()
@@ -68,7 +68,6 @@ internal class PipeReader {
 				handleQueue[handle] = nil
 			}
 		}
-		print(Colors.magenta("[\(handle.fileDescriptor)] unscheduled"))
 	}
 }
 internal let globalPR = PipeReader()
@@ -152,8 +151,7 @@ internal class ProcessPipes {
 			internalSync.sync {
 				if let hasNewHandler = newValue {
 					_readHandler = hasNewHandler
-					print("woa?")
-					globalPR.scheduleForReading(reading, queue:internalCallback, group:_callbackGroup, work:hasNewHandler)
+					globalPR.scheduleForReading(reading, group:_callbackGroup, work:hasNewHandler)
 				} else {
 					if _readHandler != nil {
 						globalPR.unschedule(reading)
