@@ -24,6 +24,7 @@ extension Collection {
 		
 		concurrent.sync {
 			DispatchQueue.concurrentPerform(iterations:lanes) { n in
+				print("\(n)")
 				while let curItem = popItem() {
 					try? thisFunction(n, curItem)
 				}
@@ -47,6 +48,7 @@ extension Collection {
 		
 		concurrent.sync {
 			DispatchQueue.concurrentPerform(iterations:lanes) { n in
+				print("\(n)")
 				while let curItem = popItem() {
 					if let returnedValue = try? thisFunction(n, curItem) {
 						mergeSync.sync {
@@ -74,6 +76,7 @@ extension Collection {
 		
 		concurrent.sync {
 			DispatchQueue.concurrentPerform(iterations:lanes) { n in
+				print("\(n)")
 				while let curItem = popItem() {
 					if let returnedValue = try? thisFunction(n, curItem) {
 						mergeSync.sync {
@@ -103,6 +106,7 @@ extension Collection {
 		
 		concurrent.sync {
 			DispatchQueue.concurrentPerform(iterations:lanes) { n in
+				print("\(n)")
 				while let curItem = popItem() {
 					if let returnedValue = try? thisFunction(n, curItem) {
 						if returnedValue.value != nil {
