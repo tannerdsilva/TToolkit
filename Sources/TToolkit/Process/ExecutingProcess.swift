@@ -113,9 +113,15 @@ internal class ExitWatcher {
 			pmon.exiterEngaged(pidWatch)
 			var waitResult:Int32 = 0
 			var exitCode:Int32 = 0
+			var errNo:Int32 = 0
 			repeat {
 				waitResult = waitpid(pidWatch, &exitCode, 0)
-			} while waitResult == -1 && errno == EINTR || WIFEXITED(exitCode) == false
+				errNo = errno
+				if waitResult == -1 && errNo == EINTR || WIFEXITED(exitCode) == false {
+					print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\nEXIT ERROR RESULT \(waitResult) - \(errNo)\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+				}
+				
+			} while waitResult == -1 && errNo == EINTR || WIFEXITED(exitCode) == false
 			let exitTime = Date()
 			pmon.exiterDisengaged(pidWatch)
 			validHandler(exitCode, exitTime)
