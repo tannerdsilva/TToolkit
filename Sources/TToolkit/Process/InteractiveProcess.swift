@@ -196,16 +196,16 @@ public class InteractiveProcess {
 //			}
 		}
 
-		err.readHandler = { [weak self] someData in
-			guard let self = self else {
-				return
-			}
-			if let hasLines = self.incomingStderr(someData) {
-//				print(Colors.magenta("lines found"))
-//				self.callbackStderr(lines:hasLines)
-			}
-		}
-	}
+//		err.readHandler = { [weak self] someData in
+//			guard let self = self else {
+//				return
+//			}
+//			if let hasLines = self.incomingStderr(someData) {
+////				print(Colors.magenta("lines found"))
+////				self.callbackStderr(lines:hasLines)
+//			}
+//		}
+//	}
 	
 //	fileprivate func callbackStderr(lines:[Data]) {
 //		if let hasCallback = stderrHandler {
