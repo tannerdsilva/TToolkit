@@ -100,7 +100,7 @@ public class InteractiveProcess {
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
 		let ioq = DispatchQueue(label:"com.tannersilva.instance.process.interactive.io.concurrent", qos:priority.asDispatchQoS(relative:100), attributes:[.concurrent])
 		let iog = DispatchGroup()
-		let cb = DispatchQueue(label:"com.tannersilva.instance.process.interactive.callback.sync")
+		let cb = DispatchQueue(label:"com.tannersilva.instance.process.interactive.callback.sync", target:ioq)
 		let isync = DispatchQueue(label:"com.tannersilva.instance.process.interactive.sync")
 		let rg = DispatchGroup()
 		self.ioQueue = ioq
@@ -145,6 +145,13 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
+			
+			let newWork = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
+				guard let self = self else {
+					return
+				}
+				
+			}
 			if let hasLines = self.incomingStdout(someData) {
 				print(Colors.magenta("lines found"))
 				self.callbackStdout(lines:hasLines)
@@ -164,7 +171,7 @@ public class InteractiveProcess {
 	
 	fileprivate func callbackStderr(lines:[Data]) {
 		if let hasCallback = stderrHandler {
-			callbackSync.sync {
+			callbackSync.async {
 				for (_, curLine) in lines.enumerated() {
 					hasCallback(curLine)
 				}
@@ -174,7 +181,7 @@ public class InteractiveProcess {
 	
 	fileprivate func callbackStdout(lines:[Data]) {
 		if let hasCallback = stdoutHandler {
-			callbackSync.sync {
+			callbackSync.async {
 				for (_, curLine) in lines.enumerated() {
 					hasCallback(curLine)
 				}
