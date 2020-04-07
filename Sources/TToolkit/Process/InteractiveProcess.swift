@@ -11,9 +11,10 @@ public class InteractiveProcess {
 	*/
 	private let concurrentMaster:DispatchQueue
  	private let internalSync:DispatchQueue
-	private let ioQueue:DispatchQueue	//not initialized here because it is qos dependent (qos passed to initializer)
+ 	private let inputQueue:DispatchQueue
+	private let outputQueue:DispatchQueue	//not initialized here because it is qos dependent (qos passed to initializer)
 	private let ioGroup:DispatchGroup
-	private let callback:DispatchQueue
+	private let callbackQueue:DispatchQueue
 	private let runGroup:DispatchGroup
 	
 	public enum InteractiveProcessState:UInt8 {
@@ -102,29 +103,30 @@ public class InteractiveProcess {
 	
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
 		let cmaster = DispatchQueue(label:"com.tannersilva.instance.process.interactive.master", qos:priority.asDispatchQoS(relative:300), attributes:[.concurrent])
-		let ioq = DispatchQueue(label:"com.tannersilva.instance.process.interactive.io.concurrent", qos:priority.asDispatchQoS(relative:100), target:cmaster)
-		let dataIn = DispatchQueue(label:"com.tannersilva.instance.process.interactive.io.concurrent", qos:priority.asDispatchQoS(relative:200), target:cmaster)
+		let inputIo = DispatchQueue(label:"com.tannersilva.instance.process.interactive.stdin", qos:priority.asDispatchQoS(relative:200), target:cmaster)
+		let outputIo = DispatchQueue(label:"com.tannersilva.instance.process.interactive.io", qos:priority.asDispatchQoS(relative:100), target:cmaster)
 		let iog = DispatchGroup()
 		let cb = DispatchQueue(label:"com.tannersilva.instance.process.interactive.callback.sync", qos:priority.asDispatchQoS(relative:50), target:cmaster)
 		let isync = DispatchQueue(label:"com.tannersilva.instance.process.interactive.sync")
 		let rg = DispatchGroup()
 		
 		self.concurrentMaster = cmaster
-		self.ioQueue = ioq
+		self.inputQueue = inputIo
+		self.outputQueue = outputIo
 		self.ioGroup = iog
 		self.internalSync = isync
-		self.callback = cb
+		self.callbackQueue = cb
 		self.runGroup = rg
 		self._state = .initialized
 		
-		let input = try ProcessPipes(callback:dataIn, group:iog)
-		let output = try ProcessPipes(callback:dataIn, group:iog)
-		let err = try ProcessPipes(callback:dataIn, group:iog)
+		let input = try ProcessPipes(callback:inputIo, group:iog)
+		let output = try ProcessPipes(callback:inputIo, group:iog)
+		let err = try ProcessPipes(callback:inputIo, group:iog)
 		
 		self.stdin = input
 		self.stdout = output
 		self.stderr = err
-		let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, callback:ioq)
+		let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, callback:cmaster)
 		self.proc = externalProcess
 		externalProcess.stdin = input
 		externalProcess.stdout = output
@@ -148,6 +150,41 @@ public class InteractiveProcess {
 		}
 		externalProcess.terminationHandler = termHandle
 
+		let stdoutWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
+			guard let self = self else {
+				return
+			}
+			self.internalSync.sync {
+				if var parsedLines = self._stdoutBuffer.lineSlice(removeBOM:false) {
+					let tailData = parsedLines.removeLast()
+					self._stdoutBuffer.removeAll(keepingCapacity:true)
+					self._stdoutBuffer.append(tailData)
+					self._stdoutLines.append(contentsOf:parsedLines)
+					
+					let callbackWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
+						guard let self = self else {
+							return
+						}
+						var lines = self.internalSync.sync { return self._stdoutLines }
+						if lines.count > 0 {
+							let callback = self.internalSync.sync {
+								return self._stdoutHandler
+							}
+							if let hasCallback = callback {
+								self.internalSync.sync {
+									lines = self._stdoutLines
+									self._stdoutLines.removeAll(keepingCapacity:true)
+								}
+								for (_, curLine) in lines.enumerated() {
+									hasCallback(curLine)
+								}
+							}
+						}
+					}
+					self.callbackQueue.async(execute:callbackWorkItem)
+				}
+			}
+		}
 		output.readHandler = { [weak self] someData in
 			guard let self = self else {
 				return
@@ -155,43 +192,8 @@ public class InteractiveProcess {
 			self.internalSync.sync {
 				self._stdoutBuffer.append(someData)
 			}
-			let newWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
-				guard let self = self else {
-					return
-				}
-				self.internalSync.sync {
-					print(Colors.cyan("parsing"))
-					if var parsedLines = self._stdoutBuffer.lineSlice(removeBOM:false) {
-						let tailData = parsedLines.removeLast()
-						self._stdoutBuffer.removeAll(keepingCapacity:true)
-						self._stdoutBuffer.append(tailData)
-						self._stdoutLines.append(contentsOf:parsedLines)
-						
-						let callbackWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
-							guard let self = self else {
-								return
-							}
-							let lines = self.internalSync.sync { return self._stdoutLines }
-							print(Colors.magenta("callbacks beinning"))
-							if lines.count > 0 {
-								let callback = self.internalSync.sync {
-									return self._stdoutHandler
-								}
-								if let hasCallback = callback {
-									self.internalSync.sync {
-										self._stdoutLines.removeAll(keepingCapacity:true)
-									}
-									for (_, curLine) in lines.enumerated() {
-										hasCallback(curLine)
-									}
-								}
-							}
-						}
-						self.callback.async(execute:callbackWorkItem)
-					}
-				}
-			}
-			self.ioQueue.async(execute:newWorkItem)
+			
+			self.outputQueue.async(execute:stdoutWorkItem)
 		}
 
 //		err.readHandler = { [weak self] someData in
