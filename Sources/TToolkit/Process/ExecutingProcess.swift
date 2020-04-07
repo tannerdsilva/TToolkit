@@ -478,23 +478,23 @@ internal class ExecutingProcess {
 			_processId = lpid
 
 			do {
-				try _exitWatcher.engage(pid:lpid) { [weak self] exitCode, exitDate in
-					guard let self = self else {
-						return
-					}
-					print(Colors.Red("Exit triggered"))
-					self.internalSync.sync {
-						self._exitCode = exitCode
-						self._exitTime = exitDate
-                        if let hasTerminationHandler = self._terminationHandler {
-							if let hasAsyncGroup = self._callbackGroup {
-								self._callbackQueue.async(group:hasAsyncGroup, execute:hasTerminationHandler)
-							} else {
-								self._callbackQueue.async(execute:hasTerminationHandler)
-							}
-						}
-					}
-				}
+				//try _exitWatcher.engage(pid:lpid) { [weak self] exitCode, exitDate in
+//					guard let self = self else {
+//						return
+//					}
+//					print(Colors.Red("Exit triggered"))
+//					self.internalSync.sync {
+//						self._exitCode = exitCode
+//						self._exitTime = exitDate
+//                        if let hasTerminationHandler = self._terminationHandler {
+//							if let hasAsyncGroup = self._callbackGroup {
+//								self._callbackQueue.async(group:hasAsyncGroup, execute:hasTerminationHandler)
+//							} else {
+//								self._callbackQueue.async(execute:hasTerminationHandler)
+//							}
+//						}
+//					}
+//				}
 			} catch let error {
 				kill(lpid, SIGKILL)
 				throw error

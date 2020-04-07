@@ -37,7 +37,7 @@ internal class PipeReader {
 	
 	init() {
 		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.sync")
-		self.scheduleQueue = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.concurrent", qos:Priority.highest.asDispatchQoS(relative:500), attributes:[.concurrent])
+		self.scheduleQueue = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.concurrent", qos:Priority.high.asDispatchQoS(relative:500), attributes:[.concurrent])
 		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
 	}
 	
