@@ -127,6 +127,7 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
+			print(Colors.red("exit"))
 			input.close()
 			output.close()
 			err.close()
@@ -145,6 +146,7 @@ public class InteractiveProcess {
 				return
 			}
 			if let hasLines = self.incomingStdout(someData) {
+				print(Colors.magenta("lines found"))
 				self.callbackStdout(lines:hasLines)
 			}
 		}
@@ -154,6 +156,7 @@ public class InteractiveProcess {
 				return
 			}
 			if let hasLines = self.incomingStderr(someData) {
+				print(Colors.magenta("lines found"))
 				self.callbackStderr(lines:hasLines)
 			}
 		}
