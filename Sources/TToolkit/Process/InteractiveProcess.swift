@@ -146,31 +146,31 @@ public class InteractiveProcess {
 				self._finishStdout()
 				print("finished")
 				
-				let finalItem = DispatchWorkItem(flags:[.barrier, .enforceQoS]) { [weak self] in
-					guard let self = self else {
-						return
-					}
-
-					print("callback syncronized")
-					if let hasErrH = self._stderrHandler {
-						for (_, curLine) in self._stderrLines.enumerated() {
-							hasErrH(curLine)
-						}
-						self._stderrLines.removeAll(keepingCapacity:false)
-					}
-					if let hasOutH = self._stdoutHandler {
-						for (_, curLine) in self._stdoutLines.enumerated() {
-							hasOutH(curLine)
-						}
-						self._stdoutLines.removeAll(keepingCapacity:false)
-					}
-					self.internalSync.sync {
-						print("left")
-						self._state = .exited
-						self.runGroup.leave()
-					}
-				}
-				self.concurrentMaster.async(execute:finalItem)
+//				let finalItem = DispatchWorkItem(flags:[.barrier, .enforceQoS]) { [weak self] in
+//					guard let self = self else {
+//						return
+//					}
+//
+//					print("callback syncronized")
+//					if let hasErrH = self._stderrHandler {
+//						for (_, curLine) in self._stderrLines.enumerated() {
+//							hasErrH(curLine)
+//						}
+//						self._stderrLines.removeAll(keepingCapacity:false)
+//					}
+//					if let hasOutH = self._stdoutHandler {
+//						for (_, curLine) in self._stdoutLines.enumerated() {
+//							hasOutH(curLine)
+//						}
+//						self._stdoutLines.removeAll(keepingCapacity:false)
+//					}
+//					self.internalSync.sync {
+//						print("left")
+//						self._state = .exited
+//						self.runGroup.leave()
+//					}
+//				}
+//				self.concurrentMaster.async(execute:finalItem)
 			}
 		}
 		externalProcess.terminationHandler = termHandle
