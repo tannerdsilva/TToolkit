@@ -1,6 +1,57 @@
 import Foundation
 
-public class InteractiveProcess {
+
+internal class ProcessMonitor {
+	
+	let internalSync = DispatchQueue(label:"com.tannersilva.process.monitor.sync")
+	
+	var announceTimer:TTimer
+	
+	var processes = [InteractiveProcess:Date]()
+	var sortedProcesses:[InteractiveProcess] {
+		get {
+			return processes.sorted(by: { $0.value > $1.value }).compactMap { $0.key }
+		}
+	}
+	
+	init() {
+		announceTimer = TTimer()
+		announceTimer.duration = 5
+		announceTimer.handler = { [weak self] _ in
+			guard let self = self else {
+				return
+			}
+			print(Colors.Blue("There are \(self.processes.count) processes in flight"))
+		}
+		announceTimer.activate()
+	}
+	
+	func processLaunched(_ p:InteractiveProcess) {
+		internalSync.sync {
+			processes[p] = Date()
+		}
+	}
+	
+	func processEnded(_ p:InteractiveProcess) {
+		internalSync.sync {
+			processes[p] = nil
+		}
+	}
+}
+
+fileprivate let pmon = ProcessMonitor()
+
+public class InteractiveProcess:Hashable {
+	private var identifier:Int64 = Int64.random(in:Int64.min..<Int64.max)
+
+	public func hash(into hasher:inout Hasher) {
+		hasher.combine(identifier)
+	}
+	
+	public static func == (lhs:InteractiveProcess, rhs:InteractiveProcess) -> Bool {
+		return lhs.identifier == rhs.identifier
+	}
+	
     public typealias OutputHandler = (Data) -> Void
     public typealias InputHandler = () -> Void
 
@@ -162,6 +213,7 @@ public class InteractiveProcess {
 				}
 			}
 			rg.leave()
+			pmon.processEnded(self)
 			print(Colors.cyan("left"))
 		}
 
@@ -291,6 +343,7 @@ public class InteractiveProcess {
         try internalSync.sync {
             runGroup.enter()
             do {
+            	pmon.processLaunched(self)
                 try proc.run()
                 _state = .running
             } catch let error {

@@ -31,19 +31,17 @@ fileprivate let ppInit = DispatchQueue(label:"com.tannersilva.global.process-pip
 */
 internal class PipeReader {
 	let internalSync:DispatchQueue
-	let scheduleQueue:DispatchQueue
 	
 	var handleQueue:[ProcessHandle:DispatchSourceProtocol]
 	
 	init() {
 		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.sync")
-		self.scheduleQueue = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.concurrent", qos:Priority.high.asDispatchQoS(relative:500), attributes:[.concurrent])
 		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
 	}
 	
 	func scheduleForReading(_ handle:ProcessHandle, group:DispatchGroup, work:@escaping(ReadHandler)) {
 		internalSync.sync {
-			let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:Priority.high.globalConcurrentQueue)
+			let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:Priority.highest.globalConcurrentQueue)
 			group.enter()
 			newSource.setEventHandler {
 				if let newData = handle.availableData() {
