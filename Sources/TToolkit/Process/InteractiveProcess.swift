@@ -137,95 +137,58 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
-			
-			print("hoping to get something done here")
-			
 			input.close()
 			output.close()
 			err.close()
 			
-			print("Exit\t1")
+			iog.wait()
+
+			let errLines = self.internalSync.sync { return self._finishStderr() }
+			let outLines = self.internalSync.sync { return self._finishStdout() }
 			
-			self.internalSync.sync {
-				self._finishStderr()
-				self._finishStdout()
-				rg.leave()
+			if let hasErrLines = errLines, let hasCallback = self.stderrHandler {
+				self.callbackQueue.sync {
+					for (_, curLine) in hasErrLines.enumerated() {
+						hasCallback(curLine)
+					}
+				}
 			}
-//			if let hasErrH = self.stderrHandler {
-//			let errorLines = self.internalSync.sync { return self._stderrLines }
-//			for (_, curLine) in errorLines.enumerated() {
-//				print("cbq?")
-//				self.callbackQueue.sync {
-//					print("yes cbq")
-//					hasErrH(curLine)
-//				}
-//			}
-//		}
-//			let errH = self.internalSync.sync { return self.stderrHandler }
+			
+			if let hasOutLines = outLines, let hasCallback = self.stdoutHandler {
+				self.callbackQueue.sync {
+					for (_, curLine) in hasOutLines.enumerated() {
+						hasCallback(curLine)
+					}
+				}
+			}
+			rg.leave()
+			print(Colors.cyan("left"))
 		}
-		//termHandle.notify(qos:hiPri, flags:[.barrier, .enforceQoS], queue:cb) { [weak self] in
-//			guard let self = self else {
-//				return
-//			}
-//			print("EXIT\t2")
-//			if let hasErrH = self.stderrHandler {
-//				let errLines = self.internalSync.sync { return self._stderrLines }
-//				for (_, curLine) in errLines.enumerated() {
-//					hasErrH(curLine)
-//				}
-//				self.internalSync.sync {
-//					self._stderrLines.removeAll(keepingCapacity:false)
-//				}
-//			}
-//			if let hasOutH = self._stdoutHandler {
-//				let outLines = self.internalSync.sync { return self._stdoutLines }
-//				for (_, curLine) in outLines.enumerated() {
-//					hasOutH(curLine)
-//				}
-//				self.internalSync.sync {
-//					self._stdoutLines.removeAll(keepingCapacity:false)
-//				}
-//			}
-//			self.internalSync.sync {
-//				self._state = .exited
-//				self.runGroup.leave()
-//			}
-//
-//		}
+
 		externalProcess.terminationHandler = termHandle
 
 		let stderrWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
 			guard let self = self else {
 				return
 			}
-			self.internalSync.sync {
+			var newLines:[Data]? = self.internalSync.sync {
 				if var parsedLines = self._stderrBuffer.lineSlice(removeBOM:false) {
 					let tailData = parsedLines.removeLast()
 					self._stderrBuffer.removeAll(keepingCapacity:true)
 					self._stderrBuffer.append(tailData)
-					self._stderrLines.append(contentsOf:parsedLines)
-					
-					let callbackWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
-						guard let self = self else {
-							return
-						}
-						var lines = self.internalSync.sync { return self._stderrLines }
-						if lines.count > 0 {
-							let callback = self.internalSync.sync {
-								return self._stderrHandler
-							}
-							if let hasCallback = callback {
-								self.internalSync.sync {
-									lines = self._stderrLines
-									self._stderrLines.removeAll(keepingCapacity:true)
-								}
-								for (_, curLine) in lines.enumerated() {
-									hasCallback(curLine)
-								}
-							}
-						}
+					if parsedLines.count > 0 {
+						return parsedLines
+					} else {
+						return nil
 					}
-					self.callbackQueue.async(execute:callbackWorkItem)
+				}
+				return nil
+			}
+			if let hasNewLines = newLines, let hasCallback = self.stderrHandler {
+				self.callbackQueue.sync {
+					for (_, curLine) in hasNewLines.enumerated() {
+						hasCallback(curLine)
+					}
 				}
 			}
 		}
@@ -250,34 +213,10 @@ public class InteractiveProcess {
 			if let hasNewLines = newLines, let hasCallback = self.stdoutHandler {
 				self.callbackQueue.sync {
 					for (_, curLine) in hasNewLines.enumerated() {
-						print(Colors.magenta("calling back"))
 						hasCallback(curLine)
 					}
 				}
 			}
-//					let callbackWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
-//						guard let self = self else {
-//							return
-//						}
-//						var lines = self.internalSync.sync { return self._stdoutLines }
-//						if lines.count > 0 {
-//							let callback = self.internalSync.sync {
-//								return self._stdoutHandler
-//							}
-//							if let hasCallback = callback {
-//								self.internalSync.sync {
-//									lines = self._stdoutLines
-//									self._stdoutLines.removeAll(keepingCapacity:true)
-//								}
-//								for (_, curLine) in lines.enumerated() {
-//									hasCallback(curLine)
-//								}
-//							}
-//						}
-//					}
-//					self.callbackQueue.async(execute:callbackWorkItem)
-//				}
-//			}
 		}
 		
 		output.readHandler = { [weak self] someData in
@@ -294,20 +233,27 @@ public class InteractiveProcess {
 				self._stdoutBuffer.append(someData)
 			}
 			if isNewLine == true {
-				self.outputQueue.async(execute:stdoutWorkItem)
+				self.outputQueue.async(group:self.ioGroup, execute:stdoutWorkItem)
 			}
 		}
 
-//		err.readHandler = { [weak self] someData in
-//			guard let self = self else {
-//				return
-//			}
-//			self.internalSync.sync {
-//				self._stderrBuffer.append(someData)
-//			}
-//			
-//			self.outputQueue.async(execute:stderrWorkItem)
-//		}
+		err.readHandler = { [weak self] someData in
+			guard let self = self else {
+				return
+			}
+			let isNewLine = someData.withUnsafeBytes({ usRawBuffPoint -> Bool in
+				if usRawBuffPoint.contains(where: { $0 == 10 || $0 == 13 }) {
+					return true
+				}
+				return false
+			})
+			self.internalSync.sync {
+				self._stderrBuffer.append(someData)
+			}
+			if isNewLine == true {
+				self.outputQueue.async(group:self.ioGroup, execute:stderrWorkItem)
+			}
+		}
 	}
 	
 //	fileprivate func callbackStderr(lines:[Data]) {
@@ -321,18 +267,24 @@ public class InteractiveProcess {
 //	}
 	
 	
-	fileprivate func _finishStdout() {
+	fileprivate func _finishStdout() -> [Data]? {
 		if var parsedLines = _stdoutBuffer.lineSlice(removeBOM:false) {
 			self._stdoutBuffer.removeAll(keepingCapacity:false)
-			self._stdoutLines.append(contentsOf:parsedLines)
+			if parsedLines.count > 0 {
+				return parsedLines
+			}
 		}
+		return nil
 	}
 	
-	fileprivate func _finishStderr() {
+	fileprivate func _finishStderr() -> [Data]? {
 		if var parsedLines = _stderrBuffer.lineSlice(removeBOM:false) {
 			self._stderrBuffer.removeAll(keepingCapacity:false)
-			self._stderrLines.append(contentsOf:parsedLines)
+			if parsedLines.count > 0 { 
+				return parsedLines
+			}
 		}
+		return nil
 	}
     
     public func run() throws {
