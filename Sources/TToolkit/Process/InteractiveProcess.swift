@@ -168,6 +168,12 @@ public class InteractiveProcess {
 				}
 				return completeLines
 			}
+			if let hasData = newLines {
+				self.internalSync.sync {
+					self._stdoutLines.append(contentsOf:hasData)
+				}
+			}
+			print(Colors.Yellow("New data found: \(newLines)"))
 			if let hasNewLines = newLines {
 				let newWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in 
 					guard let self = self else {
@@ -178,7 +184,7 @@ public class InteractiveProcess {
 						return self._stdoutHandler
 					}
 					if let hasCallback = callback {
-						for (_, curLine) in hasNewLines.enumerated() {
+						for (_, curLine) in self._stdoutLines.enumerated() {
 							hasCallback(curLine)
 						}
 					}
