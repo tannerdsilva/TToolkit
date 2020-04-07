@@ -30,8 +30,6 @@ internal class ExitWatcher {
 		case failed
 		case exited
 	}
-
-	fileprivate static let exitThreadsGlobal = DispatchQueue(label:"com.tannersilva.global.process.exit-watch.detached", qos:Priority.highest.asDispatchQoS(), attributes:[.concurrent])
 	
 	private let backgroundQueue:DispatchQueue
 	private let internalSync:DispatchQueue
@@ -47,8 +45,8 @@ internal class ExitWatcher {
 	private var _handler:ExitHandler? = nil
 	
 	init() throws {
-		let bgThread = DispatchQueue(label:"com.tannersilva.instance.process-executing.exit-watch", qos:Priority.highest.asDispatchQoS(relative:10), target:Self.exitThreadsGlobal)
-		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-executing.exit-watch.sync", target:Self.globalLockQueue)
+		let bgThread = DispatchQueue(label:"com.tannersilva.instance.process-executing.exit-watch", qos:Priority.highest.asDispatchQoS(relative:10))
+		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-executing.exit-watch.sync")
 		self.backgroundQueue = bgThread
 		self.internalSync = syncQueue
 		
