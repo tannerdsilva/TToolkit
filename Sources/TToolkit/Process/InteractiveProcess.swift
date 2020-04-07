@@ -101,7 +101,7 @@ public class InteractiveProcess {
 	}
 	
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
-		let cmaster = DispatchQueue(label:"com.tannersilva.instance.process.interactive.master", qos:priority.asDispatchQoS(relative:250), attributes:[.concurrent])
+		let cmaster = DispatchQueue(label:"com.tannersilva.instance.process.interactive.master", qos:priority.asDispatchQoS(relative:300), attributes:[.concurrent])
 		let ioq = DispatchQueue(label:"com.tannersilva.instance.process.interactive.io.concurrent", qos:priority.asDispatchQoS(relative:100), target:cmaster)
 		let iog = DispatchGroup()
 		let cb = DispatchQueue(label:"com.tannersilva.instance.process.interactive.callback.sync", qos:priority.asDispatchQoS(relative:50), target:cmaster)
@@ -151,7 +151,7 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
-			
+			print(Colors.dim("RH called"))
 			let newWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
 				guard let self = self else {
 					return
@@ -168,6 +168,7 @@ public class InteractiveProcess {
 				guard let self = self else {
 					return
 				}
+				print(Colors.magenta("callbacks beinning"))
 				let lines = self.internalSync.sync { return self._stdoutLines }
 				if lines.count > 0 {
 					let callback = self.internalSync.sync {
