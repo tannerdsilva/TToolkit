@@ -9,10 +9,11 @@ public class InteractiveProcess {
 	/*
 	I/O events for the interactive process are handled in an asyncronous queue that calls into two secondary syncronous queues (one for internal handling, the other for callback handling
 	*/
+	private let concurrentMaster:DispatchQueue
  	private let internalSync:DispatchQueue
 	private let ioQueue:DispatchQueue	//not initialized here because it is qos dependent (qos passed to initializer)
 	private let ioGroup:DispatchGroup
-	private let callbackSync:DispatchQueue
+	private let callback:DispatchQueue
 	private let runGroup:DispatchGroup
 	
 	public enum InteractiveProcessState:UInt8 {
@@ -35,6 +36,7 @@ public class InteractiveProcess {
 	internal var stdout:ProcessPipes
 	internal var stderr:ProcessPipes
 	
+	internal var _stdoutLines = [Data]()
 	internal var _stdoutBuffer = Data()
 	public var stdoutBuffer:Data {
 		get {
@@ -44,6 +46,7 @@ public class InteractiveProcess {
 		}
 	}
 	
+	internal var _stderrLines = [Data]()
 	internal var _stderrBuffer = Data()
 	public var stderrBuffer:Data {
 		get {
@@ -98,15 +101,18 @@ public class InteractiveProcess {
 	}
 	
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
-		let ioq = DispatchQueue(label:"com.tannersilva.instance.process.interactive.io.concurrent", qos:priority.asDispatchQoS(relative:100), attributes:[.concurrent])
+		let cmaster = DispatchQueue(label:"com.tannersilva.instance.process.interactive.master", qos:priority.asDispatchQoS(relative:250), attributes:[.concurrent])
+		let ioq = DispatchQueue(label:"com.tannersilva.instance.process.interactive.io.concurrent", qos:priority.asDispatchQoS(relative:100), target:cmaster)
 		let iog = DispatchGroup()
-		let cb = DispatchQueue(label:"com.tannersilva.instance.process.interactive.callback.sync", target:ioq)
+		let cb = DispatchQueue(label:"com.tannersilva.instance.process.interactive.callback.sync", qos:priority.asDispatchQoS(relative:50), target:cmaster)
 		let isync = DispatchQueue(label:"com.tannersilva.instance.process.interactive.sync")
 		let rg = DispatchGroup()
+		
+		self.concurrentMaster = cmaster
 		self.ioQueue = ioq
 		self.ioGroup = iog
 		self.internalSync = isync
-		self.callbackSync = cb
+		self.callback = cb
 		self.runGroup = rg
 		self._state = .initialized
 		
@@ -146,7 +152,7 @@ public class InteractiveProcess {
 				return
 			}
 			
-			let newWork = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
+			let newWorkItem = DispatchWorkItem(flags:[.interitQoS]) { [weak self] in
 				guard let self = self else {
 					return
 				}
