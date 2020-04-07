@@ -104,7 +104,7 @@ public class InteractiveProcess {
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
 		let hiPri = priority.asDispatchQoS(relative:300)
 		let cmaster = DispatchQueue(label:"com.tannersilva.instance.process.interactive.master", qos:priority.asDispatchQoS(relative:300), attributes:[.concurrent])
-		let inputIo = DispatchQueue(label:"com.tannersilva.instance.process.interactive.stdin", qos:priority.asDispatchQoS(relative:200), target:cmaster)
+		let inputIo = DispatchQueue(label:"com.tannersilva.instance.process.interactive.out-err", qos:priority.asDispatchQoS(relative:200), target:cmaster)
 		let outputIo = DispatchQueue(label:"com.tannersilva.instance.process.interactive.io", qos:priority.asDispatchQoS(relative:100), target:cmaster)
 		let iog = DispatchGroup()
 		let cb = DispatchQueue(label:"com.tannersilva.instance.process.interactive.callback.sync", qos:priority.asDispatchQoS(relative:50), target:cmaster)
@@ -127,13 +127,13 @@ public class InteractiveProcess {
 		self.stdin = input
 		self.stdout = output
 		self.stderr = err
-		let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, callback:cb)
+		let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, callback:cmaster)
 		self.proc = externalProcess
 		externalProcess.stdin = input
 		externalProcess.stdout = output
 		externalProcess.stderr = err
 		
-		let termHandle = DispatchWorkItem(flags:[.barrier, .inheritQoS]) { [weak self] in
+		let termHandle = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
 			guard let self = self else {
 				return
 			}
@@ -145,8 +145,18 @@ public class InteractiveProcess {
 			self.internalSync.sync {
 				self._finishStderr()
 				self._finishStdout()
-				rg.leave()
 			}
+			if let hasErrH = self.stderrHandler {
+				let errorLines = self.internalSync.sync { return self._stderrLines }
+				for (_, curLine) in errorLines.enumerated() {
+					print("cbq?")
+					self.callbackQueue.sync {
+						print("yes cbq")
+						hasErrH(curLine)
+					}
+				}
+			}
+			let errH = self.internalSync.sync { return self.stderrHandler }
 		}
 		//termHandle.notify(qos:hiPri, flags:[.barrier, .enforceQoS], queue:cb) { [weak self] in
 //			guard let self = self else {
@@ -219,36 +229,46 @@ public class InteractiveProcess {
 			guard let self = self else {
 				return
 			}
-			self.internalSync.sync {
+			var howManyLines:Int? = self.internalSync.sync {
 				if var parsedLines = self._stdoutBuffer.lineSlice(removeBOM:false) {
 					let tailData = parsedLines.removeLast()
 					self._stdoutBuffer.removeAll(keepingCapacity:true)
 					self._stdoutBuffer.append(tailData)
 					self._stdoutLines.append(contentsOf:parsedLines)
-					
-					let callbackWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
-						guard let self = self else {
-							return
-						}
-						var lines = self.internalSync.sync { return self._stdoutLines }
-						if lines.count > 0 {
-							let callback = self.internalSync.sync {
-								return self._stdoutHandler
-							}
-							if let hasCallback = callback {
-								self.internalSync.sync {
-									lines = self._stdoutLines
-									self._stdoutLines.removeAll(keepingCapacity:true)
-								}
-								for (_, curLine) in lines.enumerated() {
-									hasCallback(curLine)
-								}
-							}
-						}
-					}
-					self.callbackQueue.async(execute:callbackWorkItem)
+					return parsedLines.count
 				}
+				return nil
 			}
+			print("data consumed")
+			self.callbackQueue.sync {
+				print("callback syncronized")
+			}
+			if howManyLines != nil && howManyLines! > 0 {
+				
+			}
+//					let callbackWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
+//						guard let self = self else {
+//							return
+//						}
+//						var lines = self.internalSync.sync { return self._stdoutLines }
+//						if lines.count > 0 {
+//							let callback = self.internalSync.sync {
+//								return self._stdoutHandler
+//							}
+//							if let hasCallback = callback {
+//								self.internalSync.sync {
+//									lines = self._stdoutLines
+//									self._stdoutLines.removeAll(keepingCapacity:true)
+//								}
+//								for (_, curLine) in lines.enumerated() {
+//									hasCallback(curLine)
+//								}
+//							}
+//						}
+//					}
+//					self.callbackQueue.async(execute:callbackWorkItem)
+//				}
+//			}
 		}
 		
 		output.readHandler = { [weak self] someData in
