@@ -43,11 +43,9 @@ internal class PipeReader {
 		internalSync.sync {
 			let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:Priority.highest.globalConcurrentQueue)
 			newSource.setEventHandler {
-                let start = Date()
 				if let newData = handle.availableData() {
 					work(newData)
 				}
-                print("\(start.timeIntervalSinceNow)")
 			}
             if let hasExisting = handleQueue[handle] {
 				hasExisting.cancel()
