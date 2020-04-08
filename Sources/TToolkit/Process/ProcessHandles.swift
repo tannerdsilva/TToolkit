@@ -182,7 +182,8 @@ internal class ProcessPipes {
 				case 0:
 					let readFD = fds.pointee
 					let writeFD = fds.successor().pointee
-				
+					print(Colors.magenta("created for reading: \(readFD)"))
+					print(Colors.Magenta("created for writing: \(writeFD)"))
 					return (r:ProcessHandle(fd:readFD), w:ProcessHandle(fd:writeFD))
 				default:
 				throw ExecutingProcess.ExecutingProcessError.unableToCreatePipes
