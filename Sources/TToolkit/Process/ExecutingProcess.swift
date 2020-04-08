@@ -493,17 +493,23 @@ internal class ExecutingProcess {
 						return
 					}
 					print(Colors.Red("Exit triggered"))
-					self.internalSync.sync {
-						self._exitCode = exitCode
-						self._exitTime = exitDate
-						   if let hasTerminationHandler = self._terminationHandler {
-							if let hasAsyncGroup = self._callbackGroup {
-								self._callbackQueue.async(group:hasAsyncGroup, execute:hasTerminationHandler)
+                    
+                    let (termHandle, asyncGroup) = self.internalSync.sync { () -> (DispatchWorkItem?, DispatchGroup?) in
+                        self._exitTime = exitDate
+                        self._exitCode = exitCode
+                        return (self._terminationHandler, self._callbackGroup)
+                    }
+						   if let hasTerminationHandler = termHandle {
+							if let hasAsyncGroup = asyncGroup {
+								hasAsyncGroup.enter()
+								hasTerminationHandler.perform()
+								hasAsyncGroup.leave()
+//								self._callbackQueue.async(group:hasAsyncGroup, execute:hasTerminationHandler)
 							} else {
-								self._callbackQueue.async(execute:hasTerminationHandler)
+								hasTerminationHandler.perform()
+//								self._callbackQueue.async(execute:hasTerminationHandler)
 							}
 						}
-					}
 				}
 			} catch let error {
 				kill(lpid, SIGKILL)
