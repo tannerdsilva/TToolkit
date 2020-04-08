@@ -8,126 +8,95 @@
 import Foundation
 
 //explosions allow for multi-threaded collection mapping
+fileprivate let _explodeGlobal = DispatchQueue(label:"com.tannersilva.function.explode.merge", attributes:[.concurrent])
 
-extension Collection {
-	//explode a collection - no return values
-	public func explode(lanes:Int = ProcessInfo.processInfo.activeProcessorCount, qos:Priority = .`default`, using thisFunction:@escaping (Int, Element) throws -> Void) {
-		let semaphore = DispatchSemaphore(value:lanes)
-		let computeThread = DispatchQueue(label:"com.tannersilva.function.explode.async", qos:qos.asDispatchQoS(), attributes:[.concurrent])
-		let queueingGroup = DispatchGroup()
-		let flightGroup = DispatchGroup()
-		for (n, curItem) in enumerated() {
-			queueingGroup.enter()
-			computeThread.async {
-				flightGroup.enter()
-				semaphore.wait()
-				queueingGroup.leave()
-				do {
-					try thisFunction(n, curItem)
-				} catch _ {}
-				semaphore.signal()
-				flightGroup.leave()
-			}
-			queueingGroup.wait()
+extension Sequence {
+	public func explode(using thisFunction:@escaping (Int, Element) throws -> Void) {
+		self.withContiguousStorageIfAvailable { unsafeBuff in
+			unsafeBuff._explode(using:thisFunction)
 		}
-		flightGroup.wait()
+	}
+	
+	public func explode<T>(using thisFunction:@escaping (Int, Element) -> T?, merge mergeFunction:@escaping (Int, T) -> Void) {
+		self.withContiguousStorageIfAvailable { unsafeBuff in
+			unsafeBuff._explode(using:thisFunction, merge:mergeFunction)
+		}
+	}
+	
+	public func explode<T>(using thisFunction:@escaping (Int, Element) -> T?) -> Set<T> where T:Hashable {
+		return self.withContiguousStorageIfAvailable { unsafeBuff in
+			return unsafeBuff.explode(using:thisFunction)
+		} ?? Set<T>()
+	}
+	
+	public func explode<T, U>(using thisFunction:@escaping (Int, Element) -> (key:T, value:U)) -> [T:U] where T:Hashable {
+		return self.withContiguousStorageIfAvailable { unsafeBuff in
+			return unsafeBuff.explode(using:thisFunction)
+		} ?? [T:U]()
+	}
+}
+
+extension UnsafeBufferPointer {
+	//explode - no return values	
+	fileprivate func _explode(using thisFunction:@escaping (Int, Element) throws -> Void) {
+		guard let startIndex = baseAddress else {
+			return
+		}
+		DispatchQueue.concurrentPerform(iterations:count) { n in
+			try? thisFunction(n, startIndex.advanced(by:n).pointee)
+		}
 	}
 
 	//explode a collection - allows the user to handle the merging of data themselves.
 	//return values of the primary `explode` block are passed to a serial thread where the user can handle the data as necessary
-	public func explode<T>(lanes:Int = ProcessInfo.processInfo.activeProcessorCount, qos:Priority = .`default`, using thisFunction:@escaping (Int, Element) throws -> T?, merge mergeFunction:@escaping (Int, T) throws -> Void) {
-		let semaphore = DispatchSemaphore(value:lanes)
-		let computeThread = DispatchQueue(label:"com.tannersilva.function.explode.async", qos:qos.asDispatchQoS(), attributes:[.concurrent])
-		let mergeQueue = DispatchQueue(label:"com.tannersilva.function.explode.sync", target:computeThread)
-		let queueingGroup = DispatchGroup()
-		let flightGroup = DispatchGroup()
-		for (n, curItem) in enumerated() {
-			queueingGroup.enter()
-			computeThread.async {
-				flightGroup.enter()
-				semaphore.wait()
-				queueingGroup.leave()
-				do {
-					if let returnedValue = try thisFunction(n, curItem) {
-						mergeQueue.sync {
-							try? mergeFunction(n, returnedValue)
-						}
-					}
-				} catch _ {}
-				semaphore.signal()
-				flightGroup.leave()
-			}
-			queueingGroup.wait()
+	fileprivate func _explode<T>(using thisFunction:@escaping (Int, Element) throws -> T?, merge mergeFunction:@escaping (Int, T) throws -> Void) {
+		guard let startIndex = baseAddress else {
+			return
 		}
-		flightGroup.wait()
+		let mergeQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge", target:_explodeGlobal)
+		DispatchQueue.concurrentPerform(iterations:count) { n in
+			if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
+				mergeQueue.async {
+				 	try? mergeFunction(n, returnedValue)
+				}
+			}
+		}
+		return mergeQueue.sync { return }
 	}
 
 	//explode a collection - returns a set of hashable objects
-	public func explode<T>(lanes:Int = ProcessInfo.processInfo.activeProcessorCount, qos:Priority = .`default`, using thisFunction:@escaping (Int, Element) throws -> T?) -> Set<T> where T:Hashable {
-		let semaphore = DispatchSemaphore(value:lanes)
-		let computeThread = DispatchQueue(label:"com.tannersilva.function.explode.async", qos:qos.asDispatchQoS(), attributes:[.concurrent])
-		let mergeQueue = DispatchQueue(label:"com.tannersilva.function.explode.sync", target:computeThread)
-		let queueingGroup = DispatchGroup()
-		let flightGroup = DispatchGroup()
-	
-		var buildData = Set<T>()
-	
-		for (n, curItem) in enumerated() {
-			queueingGroup.enter()
-			computeThread.async {
-				flightGroup.enter()
-				semaphore.wait()
-				queueingGroup.leave()
-			
-				do {
-					if let returnedValue = try thisFunction(n, curItem) {
-						mergeQueue.sync {
-							_ = buildData.update(with:returnedValue)
-						}
-					}
-				} catch _ {}
-			
-				semaphore.signal()
-				flightGroup.leave()
-			}
-			queueingGroup.wait()
+	fileprivate func _explode<T>(using thisFunction:@escaping (Int, Element) throws -> T?) -> Set<T> where T:Hashable {
+		guard let startIndex = baseAddress else {
+			return Set<T>()
 		}
-	
-		flightGroup.wait()
-		return buildData
+		var buildData = Set<T>()
+		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge", target:_explodeGlobal)
+		DispatchQueue.concurrentPerform(iterations:count) { n in
+			if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
+				callbackQueue.async {
+				 	buildData.update(with:returnedValue)
+				}
+			}
+		}
+		return callbackQueue.sync { return buildData }
 	}
 
 	//explode a collection - returns a dictionary
-	public func explode<T, U>(lanes:Int = ProcessInfo.processInfo.activeProcessorCount, qos:Priority = .`default`, using thisFunction:@escaping (Int, Element) throws -> (key:T, value:U)) -> [T:U] where T:Hashable {
-		let semaphore = DispatchSemaphore(value:lanes)
-		let computeThread = DispatchQueue(label:"com.tannersilva.function.explode.async", qos:qos.asDispatchQoS(), attributes:[.concurrent])
-		let mergeQueue = DispatchQueue(label:"com.tannersilva.function.explode.sync", target:computeThread)
-		let queueingGroup = DispatchGroup()
-		let flightGroup = DispatchGroup()
-	
-		var buildData = [T:U]()
-		for (n, curItem) in enumerated() {
-			queueingGroup.enter()
-			computeThread.async {
-				flightGroup.enter()
-				semaphore.wait()
-				queueingGroup.leave()
-			
-				do {
-					let returnedValue = try thisFunction(n, curItem)
-					if returnedValue.value != nil {
-						mergeQueue.sync {
-							buildData[returnedValue.key] = returnedValue.value
-						}
-					}
-				} catch _ {}
-			
-				semaphore.signal()
-				flightGroup.leave()
-			}
-			queueingGroup.wait()
+	fileprivate func _explode<T, U>(using thisFunction:@escaping (Int, Element) throws -> (key:T, value:U)) -> [T:U] where T:Hashable {
+		guard let startIndex = baseAddress else {
+			return [T:U]()
 		}
-		flightGroup.wait()
-		return buildData
+		var buildData = [T:U]()
+		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge", target:_explodeGlobal)
+		DispatchQueue.concurrentPerform(iterations:count) { n in
+			if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
+				if returnedValue.value != nil {
+					callbackQueue.async {
+						buildData[returnedValue.key] = returnedValue.value
+					}
+				}
+			}
+		}
+		return callbackQueue.sync { return buildData }
 	}
 }

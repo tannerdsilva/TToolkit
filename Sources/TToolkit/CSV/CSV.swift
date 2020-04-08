@@ -163,7 +163,7 @@ extension Collection where Element: CSVEncodable {
 					}
 				}
 				let lineString = thisLine.joined(separator:",") + "\n"
-				let didConvertToData = try lineString.safeData(using:.utf8)
+				let didConvertToData = try? lineString.safeData(using:.utf8) ?? Data() 
 				return didConvertToData
 			}, merge: { n, curItem in
 				dataLines.append(curItem)

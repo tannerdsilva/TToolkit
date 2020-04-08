@@ -142,19 +142,23 @@ public class Journal {
     public func loadAllHeads() throws -> Set<JournalFrame> {
     	let suspectedDates = try findAllCreationDates()
     	
-    	let journalFrameTransform = suspectedDates.explode(using: { (n, curItemURL) -> JournalFrame in
-    		let timeData = try Data(contentsOf:curItemURL)
-    		let dataToString = String(data:timeData, encoding:.utf8)
-            if let hasString = dataToString, let dateObj = Date.fromISOString(hasString) {
-                let timeStructFromDate = TimeStruct(dateObj)
-                let jf = JournalFrame(time:timeStructFromDate, journal:self)
-                return jf
-            } else {
-                throw JournalerError.internalError
-            }
+    	var buildJournal = Set<JournalFrame>()
+    	
+    	suspectedDates.explode(using: { (n, curItemURL) -> JournalFrame? in
+    		if let timeData = try? Data(contentsOf:curItemURL) {
+				let dataToString = String(data:timeData, encoding:.utf8)
+				if let hasString = dataToString, let dateObj = Date.fromISOString(hasString) {
+					let timeStructFromDate = TimeStruct(dateObj)
+					let jf = JournalFrame(time:timeStructFromDate, journal:self)
+					return jf
+				}
+			}
+			return nil
+    	}, merge: { (n, curJF) in 
+    		buildJournal.update(with:curJF)
     	})
     	
-    	return journalFrameTransform
+    	return buildJournal
     }
         
     internal func findAllCreationDates() throws -> [URL] {
