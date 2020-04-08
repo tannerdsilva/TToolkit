@@ -11,6 +11,8 @@ internal class ProcessMonitor {
 	var engagements = Set<Int32>()
 	var disengagements = Set<Int32>()
 	
+    var processBytes = [InteractiveProcess:Int]()
+    
 	var processes = [InteractiveProcess:Date]()
 	var sortedProcesses:[(key:InteractiveProcess, value:Date)] {
 		get {
@@ -49,7 +51,8 @@ internal class ProcessMonitor {
 					} else if self.disengagements.contains(pid) {
 						print(Colors.Red("D!\t"), terminator:"")
 					}
-                    print(Colors.green("\(curProcess.key.lines.count)\t"), terminator:"\n")
+                    print(Colors.green("\(curProcess.key.lines.count)\t"), terminator:"")
+                    print(Colors.yellow("\(self.processBytes[curProcess.key])\t"), terminator:"\n")
 				}
 				print(Colors.Blue("There are \(self.processes.count) processes in flight"))
 			}
@@ -70,15 +73,28 @@ internal class ProcessMonitor {
 		}
 	}
 	
+    func processGotBytes(_ p:InteractiveProcess, bytes:Int) {
+        internalSync.sync {
+            if let hasExistingBytes = processBytes[p] {
+                processBytes[p] = hasExistingBytes + bytes
+            } else {
+                processBytes[p] = bytes
+            }
+        }
+        
+    }
+    
 	func processLaunched(_ p:InteractiveProcess) {
 		internalSync.sync {
 			processes[p] = Date()
+            processBytes[p] = 0
 		}
 	}
 	
 	func processEnded(_ p:InteractiveProcess) {
 		internalSync.sync {
 			processes[p] = nil
+            processBytes[p] = nil
 		}
 	}
 }
@@ -365,6 +381,8 @@ public class InteractiveProcess:Hashable {
 			guard let self = self else {
 				return
 			}
+            let count = someData.count
+            pmon.processGotBytes(self, bytes: count)
             self.ioGroup.enter()
             defer {
                 self.ioGroup.leave()
