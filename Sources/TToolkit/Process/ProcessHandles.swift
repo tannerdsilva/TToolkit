@@ -190,15 +190,27 @@ internal class ProcessPipes {
 		}
 	}
 	
+	func closeWrite() {
+		//writeHandler = nil
+		internalSync.sync {
+			writing.close()
+		}
+	}
+	
+	func closeRead() {
+		readHandler = nil
+		internalSync.sync {
+			reading.close()
+		}
+	}
+	
 	func close() {
 		readHandler = nil
-//		reading.close()
-//		writing.close()
 //		writeHandler = nil
 	}
 	
 	deinit {
-		readHandler = nil
+//		readHandler = nil
 //		writeHandler = nil
 	}
 }

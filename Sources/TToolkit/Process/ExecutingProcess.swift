@@ -451,19 +451,19 @@ internal class ExecutingProcess {
 
 			var fHandles = [Int32:Int32]()
 			if let hasStdin = _stdin {
-				let thisFD = hasStdin.reading.fileDescriptor
-				fHandles[STDIN_FILENO] = thisFD
-				fcntl(thisFD, F_SETFD, FD_CLOEXEC)
+				fHandles[STDIN_FILENO] = hasStdin.reading.fileDescriptor
+				fcntl(hasStdin.reading.fileDescriptor, F_SETFD, FD_CLOEXEC)
+				fcntl(hasStdin.writing.fileDescriptor, F_SETFD, FD_CLOEXEC)
 			}
 			if let hasStdout = _stdout {
-				let thisFD = hasStdout.writing.fileDescriptor
-				fHandles[STDOUT_FILENO] = thisFD
-				fcntl(thisFD, F_SETFD, FD_CLOEXEC)
+				fHandles[STDOUT_FILENO] = hasStdout.writing.fileDescriptor
+				fcntl(hasStdout.writing.fileDescriptor, F_SETFD, FD_CLOEXEC)
+				fcntl(hasStdout.reading.fileDescriptor, F_SETFD, FD_CLOEXEC)
 			}
 			if let hasStderr = _stderr {
-				let thisFD = hasStderr.writing.fileDescriptor
-				fHandles[STDERR_FILENO] = thisFD
-				fcntl(thisFD, F_SETFD, FD_CLOEXEC)
+				fHandles[STDERR_FILENO] = hasStderr.writing.fileDescriptor
+				fcntl(hasStderr.writing.fileDescriptor, F_SETFD, FD_CLOEXEC)
+				fcntl(hasStderr.reading.fileDescriptor, F_SETFD, FD_CLOEXEC)
 			}
 			
 			//there are some weird differences between Linux and macOS in terms of their preference with optionals
@@ -489,6 +489,8 @@ internal class ExecutingProcess {
 					throw ExecutingProcessError.unableToExecute
 				}
 			}
+			
+			
 			
 			_launchTime = Date()
 			_processId = lpid

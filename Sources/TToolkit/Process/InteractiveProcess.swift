@@ -276,9 +276,9 @@ public class InteractiveProcess:Hashable {
             inputIo.sync { print("inputs flushed - \(self.lines.count)") }
             iog.wait()
 
-			input.close()
-			output.close()
-			err.close()
+//			input.close()
+//			output.close()
+//			err.close()
 			
 			self.internalSync.sync {
 				self._status = "pipes closed (waiting)"
