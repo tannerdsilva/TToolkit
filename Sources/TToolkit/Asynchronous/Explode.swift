@@ -12,6 +12,7 @@ fileprivate let _explodeGlobal = DispatchQueue(label:"com.tannersilva.function.e
 
 extension Collection {
     fileprivate func sequenceBuffer<R>(_ work:@escaping(UnsafeBufferPointer<Element>) -> R) -> R {
+        print("TRYING?")
         let buffer = UnsafeMutableBufferPointer<Element>.allocate(capacity: self.count)
         defer {
             buffer.deallocate()
@@ -19,6 +20,7 @@ extension Collection {
         for (n, curItem) in enumerated() {
             buffer.baseAddress!.advanced(by: n).assign(repeating: curItem, count: 1)
         }
+        print("THINGS?")
         return work(UnsafeBufferPointer(buffer))
     }
     
