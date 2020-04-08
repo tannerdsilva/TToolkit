@@ -216,6 +216,8 @@ public class InteractiveProcess:Hashable {
 			}
 		}
 	}
+    
+    var lines = [Data]() 
 	
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
 		let hiPri = priority.asDispatchQoS(relative:300)
