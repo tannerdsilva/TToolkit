@@ -40,26 +40,30 @@ internal class PipeReader {
 	}
 	
 	func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler)) {
-		internalSync.sync {
-			let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:Priority.highest.globalConcurrentQueue)
-			newSource.setEventHandler {
-				if let newData = handle.availableData() {
-					work(newData)
+		handle.internalSync.sync {
+			internalSync.sync {
+				let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:Priority.highest.globalConcurrentQueue)
+				newSource.setEventHandler {
+					if let newData = handle.availableData() {
+						work(newData)
+					}
 				}
+				if let hasExisting = handleQueue[handle] {
+					hasExisting.cancel()
+				}
+				handleQueue[handle] = newSource
+				newSource.activate()
 			}
-            if let hasExisting = handleQueue[handle] {
-				hasExisting.cancel()
-			}
-			handleQueue[handle] = newSource
-			newSource.activate()
 		}
 	}
 	
 	func unschedule(_ handle:ProcessHandle) {
-		internalSync.sync {
-			if let hasExisting = handleQueue[handle] {
-				hasExisting.cancel()
-				handleQueue[handle] = nil
+		handle.internalSync.sync {
+			internalSync.sync {
+				if let hasExisting = handleQueue[handle] {
+					hasExisting.cancel()
+					handleQueue[handle] = nil
+				}
 			}
 		}
 	}
@@ -191,9 +195,9 @@ internal class ProcessPipes {
 	}
 	
 	func close() {
+		readHandler = nil
 		reading.close()
 		writing.close()
-		readHandler = nil
 //		writeHandler = nil
 	}
 	
