@@ -18,7 +18,7 @@ extension Collection {
             buffer.deallocate()
         }
         for (n, curItem) in enumerated() {
-            buffer.baseAddress!.advanced(by: n).assign(repeating: curItem, count: 1)
+            buffer[n] = curItem
         }
         print("THINGS?")
         return work(UnsafeBufferPointer(buffer))
@@ -56,6 +56,7 @@ extension UnsafeBufferPointer {
 		guard let startIndex = baseAddress else {
 			return
 		}
+        print("GO?")
 		DispatchQueue.concurrentPerform(iterations:count) { n in
             print("\(n)")
 			try? thisFunction(n, startIndex.advanced(by:n).pointee)
@@ -68,6 +69,7 @@ extension UnsafeBufferPointer {
 		guard let startIndex = baseAddress else {
 			return
 		}
+        print("GO?")
 		let mergeQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
 		DispatchQueue.concurrentPerform(iterations:count) { n in
             print("\(n)")
@@ -85,6 +87,7 @@ extension UnsafeBufferPointer {
 		guard let startIndex = baseAddress else {
 			return Set<T>()
 		}
+        print("GO?")
 		var buildData = Set<T>()
 		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
 		DispatchQueue.concurrentPerform(iterations:count) { n in
@@ -103,6 +106,7 @@ extension UnsafeBufferPointer {
 		guard let startIndex = baseAddress else {
 			return [T:U]()
 		}
+        print("GO?")
 		var buildData = [T:U]()
 		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
 		DispatchQueue.concurrentPerform(iterations:count) { n in
