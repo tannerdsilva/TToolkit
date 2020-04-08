@@ -500,14 +500,21 @@ internal class ExecutingProcess {
 					guard let self = self else {
 						return
 					}
-					print(Colors.Red("Exit triggered"))
-                    
+					if let hasStdin = self.stdin {
+						hasStdin.close()
+					}
+					if let hasStdout = self.stdout {
+						hasStdout.close()
+					}
+					if let hasStderr = self.stderr {
+						hasStderr.close()
+					}
                     let (termHandle, asyncGroup) = self.internalSync.sync { () -> (DispatchWorkItem?, DispatchGroup?) in
                         self._exitTime = exitDate
                         self._exitCode = exitCode
                         return (self._terminationHandler, self._callbackGroup)
                     }
-						   if let hasTerminationHandler = termHandle {
+					   if let hasTerminationHandler = termHandle {
 							if let hasAsyncGroup = asyncGroup {
 								hasAsyncGroup.enter()
 								hasTerminationHandler.perform()

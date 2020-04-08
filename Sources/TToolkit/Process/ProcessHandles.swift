@@ -22,7 +22,7 @@ internal typealias WriteHandler = () -> Void
 
 fileprivate let ioThreads = DispatchQueue(label:"com.tannersilva.global.process-handle.io", attributes:[.concurrent])
 fileprivate let ppLocks = DispatchQueue(label:"com.tannersilva.global.process-pipe.sync", attributes:[.concurrent])
-fileprivate let ppInit = DispatchQueue(label:"com.tannersilva.global.process-pipe.init-serial")
+internal let pp_make_destroy_queue = DispatchQueue(label:"com.tannersilva.global.process-pipe.init-serial")
 
 /*
 	When external processes are launched, there is no way of influencing the rate of which that processess will output data.
@@ -124,7 +124,7 @@ internal class ProcessPipes {
 			}
 		}
 		set {
-			internalSync.sync {
+			pp_make_destroy_queue.sync {
 				if let hasNewHandler = newValue {
 					_readHandler = hasNewHandler
 					globalPR.scheduleForReading(reading, work:hasNewHandler)
@@ -176,7 +176,7 @@ internal class ProcessPipes {
 			fds.deallocate()
 		}
 		
-		return try ppInit.sync {
+		return try pp_make_destroy_queue.sync {
 			let rwfds = _pipe(fds)
 			switch rwfds {
 				case 0:
@@ -190,21 +190,7 @@ internal class ProcessPipes {
 			}
 		}
 	}
-	
-	func closeWrite() {
-		//writeHandler = nil
-		internalSync.sync {
-			writing.close()
-		}
-	}
-	
-	func closeRead() {
-		readHandler = nil
-		internalSync.sync {
-			reading.close()
-		}
-	}
-	
+		
 	func close() {
 		readHandler = nil
 		reading.close()
