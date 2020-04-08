@@ -40,7 +40,6 @@ internal class PipeReader {
 	}
 	
 	func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler)) {
-		handle.internalSync.sync {
 			internalSync.sync {
 				let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:Priority.highest.globalConcurrentQueue)
 				newSource.setEventHandler {
@@ -54,18 +53,15 @@ internal class PipeReader {
 				handleQueue[handle] = newSource
 				newSource.activate()
 			}
-		}
 	}
 	
 	func unschedule(_ handle:ProcessHandle) {
-		handle.internalSync.sync {
 			internalSync.sync {
 				if let hasExisting = handleQueue[handle] {
 					hasExisting.cancel()
 					handleQueue[handle] = nil
 				}
 			}
-		}
 	}
 }
 internal let globalPR = PipeReader()
