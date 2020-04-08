@@ -61,7 +61,7 @@ extension UnsafeBufferPointer {
         let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
         Priority.`default`.globalConcurrentQueue.sync {
             DispatchQueue.concurrentPerform(iterations:count) { n in
-                print("\(n)")
+                print("\(n) - \(count)")
                 launchSem.wait()
                 defer {
                     launchSem.signal()
@@ -84,7 +84,7 @@ extension UnsafeBufferPointer {
 		let mergeQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
         Priority.`default`.globalConcurrentQueue.sync {
             DispatchQueue.concurrentPerform(iterations:count) { n in
-                print("\(n)")
+                print("\(n) - \(count)")
                 launchSem.wait()
                 defer {
                     launchSem.signal()
@@ -111,7 +111,7 @@ extension UnsafeBufferPointer {
 		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
         Priority.`default`.globalConcurrentQueue.sync {
             DispatchQueue.concurrentPerform(iterations:count) { n in
-                print("\(n)")
+                print("\(n) - \(count)")
                 launchSem.wait()
                 defer {
                     launchSem.signal()
@@ -138,7 +138,7 @@ extension UnsafeBufferPointer {
 		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
         Priority.`default`.globalConcurrentQueue.sync {
             DispatchQueue.concurrentPerform(iterations:count) { n in
-                print("\(n)")
+                print("\(n) - \(count)")
                 launchSem.wait()
                 defer {
                     launchSem.signal()
