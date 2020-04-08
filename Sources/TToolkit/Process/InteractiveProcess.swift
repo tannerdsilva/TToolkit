@@ -272,7 +272,8 @@ public class InteractiveProcess:Hashable {
 			guard let self = self else {
 				return
 			}
-            
+            outputIo.sync { print("outputs flushed") }
+            inputIo.sync { print("inputs flushed") }
             iog.wait()
 
 			input.close()
