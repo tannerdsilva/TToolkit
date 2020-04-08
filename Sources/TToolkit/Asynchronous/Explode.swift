@@ -11,39 +11,40 @@ import Foundation
 fileprivate let _explodeGlobal = DispatchQueue(label:"com.tannersilva.function.explode.merge", attributes:[.concurrent])
 
 extension Collection {
-    fileprivate func sequenceBuffer<R>(_ work:@escaping(UnsafeBufferPointer<Element>) -> R) -> R {
-        print("TRYING?")
-        let buffer = UnsafeMutableBufferPointer<Element>.allocate(capacity: self.count)
+    fileprivate func sequenceBuffer<R>(_ work:@escaping(UnsafeBufferPointer<Element>) -> R) -> R {        let buffer = UnsafeMutableBufferPointer<Element>.allocate(capacity: self.count)
         defer {
             buffer.deallocate()
         }
         for (n, curItem) in enumerated() {
             buffer.baseAddress?.advanced(by: n).assign(repeating: curItem, count: 1)
         }
-        print("THINGS?")
         return work(UnsafeBufferPointer(buffer))
     }
     
 	public func explode(using thisFunction:@escaping (Int, Element) throws -> Void) {
 		self.sequenceBuffer { unsafeBuff in
+            print("O? \(unsafeBuff.count)")
 			unsafeBuff._explode(using:thisFunction)
 		}
 	}
 	
 	public func explode<T>(using thisFunction:@escaping (Int, Element) -> T?, merge mergeFunction:@escaping (Int, T) -> Void) {
 		self.sequenceBuffer { unsafeBuff in
+            print("O? \(unsafeBuff.count)")
 			unsafeBuff._explode(using:thisFunction, merge:mergeFunction)
 		}
 	}
 	
 	public func explode<T>(using thisFunction:@escaping (Int, Element) -> T?) -> Set<T> where T:Hashable {
 		return self.sequenceBuffer { unsafeBuff in
+            print("O? \(unsafeBuff.count)")
 			return unsafeBuff.explode(using:thisFunction)
 		} ?? Set<T>()
 	}
 	
 	public func explode<T, U>(using thisFunction:@escaping (Int, Element) -> (key:T, value:U)) -> [T:U] where T:Hashable {
 		return self.sequenceBuffer { unsafeBuff in
+            print("O? \(unsafeBuff.count)" )
 			return unsafeBuff.explode(using:thisFunction)
 		} ?? [T:U]()
 	}
@@ -58,15 +59,17 @@ extension UnsafeBufferPointer {
 		}
         print("GO?")
         let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
-		DispatchQueue.concurrentPerform(iterations:count) { n in
-            print("\(n)")
-            launchSem.wait()
-            defer {
-                launchSem.signal()
-            }
+        Priority.`default`.globalConcurrentQueue.sync {
+            DispatchQueue.concurrentPerform(iterations:count) { n in
+                print("\(n)")
+                launchSem.wait()
+                defer {
+                    launchSem.signal()
+                }
 
-			try? thisFunction(n, startIndex.advanced(by:n).pointee)
-		}
+                try? thisFunction(n, startIndex.advanced(by:n).pointee)
+            }
+        }
 	}
 
 	//explode a collection - allows the user to handle the merging of data themselves.
@@ -79,19 +82,21 @@ extension UnsafeBufferPointer {
         print("GO?")
         let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
 		let mergeQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
-		DispatchQueue.concurrentPerform(iterations:count) { n in
-            print("\(n)")
-            launchSem.wait()
-            defer {
-                launchSem.signal()
-            }
+        Priority.`default`.globalConcurrentQueue.sync {
+            DispatchQueue.concurrentPerform(iterations:count) { n in
+                print("\(n)")
+                launchSem.wait()
+                defer {
+                    launchSem.signal()
+                }
 
-			if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
-				mergeQueue.async {
-				 	try? mergeFunction(n, returnedValue)
-				}
-			}
-		}
+                if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
+                    mergeQueue.async {
+                        try? mergeFunction(n, returnedValue)
+                    }
+                }
+            }
+        }
 		return mergeQueue.sync { return }
 	}
 
@@ -104,19 +109,21 @@ extension UnsafeBufferPointer {
         let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
 		var buildData = Set<T>()
 		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
-		DispatchQueue.concurrentPerform(iterations:count) { n in
-            print("\(n)")
-            launchSem.wait()
-            defer {
-                launchSem.signal()
-            }
+        Priority.`default`.globalConcurrentQueue.sync {
+            DispatchQueue.concurrentPerform(iterations:count) { n in
+                print("\(n)")
+                launchSem.wait()
+                defer {
+                    launchSem.signal()
+                }
 
-			if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
-				callbackQueue.async {
-				 	buildData.update(with:returnedValue)
-				}
-			}
-		}
+                if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
+                    callbackQueue.async {
+                        buildData.update(with:returnedValue)
+                    }
+                }
+            }
+        }
 		return callbackQueue.sync { return buildData }
 	}
 
@@ -129,20 +136,22 @@ extension UnsafeBufferPointer {
         let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
         var buildData = [T:U]()
 		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
-		DispatchQueue.concurrentPerform(iterations:count) { n in
-            print("\(n)")
-            launchSem.wait()
-            defer {
-                launchSem.signal()
+        Priority.`default`.globalConcurrentQueue.sync {
+            DispatchQueue.concurrentPerform(iterations:count) { n in
+                print("\(n)")
+                launchSem.wait()
+                defer {
+                    launchSem.signal()
+                }
+                if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
+                    if returnedValue.value != nil {
+                        callbackQueue.async {
+                            buildData[returnedValue.key] = returnedValue.value
+                        }
+                    }
+                }
             }
-			if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
-				if returnedValue.value != nil {
-					callbackQueue.async {
-						buildData[returnedValue.key] = returnedValue.value
-					}
-				}
-			}
-		}
+        }
 		return callbackQueue.sync { return buildData }
 	}
 }
