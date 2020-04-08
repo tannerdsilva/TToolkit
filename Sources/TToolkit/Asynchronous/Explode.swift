@@ -71,6 +71,7 @@ extension UnsafeBufferPointer {
 
                 try? thisFunction(n, startIndex.advanced(by:n).pointee)
 //            }
+ print("fin?")
         }
 	}
 
@@ -81,7 +82,6 @@ extension UnsafeBufferPointer {
 			return
 		}
         
-        print("GO?")
         let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
 		let mergeQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
 //        Priority.`default`.globalConcurrentQueue.sync {
@@ -99,6 +99,7 @@ extension UnsafeBufferPointer {
                 }
             }
 //        }
+         print("fin?")
 		return mergeQueue.sync { return }
 	}
 
@@ -107,7 +108,6 @@ extension UnsafeBufferPointer {
 		guard let startIndex = baseAddress else {
 			return Set<T>()
 		}
-        print("GO?")
         let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
 		var buildData = Set<T>()
 		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
@@ -127,6 +127,7 @@ extension UnsafeBufferPointer {
                 }
 //            }
         }
+         print("fin?")
 		return callbackQueue.sync { return buildData }
 	}
 
@@ -135,7 +136,6 @@ extension UnsafeBufferPointer {
 		guard let startIndex = baseAddress else {
 			return [T:U]()
 		}
-        print("GO?")
         let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
         var buildData = [T:U]()
 		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
@@ -154,6 +154,7 @@ extension UnsafeBufferPointer {
                     }
                 }
             }
+                print("fin?")
 //        }
 		return callbackQueue.sync { return buildData }
 	}
