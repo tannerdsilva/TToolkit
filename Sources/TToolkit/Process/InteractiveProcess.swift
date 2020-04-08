@@ -125,7 +125,8 @@ public class InteractiveProcess:Hashable {
 	private let ioGroup:DispatchGroup
 	private let callbackQueue:DispatchQueue
 	private let runSemaphore:DispatchSemaphore
-	
+    private var signalUp:Bool = true
+    
 	public enum InteractiveProcessState:UInt8 {
 		case initialized
 		case running
@@ -292,7 +293,11 @@ public class InteractiveProcess:Hashable {
 					}
 				}
 			}
-            self.runSemaphore.signal()
+            if self.internalSync.sync(execute:{ self.signalUp }) == false {
+                self.internalSync.sync(execute:{ self.signalUp = true })
+                self.runSemaphore.signal()
+            }
+
 			self.internalSync.sync {
 				self._status = "left"
 			}
@@ -448,11 +453,13 @@ public class InteractiveProcess:Hashable {
         runSemaphore.wait()
         try internalSync.sync {
             do {
+                signalUp = false
             	_status = "running"
             	pmon.processLaunched(self)
                 try proc.run()
                 _state = .running
             } catch let error {
+                signalUp = true
                 runSemaphore.signal()
                 _state = .failed
             }
@@ -466,6 +473,10 @@ public class InteractiveProcess:Hashable {
     }
     
     deinit {
+        let signalSafeCheck = self.internalSync.sync(execute: { return self.signalUp })
+        if signalSafeCheck == true {
+            self.runSemaphore.wait()
+        }
     	print(Colors.yellow("ip was deinit"))
     }
 }
