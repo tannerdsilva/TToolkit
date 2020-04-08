@@ -56,34 +56,20 @@ extension UnsafeBufferPointer {
 		guard let startIndex = baseAddress else {
 			return
 		}
-		let value = ProcessInfo.processInfo.activeProcessorCount
-        let launchGroup = DispatchGroup()
-		let global = Priority.`default`.globalConcurrentQueue
-		let masterQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge", attributes:[.concurrent])
-		var queues = [DispatchQueue]()
-		for i in 0..<value {
-			let newQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge", target:masterQueue)
-			queues.append(newQueue)
-		}
-		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
-		DispatchQueue.concurrentPerform(iterations:count) { n in
-			launchGroup.enter()
-			let index = n % value
-			let curQueue = queues[index]
-//               launchSem.wait()
-//               defer {
-//                   launchSem.signal()
-//               }
-			print("\(n) - \(count) - \(index)")
-			curQueue.async {
-				defer {
-					launchGroup.leave()
-				}
-				try? thisFunction(n, startIndex.advanced(by:n).pointee)
-			}
-		}
-		launchGroup.wait()
-		print("fin?")
+        print("GO?")
+        let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
+       Priority.high.globalConcurrentQueue.sync {
+            DispatchQueue.concurrentPerform(iterations:count) { n in
+               launchSem.wait()
+               defer {
+                   launchSem.signal()
+               }
+                print("\(n) - \(count)")
+
+                try? thisFunction(n, startIndex.advanced(by:n).pointee)
+           }
+	 print("fin?")
+        }
 	}
 
 	//explode a collection - allows the user to handle the merging of data themselves.
@@ -92,39 +78,26 @@ extension UnsafeBufferPointer {
 		guard let startIndex = baseAddress else {
 			return
 		}
-		let value = ProcessInfo.processInfo.activeProcessorCount
-        let launchGroup = DispatchGroup()
-		let global = Priority.`default`.globalConcurrentQueue
-		let masterQueue = DispatchQueue(label:"com.tannersilva.function.explode.master", attributes:[.concurrent])
-		var queues = [DispatchQueue]()
-		for i in 0..<value {
-			let newQueue = DispatchQueue(label:"com.tannersilva.function.explode.branch", target:masterQueue)
-			queues.append(newQueue)
-		}
-		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
-		DispatchQueue.concurrentPerform(iterations:count) { n in
-			launchGroup.enter()
-			let index = n % value
-			let curQueue = queues[index]
-//               launchSem.wait()
-//               defer {
-//                   launchSem.signal()
-//               }
-			print("\(n) - \(count) - \(index)")
-			curQueue.async {
-				defer {
-					launchGroup.leave()
-				}
-				if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
-					callbackQueue.sync {
-						try? mergeFunction(n, returnedValue)
-					}
-				}
-			}
-		}
-		launchGroup.wait()
-		print("fin?")
-		return callbackQueue.sync { return }
+        
+        let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
+		let mergeQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
+       Priority.high.globalConcurrentQueue.sync {
+            DispatchQueue.concurrentPerform(iterations:count) { n in
+               launchSem.wait()
+               defer {
+                   launchSem.signal()
+               }
+                print("\(n) - \(count)")
+
+                if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
+                    mergeQueue.async {
+                        try? mergeFunction(n, returnedValue)
+                    }
+                }
+            }
+       }
+         print("fin?")
+		return mergeQueue.sync { return }
 	}
 
 	//explode a collection - returns a set of hashable objects
@@ -132,39 +105,26 @@ extension UnsafeBufferPointer {
 		guard let startIndex = baseAddress else {
 			return Set<T>()
 		}
-		let value = ProcessInfo.processInfo.activeProcessorCount
-        let launchGroup = DispatchGroup()
+        let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
 		var buildData = Set<T>()
-		let global = Priority.`default`.globalConcurrentQueue
-		let masterQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge", attributes:[.concurrent])
-		var queues = [DispatchQueue]()
-		for i in 0..<value {
-			let newQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge", target:masterQueue)
-			queues.append(newQueue)
-		}
 		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
-		DispatchQueue.concurrentPerform(iterations:count) { n in
-			launchGroup.enter()
-			let index = n % value
-			let curQueue = queues[index]
-//               launchSem.wait()
-//               defer {
-//                   launchSem.signal()
-//               }
-			print("\(n) - \(count) - \(index)")
-			curQueue.async {
-				defer {
-					launchGroup.leave()
-				}
-				if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
-					callbackQueue.sync {
-						buildData.update(with:returnedValue)
-					}
-				}
-			}
-		}
-		launchGroup.wait()
-		print("fin?")
+       Priority.high.globalConcurrentQueue.sync {
+            DispatchQueue.concurrentPerform(iterations:count) { n in
+
+               launchSem.wait()
+               defer {
+                   launchSem.signal()
+               }
+                print("\(n) - \(count)")
+
+                if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
+                    callbackQueue.async {
+                        buildData.update(with:returnedValue)
+                    }
+                }
+           }
+        }
+         print("fin?")
 		return callbackQueue.sync { return buildData }
 	}
 
@@ -173,41 +133,26 @@ extension UnsafeBufferPointer {
 		guard let startIndex = baseAddress else {
 			return [T:U]()
 		}
-		let value = ProcessInfo.processInfo.activeProcessorCount
-        let launchGroup = DispatchGroup()
-		var buildData = [T:U]()
-		let global = Priority.`default`.globalConcurrentQueue
-		let masterQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge", attributes:[.concurrent])
-		var queues = [DispatchQueue]()
-		for i in 0..<value {
-			let newQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge", target:masterQueue)
-			queues.append(newQueue)
-		}
+        let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
+        var buildData = [T:U]()
 		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
-		DispatchQueue.concurrentPerform(iterations:count) { n in
-			launchGroup.enter()
-			let index = n % value
-			let curQueue = queues[index]
-//               launchSem.wait()
-//               defer {
-//                   launchSem.signal()
-//               }
-			print("\(n) - \(count) - \(index)")
-			curQueue.async {
-				defer {
-					launchGroup.leave()
-				}
-				if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
-					if returnedValue.value != nil {
-						callbackQueue.sync {
-							buildData[returnedValue.key] = returnedValue.value
-						}
-					}
-				}
-			}
+       Priority.high.globalConcurrentQueue.sync {
+            DispatchQueue.concurrentPerform(iterations:count) { n in
+                print("\(n) - \(count)")
+               launchSem.wait()
+               defer {
+                   launchSem.signal()
+               }
+                if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
+                    if returnedValue.value != nil {
+                        callbackQueue.async {
+                            buildData[returnedValue.key] = returnedValue.value
+                        }
+                    }
+                }
+            }
+	        print("fin?")
 		}
-		launchGroup.wait()
-		print("fin?")
 		return callbackQueue.sync { return buildData }
 	}
 }
