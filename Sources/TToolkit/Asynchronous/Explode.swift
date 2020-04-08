@@ -74,7 +74,7 @@ extension UnsafeBufferPointer {
 //               defer {
 //                   launchSem.signal()
 //               }
-			print("\(n) - \(count)")
+			print("\(n) - \(count) - \(index)")
 			curQueue.async {
 				defer {
 					launchGroup.leave()
@@ -110,7 +110,7 @@ extension UnsafeBufferPointer {
 //               defer {
 //                   launchSem.signal()
 //               }
-			print("\(n) - \(count)")
+			print("\(n) - \(count) - \(index)")
 			curQueue.async {
 				defer {
 					launchGroup.leave()
@@ -151,7 +151,7 @@ extension UnsafeBufferPointer {
 //               defer {
 //                   launchSem.signal()
 //               }
-			print("\(n) - \(count)")
+			print("\(n) - \(count) - \(index)")
 			curQueue.async {
 				defer {
 					launchGroup.leave()
@@ -192,7 +192,7 @@ extension UnsafeBufferPointer {
 //               defer {
 //                   launchSem.signal()
 //               }
-			print("\(n) - \(count)")
+			print("\(n) - \(count) - \(index)")
 			curQueue.async {
 				if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
 					if returnedValue.value != nil {
