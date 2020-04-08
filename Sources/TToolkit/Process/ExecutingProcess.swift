@@ -501,19 +501,13 @@ internal class ExecutingProcess {
 						return
 					}
 					if let hasStdin = self.stdin {
-						pp_make_destroy_queue.async {
 							hasStdin.close()
-						}
 					}
 					if let hasStdout = self.stdout {
-						pp_make_destroy_queue.async {
 							hasStdout.close()
-						}
 					}
 					if let hasStderr = self.stderr {
-						pp_make_destroy_queue.async {
 							hasStderr.close()
-						}
 					}
                     let (termHandle, asyncGroup) = self.internalSync.sync { () -> (DispatchWorkItem?, DispatchGroup?) in
                         self._exitTime = exitDate
