@@ -192,8 +192,8 @@ internal class ProcessPipes {
 	
 	func close() {
 		readHandler = nil
-		reading.close()
-		writing.close()
+//		reading.close()
+//		writing.close()
 //		writeHandler = nil
 	}
 	
