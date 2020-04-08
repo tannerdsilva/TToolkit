@@ -194,6 +194,9 @@ extension UnsafeBufferPointer {
 //               }
 			print("\(n) - \(count) - \(index)")
 			curQueue.async {
+				defer {
+					launchGroup.leave()
+				}
 				if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
 					if returnedValue.value != nil {
 						callbackQueue.sync {
