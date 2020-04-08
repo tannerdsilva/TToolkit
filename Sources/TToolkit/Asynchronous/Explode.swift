@@ -28,8 +28,8 @@ extension Collection {
 				semaphore.signal()
 				flightGroup.leave()
 			}
-			queueingGroup.wait()
 		}
+					queueingGroup.wait()
 		flightGroup.wait()
 	}
 
@@ -57,8 +57,8 @@ extension Collection {
 				semaphore.signal()
 				flightGroup.leave()
 			}
-			queueingGroup.wait()
 		}
+		queueingGroup.wait()
 		flightGroup.wait()
 	}
 
@@ -90,9 +90,8 @@ extension Collection {
 				semaphore.signal()
 				flightGroup.leave()
 			}
-			queueingGroup.wait()
 		}
-	
+			queueingGroup.wait()
 		flightGroup.wait()
 		return buildData
 	}
@@ -125,8 +124,8 @@ extension Collection {
 				semaphore.signal()
 				flightGroup.leave()
 			}
-			queueingGroup.wait()
 		}
+		queueingGroup.wait()
 		flightGroup.wait()
 		return buildData
 	}
