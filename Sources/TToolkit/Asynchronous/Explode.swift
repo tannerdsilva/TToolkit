@@ -82,7 +82,7 @@ extension UnsafeBufferPointer {
 				try? thisFunction(n, startIndex.advanced(by:n).pointee)
 			}
 		}
-		launchGroup.leave()
+		launchGroup.wait()
 		print("fin?")
 	}
 
@@ -122,7 +122,7 @@ extension UnsafeBufferPointer {
 				}
 			}
 		}
-		launchGroup.leave()
+		launchGroup.wait()
 		print("fin?")
 		return callbackQueue.sync { return }
 	}
@@ -163,7 +163,7 @@ extension UnsafeBufferPointer {
 				}
 			}
 		}
-		launchGroup.leave()
+		launchGroup.wait()
 		print("fin?")
 		return callbackQueue.sync { return buildData }
 	}
