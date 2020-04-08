@@ -55,6 +55,7 @@ extension UnsafeBufferPointer {
 			return
 		}
 		DispatchQueue.concurrentPerform(iterations:count) { n in
+            print("\(n)")
 			try? thisFunction(n, startIndex.advanced(by:n).pointee)
 		}
 	}
@@ -65,8 +66,9 @@ extension UnsafeBufferPointer {
 		guard let startIndex = baseAddress else {
 			return
 		}
-		let mergeQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge", target:_explodeGlobal)
+		let mergeQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
 		DispatchQueue.concurrentPerform(iterations:count) { n in
+            print("\(n)")
 			if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
 				mergeQueue.async {
 				 	try? mergeFunction(n, returnedValue)
@@ -82,8 +84,9 @@ extension UnsafeBufferPointer {
 			return Set<T>()
 		}
 		var buildData = Set<T>()
-		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge", target:_explodeGlobal)
+		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
 		DispatchQueue.concurrentPerform(iterations:count) { n in
+            print("\(n)")
 			if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
 				callbackQueue.async {
 				 	buildData.update(with:returnedValue)
@@ -99,8 +102,9 @@ extension UnsafeBufferPointer {
 			return [T:U]()
 		}
 		var buildData = [T:U]()
-		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge", target:_explodeGlobal)
+		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
 		DispatchQueue.concurrentPerform(iterations:count) { n in
+            print("\(n)")
 			if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
 				if returnedValue.value != nil {
 					callbackQueue.async {
