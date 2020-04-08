@@ -39,19 +39,17 @@ internal class PipeReader {
 		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
 	}
 	
-	func scheduleForReading(_ handle:ProcessHandle, group:DispatchGroup, work:@escaping(ReadHandler)) {
+	func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler)) {
 		internalSync.sync {
 			let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:Priority.highest.globalConcurrentQueue)
-			group.enter()
 			newSource.setEventHandler {
+                let start = Date()
 				if let newData = handle.availableData() {
 					work(newData)
 				}
+                print("\(start.timeIntervalSinceNow)")
 			}
-			newSource.setCancelHandler {
-				group.leave()
-			}
-			if let hasExisting = handleQueue[handle] {
+            if let hasExisting = handleQueue[handle] {
 				hasExisting.cancel()
 			}
 			handleQueue[handle] = newSource
@@ -115,27 +113,9 @@ internal let globalWH = WriteWatcher()
 
 internal class ProcessPipes {
 	private let internalSync:DispatchQueue
-	private let internalCallback:DispatchQueue
-	
+
 	let reading:ProcessHandle
 	let writing:ProcessHandle
-	
-	private var _callbackGroup:DispatchGroup	
-	
-	private var _callbackQueue:DispatchQueue
-	var handlerQueue:DispatchQueue {
-		get {
-			return internalSync.sync {
-				return _callbackQueue
-			}
-		}
-		set {
-			internalSync.sync {
-				_callbackQueue = newValue
-				internalCallback.setTarget(queue:_callbackQueue)
-			}
-		}
-	}
 
 	//readability handler
 	private var _readHandler:ReadHandler? = nil
@@ -149,7 +129,7 @@ internal class ProcessPipes {
 			internalSync.sync {
 				if let hasNewHandler = newValue {
 					_readHandler = hasNewHandler
-					globalPR.scheduleForReading(reading, group:_callbackGroup, work:hasNewHandler)
+					globalPR.scheduleForReading(reading, work:hasNewHandler)
 				} else {
 					if _readHandler != nil {
 						globalPR.unschedule(reading)
@@ -161,40 +141,35 @@ internal class ProcessPipes {
 	}
 	
 //	write handler
-	private var _writeHandler:WriteHandler? = nil
-	var writeHandler:WriteHandler? {
-		get {
-			return internalSync.sync {
-				return _writeHandler
-			}
-		}
-		set {
-			internalSync.sync {
-				if let hasNewHandler = newValue {
-					_writeHandler = hasNewHandler
-					globalWH.scheduleWriteAvailability(writing, queue:internalCallback, group:_callbackGroup, work:hasNewHandler)
-				} else {
-					if _writeHandler != nil {
-						globalWH.unschedule(writing)
-					}
-				}
-			}
-		}
-	}
+//	private var _writeHandler:WriteHandler? = nil
+//	var writeHandler:WriteHandler? {
+//		get {
+//			return internalSync.sync {
+//				return _writeHandler
+//			}
+//		}
+//		set {
+//			internalSync.sync {
+//				if let hasNewHandler = newValue {
+//					_writeHandler = hasNewHandler
+//					globalWH.scheduleWriteAvailability(writing, queue:internalCallback, group:_callbackGroup, work:hasNewHandler)
+//				} else {
+//					if _writeHandler != nil {
+//						globalWH.unschedule(writing)
+//					}
+//				}
+//			}
+//		}
+//	}
 	
-	init(callback:DispatchQueue, group:DispatchGroup) throws {
+	init() throws {
 		let readWrite = try Self.forReadingAndWriting()
 		
 		self.reading = readWrite.r
 		self.writing = readWrite.w
-		
-		self._callbackGroup = group
-		
+
 		let ints = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", target:ppLocks)
 		self.internalSync = ints
-		let icb = DispatchQueue(label:"com.tannersilva.instance.process-pipe.callback", target:callback)
-		self.internalCallback = icb
-		self._callbackQueue = callback
 	}
 	
 	fileprivate static func forReadingAndWriting() throws -> (r:ProcessHandle, w:ProcessHandle) {
@@ -221,12 +196,12 @@ internal class ProcessPipes {
 		reading.close()
 		writing.close()
 		readHandler = nil
-		writeHandler = nil
+//		writeHandler = nil
 	}
 	
 	deinit {
 		readHandler = nil
-		writeHandler = nil
+//		writeHandler = nil
 	}
 }
 

@@ -236,9 +236,9 @@ public class InteractiveProcess:Hashable {
 		self.runGroup = rg
 		self._state = .initialized
 		
-		let input = try ProcessPipes(callback:inputIo, group:iog)
-		let output = try ProcessPipes(callback:inputIo, group:iog)
-		let err = try ProcessPipes(callback:inputIo, group:iog)
+		let input = try ProcessPipes()
+		let output = try ProcessPipes()
+		let err = try ProcessPipes()
 		
 		self.stdin = input
 		self.stdout = output
@@ -253,6 +253,9 @@ public class InteractiveProcess:Hashable {
 			guard let self = self else {
 				return
 			}
+            
+            iog.wait()
+
 			input.close()
 			output.close()
 			err.close()
@@ -260,8 +263,6 @@ public class InteractiveProcess:Hashable {
 			self.internalSync.sync {
 				self._status = "pipes closed (waiting)"
 			}
-			
-			iog.wait()
 
 			self.internalSync.sync {
 				self._status = "completed io"
@@ -355,6 +356,10 @@ public class InteractiveProcess:Hashable {
 			guard let self = self else {
 				return
 			}
+            self.ioGroup.enter()
+            defer {
+                self.ioGroup.leave()
+            }
 			var hasher = Hasher()
 			let currentHash = self.internalSync.sync { return self.dhash }
 			let isNewLine = someData.withUnsafeBytes({ usRawBuffPoint -> Bool in
@@ -378,6 +383,10 @@ public class InteractiveProcess:Hashable {
 			guard let self = self else {
 				return
 			}
+            self.ioGroup.enter()
+            defer {
+                self.ioGroup.leave()
+            }
 			var hasher = Hasher()
 			let currentHash = self.internalSync.sync { return self.dhash }
 			let isNewLine = someData.withUnsafeBytes({ usRawBuffPoint -> Bool in
