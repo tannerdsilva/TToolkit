@@ -273,7 +273,7 @@ public class InteractiveProcess:Hashable {
 				return
 			}
             outputIo.sync { print("outputs flushed") }
-            inputIo.sync { print("inputs flushed") }
+            inputIo.sync { print("inputs flushed - \(self.lines.count)") }
             iog.wait()
 
 			input.close()
