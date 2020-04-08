@@ -11,40 +11,42 @@ import Foundation
 fileprivate let _explodeGlobal = DispatchQueue(label:"com.tannersilva.function.explode.merge", attributes:[.concurrent])
 
 extension Collection {
-    fileprivate func sequenceBuffer<R>(_ work:@escaping(UnsafeBufferPointer<Element>) -> R) -> R {        let buffer = UnsafeMutableBufferPointer<Element>.allocate(capacity: self.count)
-        defer {
-            buffer.deallocate()
+    fileprivate func sequenceBuffer<R>(_ work:@escaping(UnsafeBufferPointer<Element>) -> R) -> R {
+		let buffer = UnsafeMutableBufferPointer<Element>.allocate(capacity: self.count)
+        _ = buffer.initialize(from: self)
+		defer {
+			buffer.deallocate()
+		}
+        for (n, curItem) in buffer.enumerated() {
+            print("\(n) :: \(curItem)")
         }
-        for (n, curItem) in enumerated() {
-            buffer.baseAddress?.advanced(by: n).assign(repeating: curItem, count: 1)
-        }
-        return work(UnsafeBufferPointer(buffer))
-    }
-    
+		return work(UnsafeBufferPointer(buffer))
+	}
+
 	public func explode(using thisFunction:@escaping (Int, Element) throws -> Void) {
 		self.sequenceBuffer { unsafeBuff in
-            print("O? \(unsafeBuff.count)")
+			print("O? \(unsafeBuff.count)")
 			unsafeBuff._explode(using:thisFunction)
 		}
 	}
 	
 	public func explode<T>(using thisFunction:@escaping (Int, Element) -> T?, merge mergeFunction:@escaping (Int, T) -> Void) {
 		self.sequenceBuffer { unsafeBuff in
-            print("O? \(unsafeBuff.count)")
+			print("O? \(unsafeBuff.count)")
 			unsafeBuff._explode(using:thisFunction, merge:mergeFunction)
 		}
 	}
 	
 	public func explode<T>(using thisFunction:@escaping (Int, Element) -> T?) -> Set<T> where T:Hashable {
 		return self.sequenceBuffer { unsafeBuff in
-            print("O? \(unsafeBuff.count)")
+			print("O? \(unsafeBuff.count)")
 			return unsafeBuff._explode(using:thisFunction)
 		} ?? Set<T>()
 	}
 	
 	public func explode<T, U>(using thisFunction:@escaping (Int, Element) -> (key:T, value:U)) -> [T:U] where T:Hashable {
 		return self.sequenceBuffer { unsafeBuff in
-            print("O? \(unsafeBuff.count)" )
+			print("O? \(unsafeBuff.count)" )
 			return unsafeBuff._explode(using:thisFunction)
 		} ?? [T:U]()
 	}
