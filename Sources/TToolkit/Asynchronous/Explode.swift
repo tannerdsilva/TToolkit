@@ -38,14 +38,14 @@ extension Collection {
 	public func explode<T>(using thisFunction:@escaping (Int, Element) -> T?) -> Set<T> where T:Hashable {
 		return self.sequenceBuffer { unsafeBuff in
             print("O? \(unsafeBuff.count)")
-			return unsafeBuff.explode(using:thisFunction)
+			return unsafeBuff._explode(using:thisFunction)
 		} ?? Set<T>()
 	}
 	
 	public func explode<T, U>(using thisFunction:@escaping (Int, Element) -> (key:T, value:U)) -> [T:U] where T:Hashable {
 		return self.sequenceBuffer { unsafeBuff in
             print("O? \(unsafeBuff.count)" )
-			return unsafeBuff.explode(using:thisFunction)
+			return unsafeBuff._explode(using:thisFunction)
 		} ?? [T:U]()
 	}
 }
