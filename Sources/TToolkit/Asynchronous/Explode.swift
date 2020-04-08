@@ -18,7 +18,7 @@ extension Collection {
             buffer.deallocate()
         }
         for (n, curItem) in enumerated() {
-            buffer[n] = curItem
+            buffer.baseAddress?.advanced(by: n).assign(repeating: curItem, count: 1)
         }
         print("THINGS?")
         return work(UnsafeBufferPointer(buffer))
