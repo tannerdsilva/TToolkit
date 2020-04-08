@@ -57,8 +57,14 @@ extension UnsafeBufferPointer {
 			return
 		}
         print("GO?")
+        let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
 		DispatchQueue.concurrentPerform(iterations:count) { n in
             print("\(n)")
+            launchSem.wait()
+            defer {
+                launchSem.signal()
+            }
+
 			try? thisFunction(n, startIndex.advanced(by:n).pointee)
 		}
 	}
@@ -69,10 +75,17 @@ extension UnsafeBufferPointer {
 		guard let startIndex = baseAddress else {
 			return
 		}
+        
         print("GO?")
+        let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
 		let mergeQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
 		DispatchQueue.concurrentPerform(iterations:count) { n in
             print("\(n)")
+            launchSem.wait()
+            defer {
+                launchSem.signal()
+            }
+
 			if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
 				mergeQueue.async {
 				 	try? mergeFunction(n, returnedValue)
@@ -88,10 +101,16 @@ extension UnsafeBufferPointer {
 			return Set<T>()
 		}
         print("GO?")
+        let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
 		var buildData = Set<T>()
 		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
 		DispatchQueue.concurrentPerform(iterations:count) { n in
             print("\(n)")
+            launchSem.wait()
+            defer {
+                launchSem.signal()
+            }
+
 			if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
 				callbackQueue.async {
 				 	buildData.update(with:returnedValue)
@@ -107,10 +126,15 @@ extension UnsafeBufferPointer {
 			return [T:U]()
 		}
         print("GO?")
-		var buildData = [T:U]()
+        let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
+        var buildData = [T:U]()
 		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
 		DispatchQueue.concurrentPerform(iterations:count) { n in
             print("\(n)")
+            launchSem.wait()
+            defer {
+                launchSem.signal()
+            }
 			if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
 				if returnedValue.value != nil {
 					callbackQueue.async {
