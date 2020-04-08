@@ -329,7 +329,7 @@ internal class ProcessHandle:Hashable {
 	
 	deinit {
 		if isClosed == false {
-			_ = _close(_fd)
+			close()
 		}
 	}
 
