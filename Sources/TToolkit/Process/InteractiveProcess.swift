@@ -272,13 +272,13 @@ public class InteractiveProcess:Hashable {
 			guard let self = self else {
 				return
 			}
-            outputIo.sync { print("outputs flushed") }
-            inputIo.sync { print("inputs flushed - \(self.lines.count)") }
+            outputIo.sync { }
+            inputIo.sync { }
             iog.wait()
 
-//			input.close()
-//			output.close()
-//			err.close()
+			input.close()
+			output.close()
+			err.close()
 			
 			self.internalSync.sync {
 				self._status = "pipes closed (waiting)"

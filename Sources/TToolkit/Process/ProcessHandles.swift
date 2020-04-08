@@ -207,6 +207,8 @@ internal class ProcessPipes {
 	
 	func close() {
 		readHandler = nil
+		reading.close()
+		writing.close()
 //		writeHandler = nil
 	}
 	
@@ -326,9 +328,9 @@ internal class ProcessHandle:Hashable {
 	}
 	
 	deinit {
-//		if isClosed == false {
-//			_ = _close(_fd)
-//		}
+		if isClosed == false {
+			_ = _close(_fd)
+		}
 	}
 
 }
