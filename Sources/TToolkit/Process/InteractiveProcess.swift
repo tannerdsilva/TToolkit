@@ -124,7 +124,7 @@ public class InteractiveProcess:Hashable {
 	private let outputQueue:DispatchQueue	//not initialized here because it is qos dependent (qos passed to initializer)
 	private let ioGroup:DispatchGroup
 	private let callbackQueue:DispatchQueue
-	private let runGroup:DispatchGroup
+	private let runSemaphore:DispatchSemaphore
 	
 	public enum InteractiveProcessState:UInt8 {
 		case initialized
@@ -227,7 +227,7 @@ public class InteractiveProcess:Hashable {
 		let iog = DispatchGroup()
 		let cb = DispatchQueue(label:"com.tannersilva.instance.process.interactive.callback.sync", qos:priority.asDispatchQoS(relative:50), target:cmaster)
 		let isync = DispatchQueue(label:"com.tannersilva.instance.process.interactive.sync")
-		let rg = DispatchGroup()
+        let rs = DispatchSemaphore(value:1)
 		
 		self.concurrentMaster = cmaster
 		self.inputQueue = inputIo
@@ -235,7 +235,7 @@ public class InteractiveProcess:Hashable {
 		self.ioGroup = iog
 		self.internalSync = isync
 		self.callbackQueue = cb
-		self.runGroup = rg
+		self.runSemaphore = rs
 		self._state = .initialized
 		
 		let input = try ProcessPipes()
@@ -292,7 +292,7 @@ public class InteractiveProcess:Hashable {
 					}
 				}
 			}
-			rg.leave()
+            self.runSemaphore.signal()
 			self.internalSync.sync {
 				self._status = "left"
 			}
@@ -445,22 +445,22 @@ public class InteractiveProcess:Hashable {
 	}
     
     public func run() throws {
+        runSemaphore.wait()
         try internalSync.sync {
-            runGroup.enter()
             do {
             	_status = "running"
             	pmon.processLaunched(self)
                 try proc.run()
                 _state = .running
             } catch let error {
-                runGroup.leave()
+                runSemaphore.signal()
                 _state = .failed
             }
         }
     }
     
     public func waitForExitCode() -> Int {
-        runGroup.wait()
+        runSemaphore.wait()
         let returnCode = proc.exitCode!
         return Int(returnCode)
     }
