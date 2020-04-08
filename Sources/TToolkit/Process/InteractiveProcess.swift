@@ -49,7 +49,7 @@ internal class ProcessMonitor {
 					} else if self.disengagements.contains(pid) {
 						print(Colors.Red("D!\t"), terminator:"")
 					}
-					print(Colors.green("\(curProcess.key.status)\t"), terminator:"\n")
+                    print(Colors.green("\(curProcess.key.lines.count)\t"), terminator:"\n")
 				}
 				print(Colors.Blue("There are \(self.processes.count) processes in flight"))
 			}
@@ -312,6 +312,7 @@ public class InteractiveProcess:Hashable {
 					self._stderrBuffer.removeAll(keepingCapacity:true)
 					self._stderrBuffer.append(tailData)
 					if parsedLines.count > 0 {
+                        self.lines.append(contentsOf:parsedLines)
 						return parsedLines
 					} else {
 						return nil
@@ -338,6 +339,7 @@ public class InteractiveProcess:Hashable {
 					self._stdoutBuffer.removeAll(keepingCapacity:true)
 					self._stdoutBuffer.append(tailData)
 					if parsedLines.count > 0 {
+                        self.lines.append(contentsOf:parsedLines)
 						return parsedLines
 					} else {
 						return nil
