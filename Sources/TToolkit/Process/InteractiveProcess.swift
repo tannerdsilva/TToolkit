@@ -129,18 +129,16 @@ public class InteractiveProcess:Hashable {
     public typealias OutputHandler = (Data) -> Void
     public typealias InputHandler = () -> Void
 
-    fileprivate static let globalQueue = DispatchQueue(label:"com.tannersilva.global.process", qos:maximumPriority, attributes:[.concurrent])
-	
 	/*
 	I/O events for the interactive process are handled in an asyncronous queue that calls into two secondary syncronous queues (one for internal handling, the other for callback handling
 	*/
-	private let concurrentMaster:DispatchQueue
- 	private let internalSync:DispatchQueue
- 	private let inputQueue:DispatchQueue
-	private let outputQueue:DispatchQueue	//not initialized here because it is qos dependent (qos passed to initializer)
-	private let ioGroup:DispatchGroup
-	private let callbackQueue:DispatchQueue
-	private let runSemaphore:DispatchSemaphore
+    private let internalSync:DispatchQueue
+    private let process_launch_queue:DispatchQueue
+    private let process_read_queue:DispatchQueue
+    private let process_write_queue:DispatchQueue
+    private let process_callback_queue:DispatchQueue
+
+    private let runSemaphore:DispatchSemaphore
     private var signalUp:Bool = true
     
 	public enum InteractiveProcessState:UInt8 {
@@ -237,32 +235,32 @@ public class InteractiveProcess:Hashable {
     var lines = [Data]() 
 	
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
-		let hiPri = priority.asDispatchQoS(relative:300)
-		let cmaster = DispatchQueue(label:"com.tannersilva.instance.process.interactive.master", qos:priority.asDispatchQoS(relative:300), attributes:[.concurrent])
-		let inputIo = DispatchQueue(label:"com.tannersilva.instance.process.interactive.out-err", qos:priority.asDispatchQoS(relative:200), target:cmaster)
-		let outputIo = DispatchQueue(label:"com.tannersilva.instance.process.interactive.io", qos:priority.asDispatchQoS(relative:100), target:cmaster)
-		let iog = DispatchGroup()
-		let cb = DispatchQueue(label:"com.tannersilva.instance.process.interactive.callback.sync", qos:priority.asDispatchQoS(relative:50), target:cmaster)
-		let isync = DispatchQueue(label:"com.tannersilva.instance.process.interactive.sync")
+        print("initializing")
+        self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
+                print("23")
+//        let localMaster = DispatchQueue(label:"com.tannersilva.instance.process", qos:maximumPriority, attributes:[.concurrent], target:process_master_queue)
+        let eventStream = DispatchQueue(label:"com.tannersilva.instance.process.io")
+          print("es")
+        self.process_launch_queue = DispatchQueue(label:"com.tannersilva.instance.process.launch", qos:priority.process_launch_priority, target:eventStream)
+        self.process_read_queue = DispatchQueue(label:"com.tannersilva.instance.process.read", qos:priority.process_reading_priority, target:eventStream)
+        self.process_write_queue = DispatchQueue(label:"com.tannersilva.instance.process.write", qos:priority.process_writing_priority, target:eventStream)
+        self.process_callback_queue = DispatchQueue(label:"com.tannersilva.instance.process.callback", qos:priority.process_callback_priority, target:eventStream)
+
         let rs = DispatchSemaphore(value:1)
 		
-		self.concurrentMaster = cmaster
-		self.inputQueue = inputIo
-		self.outputQueue = outputIo
-		self.ioGroup = iog
-		self.internalSync = isync
-		self.callbackQueue = cb
 		self.runSemaphore = rs
 		self._state = .initialized
 		
 		let input = try ProcessPipes()
 		let output = try ProcessPipes()
 		let err = try ProcessPipes()
-		
+		          print("gerg")
 		self.stdin = input
 		self.stdout = output
 		self.stderr = err
-		let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment, callback:cmaster)
+                  print("ass")
+		let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment)
+        print("exe")
 		self.proc = externalProcess
 		externalProcess.stdin = input
 		externalProcess.stdout = output
@@ -272,55 +270,35 @@ public class InteractiveProcess:Hashable {
 			guard let self = self else {
 				return
 			}
-            outputIo.sync { }
-            inputIo.sync { }
-            iog.wait()
-
+            print(Colors.red("EXIT"))
 			input.close()
 			output.close()
 			err.close()
-			
-			self.internalSync.sync {
-				self._status = "pipes closed (waiting)"
-			}
-
-			self.internalSync.sync {
-				self._status = "completed io"
-			}
-
-			let errLines = self.internalSync.sync { return self._finishStderr() }
-			let outLines = self.internalSync.sync { return self._finishStdout() }
-			
-			if let hasErrLines = errLines, let hasCallback = self.stderrHandler {
-				self.callbackQueue.sync {
-					for (_, curLine) in hasErrLines.enumerated() {
-						hasCallback(curLine)
-					}
-				}
-			}
-			self.internalSync.sync {
-				self._status = "cb1 completed"
-			}
-
-			
-			if let hasOutLines = outLines, let hasCallback = self.stdoutHandler {
-				self.callbackQueue.sync {
-					for (_, curLine) in hasOutLines.enumerated() {
-						hasCallback(curLine)
-					}
-				}
-			}
-            if self.internalSync.sync(execute:{ self.signalUp }) == false {
-                self.internalSync.sync(execute:{ self.signalUp = true })
-                self.runSemaphore.signal()
+        }
+        
+        termHandle.notify(qos:priority.process_terminate_priority, flags:[.enforceQoS, .barrier], queue: eventStream, execute: { [weak self] in
+            guard let self = self else {
+                return
             }
-
-			self.internalSync.sync {
-				self._status = "left"
-			}
-			pmon.processEnded(self)
-			print(Colors.cyan("left"))
-		}
+            print(Colors.red("exit no"))
+            
+            let errLines = self.internalSync.sync { return self._finishStderr() }
+            let outLines = self.internalSync.sync { return self._finishStdout() }
+            
+            if let hasErrLines = errLines, let hasCallback = self.stderrHandler {
+                    for (_, curLine) in hasErrLines.enumerated() {
+                        hasCallback(curLine)
+                    }
+            }
+            
+            if let hasOutLines = outLines, let hasCallback = self.stdoutHandler {
+                for (_, curLine) in hasOutLines.enumerated() {
+                    hasCallback(curLine)
+                }
+            }
+            pmon.processEnded(self)
+            self.runSemaphore.signal()
+        })
 
 		externalProcess.terminationHandler = termHandle
 
@@ -343,7 +321,7 @@ public class InteractiveProcess:Hashable {
 				return nil
 			}
 			if let hasNewLines = newLines, let hasCallback = self.stderrHandler {
-				self.callbackQueue.sync {
+				self.process_callback_queue.async {
 					for (_, curLine) in hasNewLines.enumerated() {
 						hasCallback(curLine)
 					}
@@ -370,7 +348,7 @@ public class InteractiveProcess:Hashable {
 				return nil
 			}
 			if let hasNewLines = newLines, let hasCallback = self.stdoutHandler {
-				self.callbackQueue.sync {
+				self.process_callback_queue.async {
 					for (_, curLine) in hasNewLines.enumerated() {
 						hasCallback(curLine)
 					}
@@ -384,10 +362,6 @@ public class InteractiveProcess:Hashable {
 			}
             let count = someData.count
             pmon.processGotBytes(self, bytes: count)
-            self.ioGroup.enter()
-            defer {
-                self.ioGroup.leave()
-            }
 			var hasher = Hasher()
 			let currentHash = self.internalSync.sync { return self.dhash }
 			let isNewLine = someData.withUnsafeBytes({ usRawBuffPoint -> Bool in
@@ -403,7 +377,7 @@ public class InteractiveProcess:Hashable {
 				self._stdoutBuffer.append(someData)
 			}
 			if isNewLine == true {
-				self.outputQueue.async(group:self.ioGroup, execute:stdoutWorkItem)
+				self.process_read_queue.async(execute:stdoutWorkItem)
 			}
 		}
 
@@ -411,10 +385,6 @@ public class InteractiveProcess:Hashable {
 			guard let self = self else {
 				return
 			}
-            self.ioGroup.enter()
-            defer {
-                self.ioGroup.leave()
-            }
 			var hasher = Hasher()
 			let currentHash = self.internalSync.sync { return self.dhash }
 			let isNewLine = someData.withUnsafeBytes({ usRawBuffPoint -> Bool in
@@ -430,11 +400,9 @@ public class InteractiveProcess:Hashable {
 				self._stderrBuffer.append(someData)
 			}
 			if isNewLine == true {
-				self.outputQueue.async(group:self.ioGroup, execute:stderrWorkItem)
+				self.process_read_queue.async(execute:stderrWorkItem)
 			}
 		}
-		
-		_status = "initialized"
 	}
 	
 //	fileprivate func callbackStderr(lines:[Data]) {
@@ -469,18 +437,24 @@ public class InteractiveProcess:Hashable {
 	}
     
     public func run() throws {
+        print("trying to ruN")
         runSemaphore.wait()
-        try internalSync.sync {
-            do {
-                signalUp = false
-            	_status = "running"
-            	pmon.processLaunched(self)
-                try proc.run()
-                _state = .running
-            } catch let error {
-                signalUp = true
-                runSemaphore.signal()
-                _state = .failed
+        process_launch_queue.async { [weak self] in
+            guard let self = self else {
+                return
+            }
+            self.internalSync.sync {
+                do {
+                    self.signalUp = false
+                    self._status = "running"
+                    pmon.processLaunched(self)
+                    try? self.proc.run()
+                    self._state = .running
+                } catch let error {
+                    self.signalUp = true
+                    self.runSemaphore.signal()
+                    self._state = .failed
+                }
             }
         }
     }

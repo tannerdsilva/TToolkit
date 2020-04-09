@@ -80,8 +80,9 @@ extension UnsafeBufferPointer {
 		}
         
         let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
-		let mergeQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
-       Priority.high.globalConcurrentQueue.sync {
+        let mergeQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge", target:Priority.`default`.globalConcurrentQueue)
+        Priority.high.globalConcurrentQueue.sync {
+
             DispatchQueue.concurrentPerform(iterations:count) { n in
                launchSem.wait()
                defer {
@@ -90,14 +91,13 @@ extension UnsafeBufferPointer {
                 print("\(n) - \(count)")
 
                 if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
-                    mergeQueue.async {
+                    mergeQueue.sync {
                         try? mergeFunction(n, returnedValue)
                     }
                 }
             }
-       }
+        }
          print("fin?")
-		return mergeQueue.sync { return }
 	}
 
 	//explode a collection - returns a set of hashable objects
@@ -107,7 +107,7 @@ extension UnsafeBufferPointer {
 		}
         let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
 		var buildData = Set<T>()
-		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
+		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge", target:Priority.`default`.globalConcurrentQueue)
        Priority.high.globalConcurrentQueue.sync {
             DispatchQueue.concurrentPerform(iterations:count) { n in
 
@@ -118,14 +118,14 @@ extension UnsafeBufferPointer {
                 print("\(n) - \(count)")
 
                 if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
-                    callbackQueue.async {
+                    callbackQueue.sync {
                         buildData.update(with:returnedValue)
                     }
                 }
            }
         }
          print("fin?")
-		return callbackQueue.sync { return buildData }
+		return buildData
 	}
 
 	//explode a collection - returns a dictionary
@@ -135,7 +135,7 @@ extension UnsafeBufferPointer {
 		}
         let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
         var buildData = [T:U]()
-		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge")
+		let callbackQueue = DispatchQueue(label:"com.tannersilva.function.explode.merge", target:Priority.`default`.globalConcurrentQueue)
        Priority.high.globalConcurrentQueue.sync {
             DispatchQueue.concurrentPerform(iterations:count) { n in
                 print("\(n) - \(count)")
@@ -145,7 +145,7 @@ extension UnsafeBufferPointer {
                }
                 if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
                     if returnedValue.value != nil {
-                        callbackQueue.async {
+                        callbackQueue.sync {
                             buildData[returnedValue.key] = returnedValue.value
                         }
                     }
@@ -153,6 +153,6 @@ extension UnsafeBufferPointer {
             }
 	        print("fin?")
 		}
-		return callbackQueue.sync { return buildData }
+		return buildData
 	}
 }
