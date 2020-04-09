@@ -191,9 +191,6 @@ internal class ExecutingProcess {
 		case unableToExecute
         case unableToCreatePipes
 	}
-	
-	fileprivate static let globalLockQueue = DispatchQueue(label:"com.tannersilva.global.process.execute.sync", attributes:[.concurrent])
-	fileprivate static let globalSerialRun = DispatchQueue(label:"com.tannersilva.global.process.execute.serial-launch.sync", target:globalLockQueue)
 
 	/*
 		These variables define what is going to be executed, and how it is going to be executed.
@@ -484,10 +481,10 @@ internal class ExecutingProcess {
 			}
 			
 			var lpid = pid_t()
-            try ExecutingProcess.globalSerialRun.sync {
+//            try ExecutingProcess.globalSerialRun.sync {
 				guard posix_spawn(&lpid, launchPath, fileActions, nil, argC, envC) == 0 && lpid != 0 else {
 					throw ExecutingProcessError.unableToExecute
-				}
+//				}
 			}
 			
 			
