@@ -237,7 +237,7 @@ public class InteractiveProcess:Hashable {
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
         internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync", target:global_lock_queue)
         let localMaster = DispatchQueue(label:"com.tannersilva.instance.process", qos:maximumPriority, attributes:[.concurrent], target:process_master_queue)
-        process_launch_queue = DispatchQueue(label:"com.tannersilva.instance.process.launch", qos:priority.process_launch_priority, target:localMaster)
+        process_launch_queue = DispatchQueue(label:"com.tannersilva.instance.process.launch", qos:priority.process_launch_priority, target:process_launch_async_fast)
         process_read_queue = DispatchQueue(label:"com.tannersilva.instance.process.read", qos:priority.process_reading_priority, target:localMaster)
         process_write_queue = DispatchQueue(label:"com.tannersilva.instance.process.write", qos:priority.process_writing_priority, target:localMaster)
         process_callback_queue = DispatchQueue(label:"com.tannersilva.instance.process.callback", qos:priority.process_callback_priority, target:localMaster)
@@ -432,17 +432,22 @@ public class InteractiveProcess:Hashable {
     
     public func run() throws {
         runSemaphore.wait()
-        try internalSync.sync {
-            do {
-                signalUp = false
-            	_status = "running"
-            	pmon.processLaunched(self)
-                try proc.run()
-                _state = .running
-            } catch let error {
-                signalUp = true
-                runSemaphore.signal()
-                _state = .failed
+        process_launch_queue.async { [weak self] in
+            guard let self = self else {
+                return
+            }
+            self.internalSync.sync {
+                do {
+                    self.signalUp = false
+                    self._status = "running"
+                    pmon.processLaunched(self)
+                    try? self.proc.run()
+                    self._state = .running
+                } catch let error {
+                    self.signalUp = true
+                    self.runSemaphore.signal()
+                    self._state = .failed
+                }
             }
         }
     }

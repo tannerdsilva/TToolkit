@@ -375,10 +375,6 @@ internal class ExecutingProcess {
 	}
 	
 	func run() {
-        process_launch_async_fast.async { [weak self] in
-            guard let self = self else {
-                return
-            }
             try? self.internalSync.sync {
                 guard self._isRunning == false && self._exitCode == nil else {
                     throw ExecutingProcessError.processAlreadyRunning
@@ -496,7 +492,6 @@ internal class ExecutingProcess {
                     throw error
                 }
             }
-        }
     }
 	
 	func suspend() -> Bool? {
