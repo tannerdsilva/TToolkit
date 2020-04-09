@@ -236,15 +236,15 @@ public class InteractiveProcess:Hashable {
 	
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
         print("initializing")
-        internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
+        self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
                 print("23")
 //        let localMaster = DispatchQueue(label:"com.tannersilva.instance.process", qos:maximumPriority, attributes:[.concurrent], target:process_master_queue)
-        let eventStream = DispatchQueue(label:"com.tannersilva.instance.process.io", qos:maximumPriority, attributes:[.concurrent])
+        let eventStream = DispatchQueue(label:"com.tannersilva.instance.process.io", qos:Priority.highest.asDispatchQoS(relative: Int.max), attributes:[.concurrent])
           print("es")
-        process_launch_queue = DispatchQueue(label:"com.tannersilva.instance.process.launch", qos:priority.process_launch_priority, target:eventStream)
-        process_read_queue = DispatchQueue(label:"com.tannersilva.instance.process.read", qos:priority.process_reading_priority, target:eventStream)
-        process_write_queue = DispatchQueue(label:"com.tannersilva.instance.process.write", qos:priority.process_writing_priority, target:eventStream)
-        process_callback_queue = DispatchQueue(label:"com.tannersilva.instance.process.callback", qos:priority.process_callback_priority, target:eventStream)
+        self.process_launch_queue = DispatchQueue(label:"com.tannersilva.instance.process.launch", qos:priority.process_launch_priority, target:eventStream)
+        self.process_read_queue = DispatchQueue(label:"com.tannersilva.instance.process.read", qos:priority.process_reading_priority, target:eventStream)
+        self.process_write_queue = DispatchQueue(label:"com.tannersilva.instance.process.write", qos:priority.process_writing_priority, target:eventStream)
+        self.process_callback_queue = DispatchQueue(label:"com.tannersilva.instance.process.callback", qos:priority.process_callback_priority, target:eventStream)
 
         let rs = DispatchSemaphore(value:1)
 		
