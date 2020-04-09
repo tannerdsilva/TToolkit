@@ -90,14 +90,13 @@ extension UnsafeBufferPointer {
                 print("\(n) - \(count)")
 
                 if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
-                    mergeQueue.async {
+                    mergeQueue.sync {
                         try? mergeFunction(n, returnedValue)
                     }
                 }
             }
        }
          print("fin?")
-		return mergeQueue.sync { return }
 	}
 
 	//explode a collection - returns a set of hashable objects
@@ -118,14 +117,14 @@ extension UnsafeBufferPointer {
                 print("\(n) - \(count)")
 
                 if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
-                    callbackQueue.async {
+                    callbackQueue.sync {
                         buildData.update(with:returnedValue)
                     }
                 }
            }
         }
          print("fin?")
-		return callbackQueue.sync { return buildData }
+		return buildData
 	}
 
 	//explode a collection - returns a dictionary
@@ -145,7 +144,7 @@ extension UnsafeBufferPointer {
                }
                 if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
                     if returnedValue.value != nil {
-                        callbackQueue.async {
+                        callbackQueue.sync {
                             buildData[returnedValue.key] = returnedValue.value
                         }
                     }
@@ -153,6 +152,6 @@ extension UnsafeBufferPointer {
             }
 	        print("fin?")
 		}
-		return callbackQueue.sync { return buildData }
+		return buildData
 	}
 }
