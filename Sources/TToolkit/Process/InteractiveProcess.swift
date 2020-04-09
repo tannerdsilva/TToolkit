@@ -1,6 +1,5 @@
 import Foundation
 
-
 internal class ProcessMonitor {
 	
 	let internalSync = DispatchQueue(label:"com.tannersilva.process.monitor.sync")
@@ -237,7 +236,6 @@ public class InteractiveProcess:Hashable {
     var lines = [Data]() 
 	
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
-        print("hello ip")
         self._priority = priority
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
         let eventStream = DispatchQueue(label:"com.tannersilva.instance.process.io", qos:maximumPriority)
