@@ -372,123 +372,123 @@ internal class ExecutingProcess {
 	}
 	
 	func run() {
-            try? self.internalSync.sync {
-                guard self._isRunning == false && self._exitCode == nil else {
-                    throw ExecutingProcessError.processAlreadyRunning
+        try? self.internalSync.sync {
+            guard self._isRunning == false && self._exitCode == nil else {
+                throw ExecutingProcessError.processAlreadyRunning
+            }
+            guard let launchPath = Self.isLaunchURLExecutable(self._executable) else {
+                throw ExecutingProcessError.unableToExecute
+            }
+            var argBuild = [launchPath]
+            if let hasArguments = self._arguments {
+                argBuild.append(contentsOf:hasArguments)
+            }
+            
+            //convert the arguments into C compatible variables
+            let argC:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?> = argBuild.withUnsafeBufferPointer {
+                let arr:UnsafeBufferPointer<String> = $0
+                let buff = UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>.allocate(capacity:arr.count + 1)
+                buff.initialize(from:arr.map { $0.withCString(strdup) }, count:arr.count)
+                buff[arr.count] = nil
+                return buff
+            }
+            defer {
+                for arg in argC ..< argC + argBuild.count {
+                    free(UnsafeMutableRawPointer(arg.pointee))
                 }
-                guard let launchPath = Self.isLaunchURLExecutable(self._executable) else {
+                argC.deallocate()
+            }
+            
+            //convert the environment variables into c compatible variables
+            var env:[String:String]
+            if let e = self._environment {
+                env = e
+            } else {
+                env = [String:String]()
+            }
+            let envCount = env.count
+            let envC = UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>.allocate(capacity:1 + envCount)
+            envC.initialize(from:env.map { strdup("\($0)=\($1)") }, count: envCount)
+            envC[envCount] = nil
+            defer {
+                for pair in envC ..< envC + envCount {
+                    free(UnsafeMutableRawPointer(pair.pointee))
+                }
+                envC.deallocate()
+            }
+
+            var fHandles = [Int32:Int32]()
+            if let hasStdin = self._stdin {
+                fHandles[STDIN_FILENO] = hasStdin.reading.fileDescriptor
+                fcntl(hasStdin.reading.fileDescriptor, F_SETFD, FD_CLOEXEC)
+                fcntl(hasStdin.writing.fileDescriptor, F_SETFD, FD_CLOEXEC)
+            }
+            if let hasStdout = self._stdout {
+                fHandles[STDOUT_FILENO] = hasStdout.writing.fileDescriptor
+                fcntl(hasStdout.writing.fileDescriptor, F_SETFD, FD_CLOEXEC)
+                fcntl(hasStdout.reading.fileDescriptor, F_SETFD, FD_CLOEXEC)
+            }
+            if let hasStderr = self._stderr {
+                fHandles[STDERR_FILENO] = hasStderr.writing.fileDescriptor
+                fcntl(hasStderr.writing.fileDescriptor, F_SETFD, FD_CLOEXEC)
+                fcntl(hasStderr.reading.fileDescriptor, F_SETFD, FD_CLOEXEC)
+            }
+            
+            //there are some weird differences between Linux and macOS in terms of their preference with optionals
+            //here, the specific allocators and deallocators for each platform are specified
+    #if os(macOS)
+            var fileActions:UnsafeMutablePointer<posix_spawn_file_actions_t?> = UnsafeMutablePointer<posix_spawn_file_actions_t?>.allocate(capacity:1)
+    #else
+            var fileActions:UnsafeMutablePointer<posix_spawn_file_actions_t> = UnsafeMutablePointer<posix_spawn_file_actions_t>.allocate(capacity:1)
+    #endif
+            posix_spawn_file_actions_init(fileActions)
+            defer {
+                posix_spawn_file_actions_destroy(fileActions)
+                fileActions.deallocate()
+            }
+        
+            for (destination, source) in fHandles {
+                let result = posix_spawn_file_actions_adddup2(fileActions, source, destination)
+            }
+            
+            var lpid = pid_t()
+//                try ExecutingProcess.globalSerialRun.sync {
+                guard posix_spawn(&lpid, launchPath, fileActions, nil, argC, envC) == 0 && lpid != 0 else {
                     throw ExecutingProcessError.unableToExecute
                 }
-                var argBuild = [launchPath]
-                if let hasArguments = self._arguments {
-                    argBuild.append(contentsOf:hasArguments)
-                }
-                
-                //convert the arguments into C compatible variables
-                let argC:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?> = argBuild.withUnsafeBufferPointer {
-                    let arr:UnsafeBufferPointer<String> = $0
-                    let buff = UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>.allocate(capacity:arr.count + 1)
-                    buff.initialize(from:arr.map { $0.withCString(strdup) }, count:arr.count)
-                    buff[arr.count] = nil
-                    return buff
-                }
-                defer {
-                    for arg in argC ..< argC + argBuild.count {
-                        free(UnsafeMutableRawPointer(arg.pointee))
-                    }
-                    argC.deallocate()
-                }
-                
-                //convert the environment variables into c compatible variables
-                var env:[String:String]
-                if let e = self._environment {
-                    env = e
-                } else {
-                    env = [String:String]()
-                }
-                let envCount = env.count
-                let envC = UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>.allocate(capacity:1 + envCount)
-                envC.initialize(from:env.map { strdup("\($0)=\($1)") }, count: envCount)
-                envC[envCount] = nil
-                defer {
-                    for pair in envC ..< envC + envCount {
-                        free(UnsafeMutableRawPointer(pair.pointee))
-                    }
-                    envC.deallocate()
-                }
-
-                var fHandles = [Int32:Int32]()
-                if let hasStdin = self._stdin {
-                    fHandles[STDIN_FILENO] = hasStdin.reading.fileDescriptor
-                    fcntl(hasStdin.reading.fileDescriptor, F_SETFD, FD_CLOEXEC)
-                    fcntl(hasStdin.writing.fileDescriptor, F_SETFD, FD_CLOEXEC)
-                }
-                if let hasStdout = self._stdout {
-                    fHandles[STDOUT_FILENO] = hasStdout.writing.fileDescriptor
-                    fcntl(hasStdout.writing.fileDescriptor, F_SETFD, FD_CLOEXEC)
-                    fcntl(hasStdout.reading.fileDescriptor, F_SETFD, FD_CLOEXEC)
-                }
-                if let hasStderr = self._stderr {
-                    fHandles[STDERR_FILENO] = hasStderr.writing.fileDescriptor
-                    fcntl(hasStderr.writing.fileDescriptor, F_SETFD, FD_CLOEXEC)
-                    fcntl(hasStderr.reading.fileDescriptor, F_SETFD, FD_CLOEXEC)
-                }
-                
-                //there are some weird differences between Linux and macOS in terms of their preference with optionals
-                //here, the specific allocators and deallocators for each platform are specified
-        #if os(macOS)
-                var fileActions:UnsafeMutablePointer<posix_spawn_file_actions_t?> = UnsafeMutablePointer<posix_spawn_file_actions_t?>.allocate(capacity:1)
-        #else
-                var fileActions:UnsafeMutablePointer<posix_spawn_file_actions_t> = UnsafeMutablePointer<posix_spawn_file_actions_t>.allocate(capacity:1)
-        #endif
-                posix_spawn_file_actions_init(fileActions)
-                defer {
-                    posix_spawn_file_actions_destroy(fileActions)
-                    fileActions.deallocate()
-                }
-            
-                for (destination, source) in fHandles {
-                    let result = posix_spawn_file_actions_adddup2(fileActions, source, destination)
-                }
-                
-                var lpid = pid_t()
-//                try ExecutingProcess.globalSerialRun.sync {
-                    guard posix_spawn(&lpid, launchPath, fileActions, nil, argC, envC) == 0 && lpid != 0 else {
-                        throw ExecutingProcessError.unableToExecute
-                    }
 //                }
-                
-                self._launchTime = Date()
-                self._processId = lpid
+            
+            self._launchTime = Date()
+            self._processId = lpid
 
-                do {
-                    try self._exitWatcher.engage(pid:lpid) { [weak self] exitCode, exitDate in
-                        guard let self = self else {
-                            return
-                        }
-                        if let hasStdin = self.stdin {
-                                hasStdin.close()
-                        }
-                        if let hasStdout = self.stdout {
-                                hasStdout.close()
-                        }
-                        if let hasStderr = self.stderr {
-                                hasStderr.close()
-                        }
-                        let termHandle = self.internalSync.sync { () -> DispatchWorkItem? in
-                            self._exitTime = exitDate
-                            self._exitCode = exitCode
-                            return self._terminationHandler
-                        }
-                           if let hasTerminationHandler = termHandle {
-                                hasTerminationHandler.perform()
-                            }
+            do {
+                try self._exitWatcher.engage(pid:lpid) { [weak self] exitCode, exitDate in
+                    guard let self = self else {
+                        return
                     }
-                } catch let error {
-                    kill(lpid, SIGKILL)
-                    throw error
+                    if let hasStdin = self.stdin {
+                            hasStdin.close()
+                    }
+                    if let hasStdout = self.stdout {
+                            hasStdout.close()
+                    }
+                    if let hasStderr = self.stderr {
+                            hasStderr.close()
+                    }
+                    let termHandle = self.internalSync.sync { () -> DispatchWorkItem? in
+                        self._exitTime = exitDate
+                        self._exitCode = exitCode
+                        return self._terminationHandler
+                    }
+                       if let hasTerminationHandler = termHandle {
+                            hasTerminationHandler.perform()
+                        }
                 }
+            } catch let error {
+                kill(lpid, SIGKILL)
+                throw error
             }
+        }
     }
 	
 	func suspend() -> Bool? {
