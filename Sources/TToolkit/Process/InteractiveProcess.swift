@@ -239,12 +239,12 @@ public class InteractiveProcess:Hashable {
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
                 print("23")
 //        let localMaster = DispatchQueue(label:"com.tannersilva.instance.process", qos:maximumPriority, attributes:[.concurrent], target:process_master_queue)
-        let eventStream = DispatchQueue(label:"com.tannersilva.instance.process.io")
-          print("es")
-        self.process_launch_queue = DispatchQueue(label:"com.tannersilva.instance.process.launch", qos:priority.process_launch_priority, target:eventStream)
-        self.process_read_queue = DispatchQueue(label:"com.tannersilva.instance.process.read", qos:priority.process_reading_priority, target:eventStream)
-        self.process_write_queue = DispatchQueue(label:"com.tannersilva.instance.process.write", qos:priority.process_writing_priority, target:eventStream)
-        self.process_callback_queue = DispatchQueue(label:"com.tannersilva.instance.process.callback", qos:priority.process_callback_priority, target:eventStream)
+        let eventStream = DispatchQueue(label:"com.tannersilva.instance.process.io", qos:maximumPriority, target:process_master_queue)
+        
+        self.process_launch_queue = DispatchQueue(label:"com.tannersilva.instance.process.launch", qos:priority.process_launch_priority, target:g_process_launch_queue)
+        self.process_read_queue = DispatchQueue(label:"com.tannersilva.instance.process.read", qos:priority.process_reading_priority, target:g_process_read_queue)
+        self.process_write_queue = DispatchQueue(label:"com.tannersilva.instance.process.write", qos:priority.process_writing_priority, target:g_process_write_queue)
+        self.process_callback_queue = DispatchQueue(label:"com.tannersilva.instance.process.callback", qos:priority.process_callback_priority, target:g_process_callback_queue)
 
         let rs = DispatchSemaphore(value:1)
 		
@@ -274,7 +274,7 @@ public class InteractiveProcess:Hashable {
 			err.close()
         }
         
-        termHandle.notify(qos:priority.process_terminate_priority, flags:[.enforceQoS, .barrier], queue: eventStream, execute: { [weak self] in
+        termHandle.notify(qos:priority.process_terminate_priority, flags:[.enforceQoS], queue: eventStream, execute: { [weak self] in
             guard let self = self else {
                 return
             }
