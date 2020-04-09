@@ -85,6 +85,7 @@ internal class WriteWatcher {
 			group.leave()
 		}
 		newSource.setCancelHandler {
+            print("cancel!!!!!!!!!!!!!!!!!!!!!!!!!")
 			group.leave()
 		}
 		internalSync.sync {
@@ -130,7 +131,7 @@ internal class ProcessPipes {
 					globalPR.scheduleForReading(reading, work:hasNewHandler)
 				} else {
 					if _readHandler != nil {
-						globalPR.unschedule(reading)
+//						globalPR.unschedule(reading)
 					}
 					_readHandler = nil
 				}
