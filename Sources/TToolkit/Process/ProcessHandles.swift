@@ -175,9 +175,9 @@ internal class ProcessPipes {
 			fds.deallocate()
 		}
 		
-        let rwfds = ExecutingProcess.globalSerialRun.sync {
-			return _pipe(fds)
-		}
+//        let rwfds = ExecutingProcess.globalSerialRun.sync {
+        let rwfds = _pipe(fds)
+//		}
 		
         switch rwfds {
             case 0:
