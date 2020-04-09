@@ -125,7 +125,7 @@ internal class ProcessPipes {
 			}
 		}
 		set {
-			pp_make_destroy_queue.sync {
+			internalSync.sync {
 				if let hasNewHandler = newValue {
 					_readHandler = hasNewHandler
 					globalPR.scheduleForReading(reading, work:hasNewHandler)
@@ -177,7 +177,10 @@ internal class ProcessPipes {
 			fds.deallocate()
 		}
 		
-        let rwfds = _pipe(fds)
+		let rwfds = pp_make_destroy_queue.sync {
+			return _pipe(fds)
+		}
+		
         switch rwfds {
             case 0:
                 let readFD = fds.pointee
@@ -204,8 +207,6 @@ internal class ProcessPipes {
 }
 
 internal class ProcessHandle:Hashable {
-	fileprivate static let globalQueue = DispatchQueue(label:"com.tannersilva.global.process.handle.sync", attributes:[.concurrent])
-
 	fileprivate let internalSync:DispatchQueue
 	
 	private var _isClosed:Bool
@@ -228,7 +229,7 @@ internal class ProcessHandle:Hashable {
 	
 	init(fd:Int32) {
 		self._fd = fd
-		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-handle.sync", target:Self.globalQueue)
+		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-handle.sync", target:global_lock_queue)
 		self._isClosed = false
 	}
 	

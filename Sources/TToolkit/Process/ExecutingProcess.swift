@@ -416,24 +416,6 @@ internal class ExecutingProcess {
                 }
                 envC.deallocate()
             }
-
-            var fHandles = [Int32:Int32]()
-            if let hasStdin = self._stdin {
-                fHandles[STDIN_FILENO] = hasStdin.reading.fileDescriptor
-                fcntl(hasStdin.reading.fileDescriptor, F_SETFD, FD_CLOEXEC)
-                fcntl(hasStdin.writing.fileDescriptor, F_SETFD, FD_CLOEXEC)
-            }
-            if let hasStdout = self._stdout {
-                fHandles[STDOUT_FILENO] = hasStdout.writing.fileDescriptor
-                fcntl(hasStdout.writing.fileDescriptor, F_SETFD, FD_CLOEXEC)
-                fcntl(hasStdout.reading.fileDescriptor, F_SETFD, FD_CLOEXEC)
-            }
-            if let hasStderr = self._stderr {
-                fHandles[STDERR_FILENO] = hasStderr.writing.fileDescriptor
-                fcntl(hasStderr.writing.fileDescriptor, F_SETFD, FD_CLOEXEC)
-                fcntl(hasStderr.reading.fileDescriptor, F_SETFD, FD_CLOEXEC)
-            }
-            
             //there are some weird differences between Linux and macOS in terms of their preference with optionals
             //here, the specific allocators and deallocators for each platform are specified
     #if os(macOS)
@@ -447,6 +429,20 @@ internal class ExecutingProcess {
                 fileActions.deallocate()
             }
         
+            var fHandles = [Int32:Int32]()
+            if let hasStdin = self._stdin {
+                fHandles[STDIN_FILENO] = hasStdin.reading.fileDescriptor
+                posix_spawn_file_actions_addclose(fileActions, hasStdin.reading.fileDescriptor)
+            }
+            if let hasStdout = self._stdout {
+                fHandles[STDOUT_FILENO] = hasStdout.writing.fileDescriptor
+                posix_spawn_file_actions_addclose(fileActions, hasStdout.writing.fileDescriptor)
+            }
+            if let hasStderr = self._stderr {
+                fHandles[STDERR_FILENO] = hasStderr.writing.fileDescriptor
+                posix_spawn_file_actions_addclose(fileActions, hasStderr.writing.fileDescriptor)
+            }
+            
             for (destination, source) in fHandles {
                 let result = posix_spawn_file_actions_adddup2(fileActions, source, destination)
             }
