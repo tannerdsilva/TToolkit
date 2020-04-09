@@ -66,49 +66,49 @@ internal class PipeReader {
 }
 internal let globalPR = PipeReader()
 
-internal class WriteWatcher {
-	fileprivate static let whThreads = DispatchQueue(label:"com.tannerdsilva.global.process.pipe.write-handler", qos:maximumPriority, attributes:[.concurrent])
-	let internalSync = DispatchQueue(label:"com.tannersilva.instance.process.pipe.write-handler.sync", target:whThreads)
-	
-	var handleQueue:[ProcessHandle:DispatchSourceProtocol]
-	
-	init() {
-		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
-	}
-	
-	func scheduleWriteAvailability(_ handle:ProcessHandle, queue:DispatchQueue, group:DispatchGroup, work:@escaping(WriteHandler)) {
-		let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:queue)
-		group.enter()
-		newSource.setEventHandler {
-			group.enter()
-			work()
-			group.leave()
-		}
-		newSource.setCancelHandler {
-            print("cancel!!!!!!!!!!!!!!!!!!!!!!!!!")
-			group.leave()
-		}
-		internalSync.sync {
-			if let hasExisting = handleQueue[handle] {
-				hasExisting.cancel()
-			}
-			handleQueue[handle] = newSource
-			newSource.activate()
-		}
-		print(Colors.magenta("[\(handle.fileDescriptor)] scheduled for writing."))
-	}
-	
-	func unschedule(_ handle:ProcessHandle) {
-		internalSync.sync {
-			if let hasExisting = handleQueue[handle] {
-				hasExisting.cancel()
-				handleQueue[handle] = nil
-			}
-		}
-		print(Colors.magenta("[\(handle.fileDescriptor)] unscheduled from writing"))
-	}
-}
-internal let globalWH = WriteWatcher()
+//internal class WriteWatcher {
+//	fileprivate static let whThreads = DispatchQueue(label:"com.tannerdsilva.global.process.pipe.write-handler", qos:maximumPriority, attributes:[.concurrent])
+//	let internalSync = DispatchQueue(label:"com.tannersilva.instance.process.pipe.write-handler.sync", target:whThreads)
+//	
+//	var handleQueue:[ProcessHandle:DispatchSourceProtocol]
+//	
+//	init() {
+//		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
+//	}
+//	
+//	func scheduleWriteAvailability(_ handle:ProcessHandle, queue:DispatchQueue, group:DispatchGroup, work:@escaping(WriteHandler)) {
+//		let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:queue)
+//		group.enter()
+//		newSource.setEventHandler {
+//			group.enter()
+//			work()
+//			group.leave()
+//		}
+//		newSource.setCancelHandler {
+//            print("cancel!!!!!!!!!!!!!!!!!!!!!!!!!")
+//			group.leave()
+//		}
+//		internalSync.sync {
+//			if let hasExisting = handleQueue[handle] {
+//				hasExisting.cancel()
+//			}
+//			handleQueue[handle] = newSource
+//			newSource.activate()
+//		}
+//		print(Colors.magenta("[\(handle.fileDescriptor)] scheduled for writing."))
+//	}
+//	
+//	func unschedule(_ handle:ProcessHandle) {
+//		internalSync.sync {
+//			if let hasExisting = handleQueue[handle] {
+//				hasExisting.cancel()
+//				handleQueue[handle] = nil
+//			}
+//		}
+//		print(Colors.magenta("[\(handle.fileDescriptor)] unscheduled from writing"))
+//	}
+//}
+//internal let globalWH = WriteWatcher()
 
 internal class ProcessPipes {
 	private let internalSync:DispatchQueue

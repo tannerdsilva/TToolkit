@@ -12,6 +12,17 @@ fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 	return (_WSTATUS(status) != 0) && (_WSTATUS(status) != 0x7f)
 }
 
+func dupedFD(_ fdIn:Int32) -> Int32 {
+    print("being called")
+    let rtv = dup(STDIN_FILENO)
+    fcntl(rtv, F_SETFD, FD_CLOEXEC)
+    return rtv
+}
+
+fileprivate let dupedStdin = dupedFD(STDIN_FILENO)
+fileprivate let dupedStdout = dupedFD(STDOUT_FILENO)
+fileprivate let dupedStderr = dupedFD(STDERR_FILENO)
+
 /*
 	The ExitWatcher is a class that guarantees its availability to monitor an external process for exits.
 	ExitWatcher is able to provide this functionality by launching an external thread on initialization, and sleeping the thread until a process is ready to be monitored.
@@ -191,6 +202,9 @@ internal class ExecutingProcess {
 		case unableToExecute
         case unableToCreatePipes
 	}
+	
+	fileprivate static let globalLockQueue = DispatchQueue(label:"com.tannersilva.global.process.execute.sync", attributes:[.concurrent])
+	fileprivate static let globalSerialRun = DispatchQueue(label:"com.tannersilva.global.process.execute.serial-launch.sync", target:globalLockQueue)
 
 	/*
 		These variables define what is going to be executed, and how it is going to be executed.
@@ -428,38 +442,37 @@ internal class ExecutingProcess {
                 posix_spawn_file_actions_destroy(fileActions)
                 fileActions.deallocate()
             }
-            
-            let dupedStdin = dup(STDIN_FILENO)
-            let dupedStdout = dup(STDOUT_FILENO)
-            let dupedStderr = dup(STDERR_FILENO)
         
             var fHandles = [Int32:Int32]()
             if let hasStdin = self._stdin {
-                fHandles[dupedStdin] = hasStdin.reading.fileDescriptor
+                fHandles[STDIN_FILENO] = hasStdin.reading.fileDescriptor
                 posix_spawn_file_actions_addclose(fileActions, hasStdin.reading.fileDescriptor)
                 posix_spawn_file_actions_addclose(fileActions, dupedStdin)
             }
             if let hasStdout = self._stdout {
-                fHandles[dupedStdout] = hasStdout.writing.fileDescriptor
+                fHandles[STDOUT_FILENO] = hasStdout.writing.fileDescriptor
                 posix_spawn_file_actions_addclose(fileActions, hasStdout.writing.fileDescriptor)
                 posix_spawn_file_actions_addclose(fileActions, dupedStdout)
             }
             if let hasStderr = self._stderr {
-                fHandles[dupedStderr] = hasStderr.writing.fileDescriptor
+                fHandles[STDERR_FILENO] = hasStderr.writing.fileDescriptor
                 posix_spawn_file_actions_addclose(fileActions, hasStderr.writing.fileDescriptor)
                 posix_spawn_file_actions_addclose(fileActions, dupedStderr)
             }
             
             for (destination, source) in fHandles {
                 let result = posix_spawn_file_actions_adddup2(fileActions, source, destination)
+                if result != 0 {
+                    print("ERROR OHHHHHH FUCK!")
+                }
             }
             
             var lpid = pid_t()
-//                try ExecutingProcess.globalSerialRun.sync {
+            try ExecutingProcess.globalSerialRun.sync {
                 guard posix_spawn(&lpid, launchPath, fileActions, nil, argC, envC) == 0 && lpid != 0 else {
                     throw ExecutingProcessError.unableToExecute
                 }
-//                }
+            }
             
             self._launchTime = Date()
             self._processId = lpid
@@ -469,15 +482,15 @@ internal class ExecutingProcess {
                     guard let self = self else {
                         return
                     }
-                    if let hasStdin = self.stdin {
-                            hasStdin.close()
-                    }
-                    if let hasStdout = self.stdout {
-                            hasStdout.close()
-                    }
-                    if let hasStderr = self.stderr {
-                            hasStderr.close()
-                    }
+//                    if let hasStdin = self.stdin {
+//                            hasStdin.close()
+//                    }
+//                    if let hasStdout = self.stdout {
+//                            hasStdout.close()
+//                    }
+//                    if let hasStderr = self.stderr {
+//                            hasStderr.close()
+//                    }
                     let termHandle = self.internalSync.sync { () -> DispatchWorkItem? in
                         self._exitTime = exitDate
                         self._exitCode = exitCode

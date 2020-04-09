@@ -252,17 +252,17 @@ public class InteractiveProcess:Hashable {
             }
             print(Colors.red("XX"))
             sleep(1)
-//            if let hasIn = self.stdin {
-//                hasIn.close()
-//            }
-//
-//            if let hasOut = self.stdout {
-//                hasOut.close()
-//            }
-//
-//            if let hasErr = self.stderr {
-//                hasErr.close()
-//            }
+            if let hasIn = self.stdin {
+                hasIn.close()
+            }
+
+            if let hasOut = self.stdout {
+                hasOut.close()
+            }
+
+            if let hasErr = self.stderr {
+                hasErr.close()
+            }
         }
         termHandle.notify(qos:priority.process_launch_priority, flags:[.enforceQoS, .barrier], queue: process_master_queue, execute: { [weak self] in
             guard let self = self else {
