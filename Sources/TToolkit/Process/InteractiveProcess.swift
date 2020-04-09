@@ -346,7 +346,6 @@ public class InteractiveProcess:Hashable {
                 return
             }
             do {
-                print(Colors.yellow("initializing"))
                 let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment)
                 let input = try ProcessPipes()
                 let output = try ProcessPipes()
@@ -411,11 +410,8 @@ public class InteractiveProcess:Hashable {
                 print("error initializing")
             }
         }
-        print(" -> about to schedule")
         process_intialize_serial.async(execute:initializeWork)
-        print(" -> waiting for initialize")
         initSem.wait()
-        print(" -> done waiting")
     }
 	
 	
@@ -443,10 +439,12 @@ public class InteractiveProcess:Hashable {
         print("trying to run")
         let runWait = DispatchSemaphore(value:0)
         let runItem = DispatchWorkItem(qos:_priority.process_launch_priority, flags:[.enforceQoS]) { [weak self] in
+            defer {
+                runWait.signal()
+            }
             guard let self = self, let initializedProcess = self.proc else {
                 return
             }
-            runWait.signal()
             do {
                 pmon.processLaunched(self)
                 try initializedProcess.run()
@@ -461,8 +459,8 @@ public class InteractiveProcess:Hashable {
                 self.runSemaphore.signal()
             }
         }
-        runWait.wait()
         process_launch_async_fast.async(execute:runItem)
+        runWait.wait()
     }
     
     public func waitForExitCode() -> Int {
