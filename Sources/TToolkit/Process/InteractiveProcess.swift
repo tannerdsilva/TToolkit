@@ -237,6 +237,7 @@ public class InteractiveProcess:Hashable {
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
         print("initializing")
         internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
+                print("23")
 //        let localMaster = DispatchQueue(label:"com.tannersilva.instance.process", qos:maximumPriority, attributes:[.concurrent], target:process_master_queue)
         let eventStream = DispatchQueue(label:"com.tannersilva.instance.process.io", qos:maximumPriority, attributes:[.concurrent])
           print("es")
