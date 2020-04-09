@@ -102,6 +102,8 @@ internal class ProcessMonitor {
 internal let pmon = ProcessMonitor()
 
 public class InteractiveProcess:Hashable {
+    private var _priority:Priority
+    
 	private var _id = UUID()
 	internal var _uniqueID:String {
 		get {
@@ -133,7 +135,6 @@ public class InteractiveProcess:Hashable {
 	I/O events for the interactive process are handled in an asyncronous queue that calls into two secondary syncronous queues (one for internal handling, the other for callback handling
 	*/
     private let internalSync:DispatchQueue
-    private let process_launch_queue:DispatchQueue
     private let process_read_queue:DispatchQueue
     private let process_write_queue:DispatchQueue
     private let process_callback_queue:DispatchQueue
@@ -235,13 +236,11 @@ public class InteractiveProcess:Hashable {
     var lines = [Data]() 
 	
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
-        print("initializing")
+        self._priority = priority
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
         print("23")
-//      let localMaster = DispatchQueue(label:"com.tannersilva.instance.process", qos:maximumPriority, attributes:[.concurrent], target:process_master_queue)
         let eventStream = DispatchQueue(label:"com.tannersilva.instance.process.io")
         print("es")
-        self.process_launch_queue = DispatchQueue(label:"com.tannersilva.instance.process.launch", qos:priority.process_launch_priority, target:process_launch_async_fast)
         self.process_read_queue = DispatchQueue(label:"com.tannersilva.instance.process.read", qos:priority.process_reading_priority, target:eventStream)
         self.process_write_queue = DispatchQueue(label:"com.tannersilva.instance.process.write", qos:priority.process_writing_priority, target:eventStream)
         self.process_callback_queue = DispatchQueue(label:"com.tannersilva.instance.process.callback", qos:priority.process_callback_priority, target:eventStream)
@@ -429,7 +428,7 @@ public class InteractiveProcess:Hashable {
     public func run() throws {
         runSemaphore.wait()
         self.internalSync.sync { self.signalUp = false }
-        let runItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
+        let runItem = DispatchWorkItem(qos:_priority.process_launch_priority, flags:[.enforceQoS]) { [weak self] in
             guard let self = self else {
                 return
             }
@@ -447,7 +446,7 @@ public class InteractiveProcess:Hashable {
                 self.runSemaphore.signal()
             }
         }
-        self.process_launch_queue.async(execute:runItem)
+        process_launch_async_fast.async(execute:runItem)
     }
     
     public func waitForExitCode() -> Int {
