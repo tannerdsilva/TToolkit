@@ -5,13 +5,13 @@ internal let process_master_queue = DispatchQueue(label:"com.tannersilva.global.
 extension Priority {
 	internal var process_launch_priority:DispatchQoS {
 		get {
-			return self.asDispatchQoS(relative:-20)
+			return self.asDispatchQoS(relative:0)
 		}
 	}
 	
 	internal var process_callback_priority:DispatchQoS {
 		get {
-			return self.asDispatchQoS(relative:0)
+			return self.asDispatchQoS(relative:20)
 		}
 	}
 	
