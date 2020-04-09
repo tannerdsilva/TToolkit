@@ -134,10 +134,7 @@ public class InteractiveProcess:Hashable {
 	I/O events for the interactive process are handled in an asyncronous queue that calls into two secondary syncronous queues (one for internal handling, the other for callback handling
 	*/
     private let internalSync:DispatchQueue
-    private let process_read_queue:DispatchQueue
-    private let process_write_queue:DispatchQueue
-    private let process_callback_queue:DispatchQueue
-
+    
     private let runSemaphore:DispatchSemaphore
     private var signalUp:Bool = false
     
@@ -236,12 +233,9 @@ public class InteractiveProcess:Hashable {
     var lines = [Data]() 
 	
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
+        print("ip says hello")
         self._priority = priority
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
-        let eventStream = DispatchQueue(label:"com.tannersilva.instance.process.io", qos:maximumPriority)
-        self.process_read_queue = DispatchQueue(label:"com.tannersilva.instance.process.read", qos:priority.process_reading_priority, target:eventStream)
-        self.process_write_queue = DispatchQueue(label:"com.tannersilva.instance.process.write", qos:priority.process_writing_priority, target:eventStream)
-        self.process_callback_queue = DispatchQueue(label:"com.tannersilva.instance.process.callback", qos:priority.process_callback_priority, target:eventStream)
 
         print("yay queues")
         
@@ -268,7 +262,7 @@ public class InteractiveProcess:Hashable {
                 hasErr.close()
             }
         }
-        termHandle.notify(qos:priority.process_terminate_priority, flags:[.enforceQoS, .barrier], queue: eventStream, execute: { [weak self] in
+        termHandle.notify(qos:priority.process_launch_priority, flags:[.enforceQoS, .barrier], queue: process_master_queue, execute: { [weak self] in
             guard let self = self else {
                 return
             }
@@ -311,7 +305,7 @@ public class InteractiveProcess:Hashable {
                 return nil
             }
             if let hasNewLines = newLines, let hasCallback = self.stderrHandler {
-                self.process_callback_queue.async {
+                g_process_callback_queue.async {
                     for (_, curLine) in hasNewLines.enumerated() {
                         hasCallback(curLine)
                     }
@@ -338,7 +332,7 @@ public class InteractiveProcess:Hashable {
                 return nil
             }
             if let hasNewLines = newLines, let hasCallback = self.stdoutHandler {
-                self.process_callback_queue.async {
+                g_process_callback_queue.async {
                     for (_, curLine) in hasNewLines.enumerated() {
                         hasCallback(curLine)
                     }
@@ -378,7 +372,7 @@ public class InteractiveProcess:Hashable {
                         self._stdoutBuffer.append(someData)
                     }
                     if isNewLine == true {
-                        self.process_read_queue.async(execute:stdoutWorkItem)
+                        g_process_callback_queue.async(execute:stdoutWorkItem)
                     }
                 }
                 err.readHandler = { [weak self] someData in
@@ -400,7 +394,7 @@ public class InteractiveProcess:Hashable {
                         self._stderrBuffer.append(someData)
                     }
                     if isNewLine == true {
-                        self.process_read_queue.async(execute:stderrWorkItem)
+                        g_process_callback_queue.async(execute:stderrWorkItem)
                     }
                 }
                 
