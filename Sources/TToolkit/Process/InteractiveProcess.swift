@@ -237,6 +237,7 @@ public class InteractiveProcess:Hashable {
     var lines = [Data]() 
 	
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
+        print("hello ip")
         self._priority = priority
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
         let eventStream = DispatchQueue(label:"com.tannersilva.instance.process.io", qos:maximumPriority)
@@ -244,6 +245,8 @@ public class InteractiveProcess:Hashable {
         self.process_write_queue = DispatchQueue(label:"com.tannersilva.instance.process.write", qos:priority.process_writing_priority, target:eventStream)
         self.process_callback_queue = DispatchQueue(label:"com.tannersilva.instance.process.callback", qos:priority.process_callback_priority, target:eventStream)
 
+        print("yay queues")
+        
         let rs = DispatchSemaphore(value:0)
 		
         let initSem = DispatchSemaphore(value:0)
@@ -415,6 +418,7 @@ public class InteractiveProcess:Hashable {
                 print("error initializing")
             }
         }
+        print(" -> about to schedule")
         process_intialize_serial.async(execute:initializeWork)
         print(" -> waiting for initialize")
         initSem.wait()
