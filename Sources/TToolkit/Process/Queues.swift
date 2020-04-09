@@ -48,7 +48,6 @@ internal let process_read_fast_capture = DispatchQueue(label:"com.tannersilva.gl
 
 internal let process_launch_async_fast = DispatchQueue(label:"com.tannersilva.global.process.launch-serial", qos:maximumPriority, target:process_master_queue)
 
-
 internal let g_process_launch_queue = DispatchQueue(label:"com.tannersilva.instance.process.launch", qos:maximumPriority, target:process_master_queue)
 internal let g_process_read_queue = DispatchQueue(label:"com.tannersilva.instance.process.read", qos:maximumPriority, target:process_master_queue)
 internal let g_process_write_queue = DispatchQueue(label:"com.tannersilva.instance.process.write", qos:maximumPriority, target:process_master_queue)

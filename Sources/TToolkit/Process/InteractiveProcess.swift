@@ -237,11 +237,11 @@ public class InteractiveProcess:Hashable {
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
         print("initializing")
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
-                print("23")
-//        let localMaster = DispatchQueue(label:"com.tannersilva.instance.process", qos:maximumPriority, attributes:[.concurrent], target:process_master_queue)
+        print("23")
+//      let localMaster = DispatchQueue(label:"com.tannersilva.instance.process", qos:maximumPriority, attributes:[.concurrent], target:process_master_queue)
         let eventStream = DispatchQueue(label:"com.tannersilva.instance.process.io")
-          print("es")
-        self.process_launch_queue = DispatchQueue(label:"com.tannersilva.instance.process.launch", qos:priority.process_launch_priority, target:eventStream)
+        print("es")
+        self.process_launch_queue = DispatchQueue(label:"com.tannersilva.instance.process.launch", qos:priority.process_launch_priority, target:process_launch_async_fast)
         self.process_read_queue = DispatchQueue(label:"com.tannersilva.instance.process.read", qos:priority.process_reading_priority, target:eventStream)
         self.process_write_queue = DispatchQueue(label:"com.tannersilva.instance.process.write", qos:priority.process_writing_priority, target:eventStream)
         self.process_callback_queue = DispatchQueue(label:"com.tannersilva.instance.process.callback", qos:priority.process_callback_priority, target:eventStream)
@@ -254,18 +254,18 @@ public class InteractiveProcess:Hashable {
 		let input = try ProcessPipes()
 		let output = try ProcessPipes()
 		let err = try ProcessPipes()
-		          print("gerg")
+        print("gerg")
 		self.stdin = input
 		self.stdout = output
 		self.stderr = err
-                  print("ass")
+        print("ass")
 		let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment)
         print("exe")
 		self.proc = externalProcess
 		externalProcess.stdin = input
 		externalProcess.stdout = output
 		externalProcess.stderr = err
-		
+		print("dibe?")
 		let termHandle = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
 			guard let self = self else {
 				return
@@ -405,16 +405,6 @@ public class InteractiveProcess:Hashable {
 		}
 	}
 	
-//	fileprivate func callbackStderr(lines:[Data]) {
-//		if let hasCallback = stderrHandler {
-//			callbackSync.async {
-//				for (_, curLine) in lines.enumerated() {
-//					hasCallback(curLine)
-//				}
-//			}
-//		}
-//	}
-	
 	
 	fileprivate func _finishStdout() -> [Data]? {
 		if var parsedLines = _stdoutBuffer.lineSlice(removeBOM:false) {
@@ -437,26 +427,27 @@ public class InteractiveProcess:Hashable {
 	}
     
     public func run() throws {
-        print("trying to ruN")
         runSemaphore.wait()
-        process_launch_queue.async { [weak self] in
+        self.internalSync.sync { self.signalUp = false }
+        let runItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
             guard let self = self else {
                 return
             }
-            self.internalSync.sync {
-                do {
-                    self.signalUp = false
-                    self._status = "running"
-                    pmon.processLaunched(self)
-                    try? self.proc.run()
+            do {
+                pmon.processLaunched(self)
+                try self.proc.run()
+                self.internalSync.sync {
                     self._state = .running
-                } catch let error {
-                    self.signalUp = true
-                    self.runSemaphore.signal()
+                }
+            } catch let error {
+                self.internalSync.sync {
+                    self.signalUp = false
                     self._state = .failed
                 }
+                self.runSemaphore.signal()
             }
         }
+        self.process_launch_queue.async(execute:runItem)
     }
     
     public func waitForExitCode() -> Int {
