@@ -132,7 +132,7 @@ public class InteractiveProcess:Hashable {
 	/*
 	I/O events for the interactive process are handled in an asyncronous queue that calls into two secondary syncronous queues (one for internal handling, the other for callback handling
 	*/
-     private let internalSync:DispatchQueue
+    private let internalSync:DispatchQueue
     private let process_launch_queue:DispatchQueue
     private let process_read_queue:DispatchQueue
     private let process_write_queue:DispatchQueue
@@ -239,7 +239,7 @@ public class InteractiveProcess:Hashable {
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
                 print("23")
 //        let localMaster = DispatchQueue(label:"com.tannersilva.instance.process", qos:maximumPriority, attributes:[.concurrent], target:process_master_queue)
-        let eventStream = DispatchQueue(label:"com.tannersilva.instance.process.io", qos:Priority.highest.asDispatchQoS(relative: Int.max), attributes:[.concurrent])
+        let eventStream = DispatchQueue(label:"com.tannersilva.instance.process.io")
           print("es")
         self.process_launch_queue = DispatchQueue(label:"com.tannersilva.instance.process.launch", qos:priority.process_launch_priority, target:eventStream)
         self.process_read_queue = DispatchQueue(label:"com.tannersilva.instance.process.read", qos:priority.process_reading_priority, target:eventStream)
