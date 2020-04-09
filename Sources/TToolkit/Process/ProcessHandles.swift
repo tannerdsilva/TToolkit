@@ -177,19 +177,17 @@ internal class ProcessPipes {
 			fds.deallocate()
 		}
 		
-		return try pp_make_destroy_queue.sync {
-			let rwfds = _pipe(fds)
-			switch rwfds {
-				case 0:
-					let readFD = fds.pointee
-					let writeFD = fds.successor().pointee
-					print(Colors.magenta("created for reading: \(readFD)"))
-					print(Colors.Magenta("created for writing: \(writeFD)"))
-					return (r:ProcessHandle(fd:readFD), w:ProcessHandle(fd:writeFD))
-				default:
-				throw ExecutingProcess.ExecutingProcessError.unableToCreatePipes
-			}
-		}
+        let rwfds = _pipe(fds)
+        switch rwfds {
+            case 0:
+                let readFD = fds.pointee
+                let writeFD = fds.successor().pointee
+                print(Colors.magenta("created for reading: \(readFD)"))
+                print(Colors.Magenta("created for writing: \(writeFD)"))
+                return (r:ProcessHandle(fd:readFD), w:ProcessHandle(fd:writeFD))
+            default:
+            throw ExecutingProcess.ExecutingProcessError.unableToCreatePipes
+        }
 	}
 		
 	func close() {
