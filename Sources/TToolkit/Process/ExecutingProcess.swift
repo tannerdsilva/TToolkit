@@ -204,7 +204,7 @@ internal class ExecutingProcess {
 	}
 	
 	fileprivate static let globalLockQueue = DispatchQueue(label:"com.tannersilva.global.process.execute.sync", attributes:[.concurrent])
-	fileprivate static let globalSerialRun = DispatchQueue(label:"com.tannersilva.global.process.execute.serial-launch.sync", target:globalLockQueue)
+	internal static let globalSerialRun = DispatchQueue(label:"com.tannersilva.global.process.execute.serial-launch.sync", target:globalLockQueue)
 
 	/*
 		These variables define what is going to be executed, and how it is going to be executed.
@@ -444,26 +444,24 @@ internal class ExecutingProcess {
             }
         
             var fHandles = [Int32:Int32]()
-            "/dev/null".withCString({ nullCString in
+//            "/dev/null".withCString({ nullCString in
+            print("we have stdin")
                 if let hasStdin = self._stdin {
                     fHandles[STDIN_FILENO] = hasStdin.reading.fileDescriptor
-                    posix_spawn_file_actions_addopen(fileActions, STDIN_FILENO, nullCString, O_CLOEXEC, 0)
                     posix_spawn_file_actions_addclose(fileActions, hasStdin.reading.fileDescriptor)
-                    posix_spawn_file_actions_addclose(fileActions, STDIN_FILENO)
+//                    posix_spawn_file_actions_addclose(fileActions, hasStdout.writing.fileDescriptor)
                 }
                 if let hasStdout = self._stdout {
                     fHandles[STDOUT_FILENO] = hasStdout.writing.fileDescriptor
-                    posix_spawn_file_actions_addopen(fileActions, STDOUT_FILENO, nullCString, O_CLOEXEC, 0)
                     posix_spawn_file_actions_addclose(fileActions, hasStdout.writing.fileDescriptor)
-                    posix_spawn_file_actions_addclose(fileActions, STDOUT_FILENO)
+//                    posix_spawn_file_actions_addclose(fileActions, hasStdout.writing.fileDescriptor)
                 }
                 if let hasStderr = self._stderr {
                     fHandles[STDERR_FILENO] = hasStderr.writing.fileDescriptor
-                    posix_spawn_file_actions_addopen(fileActions, STDERR_FILENO, nullCString, O_CLOEXEC, 0)
                     posix_spawn_file_actions_addclose(fileActions, hasStderr.writing.fileDescriptor)
-                    posix_spawn_file_actions_addclose(fileActions, STDERR_FILENO)
+//                    posix_spawn_file_actions_addclose(fileActions, hasStderr.writing.fileDescriptor)
                 }
-            })
+//            })
                         
             for (destination, source) in fHandles {
                 let result = posix_spawn_file_actions_adddup2(fileActions, source, destination)

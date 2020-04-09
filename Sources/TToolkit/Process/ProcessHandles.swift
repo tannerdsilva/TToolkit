@@ -44,13 +44,11 @@ internal class PipeReader {
 				let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:Priority.highest.globalConcurrentQueue)
 				newSource.setEventHandler {
 					if let newData = handle.availableData() {
+                        print(Colors.Green("READ \(newData.count)"))
 						work(newData)
 					}
 				}
-				if let hasExisting = handleQueue[handle] {
-					hasExisting.cancel()
-				}
-				handleQueue[handle] = newSource
+                handleQueue[handle] = newSource
 				newSource.activate()
 			}
 	}
@@ -69,13 +67,13 @@ internal let globalPR = PipeReader()
 //internal class WriteWatcher {
 //	fileprivate static let whThreads = DispatchQueue(label:"com.tannerdsilva.global.process.pipe.write-handler", qos:maximumPriority, attributes:[.concurrent])
 //	let internalSync = DispatchQueue(label:"com.tannersilva.instance.process.pipe.write-handler.sync", target:whThreads)
-//	
+//
 //	var handleQueue:[ProcessHandle:DispatchSourceProtocol]
-//	
+//
 //	init() {
 //		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
 //	}
-//	
+//
 //	func scheduleWriteAvailability(_ handle:ProcessHandle, queue:DispatchQueue, group:DispatchGroup, work:@escaping(WriteHandler)) {
 //		let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:queue)
 //		group.enter()
@@ -97,7 +95,7 @@ internal let globalPR = PipeReader()
 //		}
 //		print(Colors.magenta("[\(handle.fileDescriptor)] scheduled for writing."))
 //	}
-//	
+//
 //	func unschedule(_ handle:ProcessHandle) {
 //		internalSync.sync {
 //			if let hasExisting = handleQueue[handle] {
@@ -177,7 +175,7 @@ internal class ProcessPipes {
 			fds.deallocate()
 		}
 		
-		let rwfds = pp_make_destroy_queue.sync {
+        let rwfds = ExecutingProcess.globalSerialRun.sync {
 			return _pipe(fds)
 		}
 		
