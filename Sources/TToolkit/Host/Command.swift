@@ -76,7 +76,7 @@ public protocol Context {
 extension Context {
     public func runSync(_ thisCommand:String) throws -> CommandResult {
         let commandToRun = build(thisCommand)
-        
+        print("about to run")
         var outputLines = [Data]()
         var errorLines = [Data]()
         
