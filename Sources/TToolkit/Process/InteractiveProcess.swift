@@ -254,11 +254,13 @@ public class InteractiveProcess:Hashable {
 		let input = try ProcessPipes()
 		let output = try ProcessPipes()
 		let err = try ProcessPipes()
-		
+		          print("gerg")
 		self.stdin = input
 		self.stdout = output
 		self.stderr = err
+                  print("ass")
 		let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment)
+        print("exe")
 		self.proc = externalProcess
 		externalProcess.stdin = input
 		externalProcess.stdout = output
