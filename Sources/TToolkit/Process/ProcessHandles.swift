@@ -41,7 +41,7 @@ internal class PipeReader {
 	
 	func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler)) {
 			internalSync.sync {
-				let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:Priority.highest.globalConcurrentQueue)
+				let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:process_read_fast_capture)
 				newSource.setEventHandler {
 					if let newData = handle.availableData() {
                         print(Colors.Green("READ \(newData.count)"))

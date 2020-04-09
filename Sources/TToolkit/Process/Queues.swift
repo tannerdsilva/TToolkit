@@ -44,7 +44,7 @@ extension Priority {
 internal let global_lock_queue = DispatchQueue(label:"com.tannersilva.global.process.sync", attributes:[.concurrent])
 
 //this queue is assigned a priority since it will be passed to a dispatchsource
-internal let process_read_fast_capture = DispatchQueue(label:"com.tannersilva.global.process.read.capture", qos:Priority.highest.process_reading_fast_capture_priority, attributes:[.concurrent], target:Priority.highest.globalConcurrentQueue)
+internal let process_read_fast_capture = DispatchQueue(label:"com.tannersilva.global.process.read.capture", qos:Priority.highest.process_reading_fast_capture_priority, target:process_master_queue)
 
 internal let process_launch_async_fast = DispatchQueue(label:"com.tannersilva.global.process.launch-serial", target:process_master_queue)
 internal let process_intialize_serial = DispatchQueue(label:"com.tannersilva.global.process.initialize-serial", target:process_master_queue)
