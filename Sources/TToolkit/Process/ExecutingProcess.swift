@@ -428,19 +428,26 @@ internal class ExecutingProcess {
                 posix_spawn_file_actions_destroy(fileActions)
                 fileActions.deallocate()
             }
+            
+            let dupedStdin = dup(STDIN_FILENO)
+            let dupedStdout = dup(STDOUT_FILENO)
+            let dupedStderr = dup(STDERR_FILENO)
         
             var fHandles = [Int32:Int32]()
             if let hasStdin = self._stdin {
-                fHandles[STDIN_FILENO] = hasStdin.reading.fileDescriptor
+                fHandles[dupedStdin] = hasStdin.reading.fileDescriptor
                 posix_spawn_file_actions_addclose(fileActions, hasStdin.reading.fileDescriptor)
+                posix_spawn_file_actions_addclose(fileActions, dupedStdin)
             }
             if let hasStdout = self._stdout {
-                fHandles[STDOUT_FILENO] = hasStdout.writing.fileDescriptor
+                fHandles[dupedStdout] = hasStdout.writing.fileDescriptor
                 posix_spawn_file_actions_addclose(fileActions, hasStdout.writing.fileDescriptor)
+                posix_spawn_file_actions_addclose(fileActions, dupedStdout)
             }
             if let hasStderr = self._stderr {
-                fHandles[STDERR_FILENO] = hasStderr.writing.fileDescriptor
+                fHandles[dupedStderr] = hasStderr.writing.fileDescriptor
                 posix_spawn_file_actions_addclose(fileActions, hasStderr.writing.fileDescriptor)
+                posix_spawn_file_actions_addclose(fileActions, dupedStderr)
             }
             
             for (destination, source) in fHandles {
