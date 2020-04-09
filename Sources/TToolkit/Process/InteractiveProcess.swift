@@ -236,14 +236,18 @@ public class InteractiveProcess:Hashable {
 	
 	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
         print("initializing")
-        internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync", target:global_lock_queue)
+        internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
+                print("isync")
 //        let localMaster = DispatchQueue(label:"com.tannersilva.instance.process", qos:maximumPriority, attributes:[.concurrent], target:process_master_queue)
         process_launch_queue = DispatchQueue(label:"com.tannersilva.instance.process.launch", qos:priority.process_launch_priority, target:process_launch_async_fast)
+                print("launch")
         let eventStream = DispatchQueue(label:"com.tannersilva.instance.process.io", qos:maximumPriority, attributes:[.concurrent])
+          print("es")
         process_read_queue = DispatchQueue(label:"com.tannersilva.instance.process.read", qos:priority.process_reading_priority, target:eventStream)
         process_write_queue = DispatchQueue(label:"com.tannersilva.instance.process.write", qos:priority.process_writing_priority, target:eventStream)
         process_callback_queue = DispatchQueue(label:"com.tannersilva.instance.process.callback", qos:priority.process_callback_priority, target:eventStream)
 		
+        print("+3")
         let rs = DispatchSemaphore(value:1)
 		
 		self.runSemaphore = rs
