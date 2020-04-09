@@ -250,6 +250,7 @@ public class InteractiveProcess:Hashable {
             guard let self = self else {
                 return
             }
+            print(Colors.red("XX"))
             if let hasIn = self.stdin {
                 hasIn.close()
             }
@@ -439,6 +440,7 @@ public class InteractiveProcess:Hashable {
 	}
     
     public func run() throws {
+        print("trying to run")
         let runWait = DispatchSemaphore(value:0)
         let runItem = DispatchWorkItem(qos:_priority.process_launch_priority, flags:[.enforceQoS]) { [weak self] in
             guard let self = self, let initializedProcess = self.proc else {
