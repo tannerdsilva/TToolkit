@@ -435,6 +435,7 @@ public class InteractiveProcess:Hashable {
 	}
     
     public func run() throws {
+        print("trying to ruN")
         runSemaphore.wait()
         process_launch_queue.async { [weak self] in
             guard let self = self else {
