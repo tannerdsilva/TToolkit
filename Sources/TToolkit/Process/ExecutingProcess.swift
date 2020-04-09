@@ -332,34 +332,6 @@ internal class ExecutingProcess {
 	
 	//which queue will the termination handler be called?
 	private var _terminationHandler:DispatchWorkItem? = nil
-	private var _callbackQueue:DispatchQueue
-	private var _callbackGroup:DispatchGroup? = nil
-	
-	var callbackGroup:DispatchGroup? {
-		get {
-			internalSync.sync {
-				return _callbackGroup
-			}
-		}
-		set {
-			internalSync.sync {
-				_callbackGroup = newValue
-			}
-		}
-	}
-	var callbackQueue:DispatchQueue {
-		get {
-			internalSync.sync {
-				return _callbackQueue
-			}
-		}
-		set {
-			internalSync.sync {
-				_callbackQueue = newValue
-			}
-		}
-	}
-
 	var terminationHandler:DispatchWorkItem? {
 		get{
 			return internalSync.sync {
@@ -393,13 +365,12 @@ internal class ExecutingProcess {
 		return launchString
 	}
 	
-	init(execute:URL, arguments:[String]?, environment:[String:String]?, callback:DispatchQueue) throws {
+	init(execute:URL, arguments:[String]?, environment:[String:String]) throws {
 		self._executable = execute
 		self._arguments = arguments
 		self._environment = environment
 		
 		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.execute.sync")
-		self._callbackQueue = callback
 		self._exitWatcher = try ExitWatcher()
 	}
 	
@@ -509,21 +480,13 @@ internal class ExecutingProcess {
 					if let hasStderr = self.stderr {
 							hasStderr.close()
 					}
-                    let (termHandle, asyncGroup) = self.internalSync.sync { () -> (DispatchWorkItem?, DispatchGroup?) in
+                    let termHandle = self.internalSync.sync { () -> DispatchWorkItem? in
                         self._exitTime = exitDate
                         self._exitCode = exitCode
-                        return (self._terminationHandler, self._callbackGroup)
+                        return self._terminationHandler
                     }
 					   if let hasTerminationHandler = termHandle {
-							if let hasAsyncGroup = asyncGroup {
-								hasAsyncGroup.enter()
-								hasTerminationHandler.perform()
-								hasAsyncGroup.leave()
-//								self._callbackQueue.async(group:hasAsyncGroup, execute:hasTerminationHandler)
-							} else {
-								hasTerminationHandler.perform()
-//								self._callbackQueue.async(execute:hasTerminationHandler)
-							}
+                            hasTerminationHandler.perform()
 						}
 				}
 			} catch let error {
