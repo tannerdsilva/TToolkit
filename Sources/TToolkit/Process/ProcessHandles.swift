@@ -170,14 +170,15 @@ internal class ProcessPipes {
 	}
 	
 	fileprivate static func forReadingAndWriting() throws -> (r:ProcessHandle, w:ProcessHandle) {
-		let fds = UnsafeMutablePointer<Int32>.allocate(capacity:2)
+		print("trying to make file descriptors")
+        let fds = UnsafeMutablePointer<Int32>.allocate(capacity:2)
 		defer {
 			fds.deallocate()
 		}
 		
-//        let rwfds = ExecutingProcess.globalSerialRun.sync {
-        let rwfds = _pipe(fds)
-//		}
+        let rwfds = global_pipe_lock.sync {
+            let rwfds = _pipe(fds)
+		}
 		
         switch rwfds {
             case 0:

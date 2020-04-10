@@ -50,6 +50,8 @@ extension Priority {
 
 internal let global_lock_queue = DispatchQueue(label:"com.tannersilva.global.process.sync", attributes:[.concurrent])
 
+internal let global_pipe_lock = DispatchQueue(label:"com.tannersilva.global.pipe-init.sync", target:global_lock_queue)
+
 //this queue is assigned a priority since it will be passed to a dispatchsource
 
 internal let process_launch_async_fast = DispatchQueue(label:"com.tannersilva.global.process.launch-serial", target:process_master_queue)
