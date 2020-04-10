@@ -177,7 +177,7 @@ internal class ProcessPipes {
 		}
 		
         let rwfds = global_pipe_lock.sync {
-            let rwfds = _pipe(fds)
+            return _pipe(fds)
 		}
 		
         switch rwfds {
