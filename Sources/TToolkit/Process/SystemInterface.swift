@@ -61,21 +61,25 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
     func forkedWork() -> Never {
         chdir(wd)
     
-        if let hasStdin = stdin {
-            _dup2(hasStdin.reading, STDIN_FILENO)
-            hasStdin.close()
+       
+        let dupedIn = _dup(STDIN_FILENO)
+        let dupedOut = _dup(STDOUT_FILENO)
+        let dupedErr = _dup(STDERR_FILENO)
+        _close(STDIN_FILENO)
+        _close(STDOUT_FILENO)
+        _close(STDERR_FILENO)
+        
+		if let hasStdin = stdin {
+            _dup2(hasStdin.reading, dupedIn)
         }
         
         if let hasStdout = stdout {
-            _dup2(hasStdout.writing, STDOUT_FILENO)
-//            hasStdout.configureOutbound()
-            _close(hasStdout.writing)
+            _dup2(hasStdout.writing, dupedOut)
+//            _close(hasStdout.reading)
         }
             
         if let hasStderr = stderr {
-            _dup2(hasStderr.writing, STDERR_FILENO)
-//            hasStderr.configureOutbound()
-            _close(hasStderr.writing)
+            _dup2(hasStderr.writing, dupedErr)
         }
         _exit(Glibc.execvp(path, args))
         
