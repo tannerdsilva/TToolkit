@@ -2,11 +2,11 @@ import Foundation
 
 internal let process_master_queue = DispatchQueue(label:"com.tannersilva.global.process", qos:maximumPriority, attributes:[.concurrent])
 
-internal let process_handle_queue = DispatchQueue(label:"com.tannersilva.global.handle", qos:maximumPriority, target:Priority.highest.globalConcurrentQueue)
-internal let process_handle_inbound = DispatchQueue(label:"com.tannersilva.global.handle.inbound", qos:Priority.highest.process_reading_fast_capture_priority, target:process_handle_queue)
-internal let process_handle_outbound = DispatchQueue(label:"com.tannersilva.global.handle.outbound", qos:Priority.highest.process_reading_fast_capture_priority, target:process_handle_queue)
-
-internal let process_read_fast_capture = DispatchQueue(label:"com.tannersilva.global.handle.inbound", qos:Priority.highest.process_reading_fast_capture_priority, target:Priority.highest.globalConcurrentQueue)
+//internal let process_handle_queue = DispatchQueue(label:"com.tannersilva.global.handle", qos:maximumPriority, target:Priority.highest.globalConcurrentQueue)
+//internal let process_handle_inbound = DispatchQueue(label:"com.tannersilva.global.handle.inbound", qos:Priority.highest.process_reading_fast_capture_priority, target:process_handle_queue)
+//internal let process_handle_outbound = DispatchQueue(label:"com.tannersilva.global.handle.outbound", qos:Priority.highest.process_reading_fast_capture_priority, target:process_handle_queue)
+//
+//internal let process_read_fast_capture = DispatchQueue(label:"com.tannersilva.global.handle.inbound", qos:Priority.highest.process_reading_fast_capture_priority, target:Priority.highest.globalConcurrentQueue)
 
 
 extension Priority {
