@@ -391,9 +391,9 @@ internal class ExecutingProcess {
                 })
             })
             
-            stdinExport?.configureOutbound()
-            stderrExport?.configureInbound()
-            stdoutExport?.configureInbound()
+            stdinExport?.close()
+            stderrExport?.close()
+            stdoutExport?.close()
             
             
             print("Launched process \(launchedPid)")

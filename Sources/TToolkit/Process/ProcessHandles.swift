@@ -114,6 +114,10 @@ internal struct ExportedPipe {
     func configureInbound() {
         _close(writing)
     }
+    func close() {
+        configureOutbound()
+        configureInbound()
+    }
 }
 
 internal class ProcessPipes {
