@@ -14,6 +14,7 @@ import Foundation
     fileprivate let _write = Glibc.write(_:_:_:)
     fileprivate let _close = Glibc.close(_:)
     fileprivate let _pipe = Glibc.pipe(_:)
+    fileprivate let _dup = Glibc.dup(_:)
     fileprivate let _dup2 = Glibc.dup2(_:_:)
 #endif
 
@@ -66,15 +67,15 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         }
         
         if let hasStdout = stdout {
-            _dup2(STDOUT_FILENO, hasStdout.writing)
-            hasStdout.configureOutbound()
-            _close(STDOUT_FILENO)
+            _dup2(hasStdout.writing, STDOUT_FILENO)
+//            hasStdout.configureOutbound()
+            _close(hasStdout.writing)
         }
             
         if let hasStderr = stderr {
-            _dup2(STDERR_FILENO, hasStderr.writing)
-            hasStderr.configureOutbound()
-            _close(STDERR_FILENO)
+            _dup2(hasStderr.writing, STDERR_FILENO)
+//            hasStderr.configureOutbound()
+            _close(hasStderr.writing)
         }
         _exit(Glibc.execvp(path, args))
         
