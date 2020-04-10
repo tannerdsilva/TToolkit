@@ -72,7 +72,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
             _dup2(hasStderr, STDERR_FILENO)
             _close(STDERR_FILENO)
         }
-        _exit(Glibc.execv(path, args))
+        _exit(Glibc.execvp(path, args))
         
     }
     
