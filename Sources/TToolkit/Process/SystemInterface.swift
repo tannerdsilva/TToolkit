@@ -75,7 +75,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         }
             
         if let hasStderr = stderr {
-            hasStderrs.configureOutbound()
+            hasStderr.configureOutbound()
             _dup2(hasStderr.writing, STDERR_FILENO)
             _close(hasStderr.writing)
         }
