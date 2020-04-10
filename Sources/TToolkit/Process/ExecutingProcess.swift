@@ -422,7 +422,7 @@ internal class ExecutingProcess {
             
             self._launchTime = Date()
             self._processId = launchedPid
-
+        }
     }
 	
 	func suspend() -> Bool? {
