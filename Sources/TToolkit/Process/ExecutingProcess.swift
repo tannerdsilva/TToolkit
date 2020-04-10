@@ -383,6 +383,8 @@ internal class ExecutingProcess {
             let stdoutExport = self._stdout?.export()
             let stderrExport = self._stderr?.export()
 //
+            close(STDOUT_FILENO)
+            
             let launchedPid = try launchPath.withCString({ cPath in
                 try self._workingDirectory.path.withCString({ wdPath in
                     try self._arguments!.with_spawn_ready_arguments { argC in
@@ -391,9 +393,9 @@ internal class ExecutingProcess {
                 })
             })
             
-            stdinExport?.close()
-            stderrExport?.close()
-            stdoutExport?.close()
+            stdinExport?.configureOutbound()
+            stderrExport?.configureInbound()
+            stdoutExport?.configureInbound()
             
             
             print("Launched process \(launchedPid)")
