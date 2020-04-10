@@ -84,10 +84,6 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
             _close(hasStderr.writing)
         }
         
-        _close(STDIN_FILENO)
-        _close(STDOUT_FILENO)
-        _close(STDERR_FILENO)
-        
         _exit(Glibc.execvp(path, args))
         
     }
