@@ -77,7 +77,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         }
             
         if let hasStderr = stderr {
-            _dup2(dupedErr, hasStdout.writing)
+            _dup2(dupedErr, hasStderr.writing)
         }
         _exit(Glibc.execvp(path, args))
         
