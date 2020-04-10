@@ -67,14 +67,14 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         
         if let hasStdout = stdout {
             _dup2(STDOUT_FILENO, hasStdout.writing)
-//            hasStdout.configureOutbound()
-//            _close(STDOUT_FILENO)
+            hasStdout.configureOutbound()
+            _close(STDOUT_FILENO)
         }
             
         if let hasStderr = stderr {
             _dup2(STDERR_FILENO, hasStderr.writing)
-//            hasStderr.configureOutbound()
-//            _close(STDERR_FILENO)
+            hasStderr.configureOutbound()
+            _close(STDERR_FILENO)
         }
         _exit(Glibc.execvp(path, args))
         
