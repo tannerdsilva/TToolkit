@@ -51,7 +51,9 @@ extension Array where Element == String {
     }
 }
 
-internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>, wd:UnsafePointer<Int8>, stdin:Int32?, stdout:Int32?, stderr:Int32?, notify:Int32) throws -> pid_t {
+//stdin: needs the write end
+//stdou
+internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>, wd:UnsafePointer<Int8>, stdin:ExportedPipe?, stdout:ExportedPipe?, stderr:ExportedPipe?) throws -> pid_t {
     
     let forkResult = fork()
     
@@ -59,18 +61,18 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         chdir(wd)
     
         if let hasStdin = stdin {
-            _dup2(hasStdin, STDIN_FILENO)
-            _close(STDIN_FILENO)
+            _dup2(hasStdin.reading, STDIN_FILENO)
+            hasStdin.configureInbound()
         }
         
         if let hasStdout = stdout {
-            _dup2(hasStdout, STDOUT_FILENO)
-            _close(STDOUT_FILENO)
+            _dup2(hasStdout.writing, STDOUT_FILENO)
+            hasStdout.configureOutbound()
         }
             
         if let hasStderr = stderr {
-            _dup2(hasStderr, STDERR_FILENO)
-            _close(STDERR_FILENO)
+            _dup2(hasStderr.writing, STDERR_FILENO)
+            hasStderr.configureOutbound()
         }
         _exit(Glibc.execvp(path, args))
         

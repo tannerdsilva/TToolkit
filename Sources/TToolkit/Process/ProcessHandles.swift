@@ -104,6 +104,17 @@ internal let globalPR = PipeReader()
 //	}
 //}
 //internal let globalWH = WriteWatcher()
+internal struct ExportedPipe {
+    let reading:Int32
+    let writing:Int32
+    
+    func configureOutbound() {
+        _close(reading)
+    }
+    func configureInbound() {
+        _close(writing)
+    }
+}
 
 internal class ProcessPipes {
 	private let internalSync:DispatchQueue
@@ -192,13 +203,11 @@ internal class ProcessPipes {
 		readHandler = nil
 		reading.close()
 		writing.close()
-//		writeHandler = nil
 	}
-	
-	deinit {
-//		readHandler = nil
-//		writeHandler = nil
-	}
+    
+    func export() -> ExportedPipe {
+        return ExportedPipe(reading: reading.fileDescriptor, writing: writing.fileDescriptor)
+    }
 }
 
 internal class ProcessHandle:Hashable {

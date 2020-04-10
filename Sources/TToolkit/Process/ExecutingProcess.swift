@@ -378,14 +378,22 @@ internal class ExecutingProcess {
             if let hasArguments = self._arguments {
                 argBuild.append(contentsOf:hasArguments)
             }
+            
+            let stdinExport = self._stdin?.export()
+            let stdoutExport = self._stdout?.export()
+            let stderrExport = self._stderr?.export()
 //
             let launchedPid = try launchPath.withCString({ cPath in
                 try self._workingDirectory.path.withCString({ wdPath in
                     try self._arguments!.with_spawn_ready_arguments { argC in
-                        return try tt_spawn(path:cPath, args:argC, wd:wdPath, stdin:self._stdin?.reading.fileDescriptor, stdout:self._stdout?.writing.fileDescriptor, stderr:self._stderr?.reading.fileDescriptor, notify:dup(STDOUT_FILENO))
+                        return try tt_spawn(path:cPath, args:argC, wd:wdPath, stdin:stdinExport, stdout:stdoutExport, stderr:stderrExport)
                     }
                 })
             })
+            
+            stdinExport?.configureOutbound()
+            stderrExport?.configureInbound()
+            stdoutExport?.configureInbound()
             
             
             print("Launched process \(launchedPid)")
