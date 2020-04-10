@@ -383,7 +383,7 @@ internal class ExecutingProcess {
             let stdoutExport = self._stdout?.export()
             let stderrExport = self._stderr?.export()
 //
-            close(STDOUT_FILENO)
+//            close(STDOUT_FILENO)
             
             let launchedPid = try launchPath.withCString({ cPath in
                 try self._workingDirectory.path.withCString({ wdPath in
