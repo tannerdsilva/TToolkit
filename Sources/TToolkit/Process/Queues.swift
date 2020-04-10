@@ -1,6 +1,13 @@
 import Foundation
 
-internal let process_master_queue = DispatchQueue(label:"com.tannersilva.global.process", attributes:[.concurrent])
+internal let process_master_queue = DispatchQueue(label:"com.tannersilva.global.process", qos:maximumPriority, attributes:[.concurrent])
+
+internal let process_handle_queue = DispatchQueue(label:"com.tannersilva.global.handle", qos:maximumPriority, target:Priority.highest.globalConcurrentQueue)
+internal let process_handle_inbound = DispatchQueue(label:"com.tannersilva.global.handle.inbound", qos:Priority.highest.process_reading_fast_capture_priority, target:process_handle_queue)
+internal let process_handle_outbound = DispatchQueue(label:"com.tannersilva.global.handle.outbound", qos:Priority.highest.process_reading_fast_capture_priority, target:process_handle_queue)
+
+internal let process_read_fast_capture = DispatchQueue(label:"com.tannersilva.global.handle.inbound", qos:Priority.highest.process_reading_fast_capture_priority, target:Priority.highest.globalConcurrentQueue)
+
 
 extension Priority {
 	internal var process_launch_priority:DispatchQoS {
@@ -44,7 +51,6 @@ extension Priority {
 internal let global_lock_queue = DispatchQueue(label:"com.tannersilva.global.process.sync", attributes:[.concurrent])
 
 //this queue is assigned a priority since it will be passed to a dispatchsource
-internal let process_read_fast_capture = DispatchQueue(label:"com.tannersilva.global.process.read.capture", qos:Priority.highest.process_reading_fast_capture_priority, target:process_master_queue)
 
 internal let process_launch_async_fast = DispatchQueue(label:"com.tannersilva.global.process.launch-serial", target:process_master_queue)
 internal let process_intialize_serial = DispatchQueue(label:"com.tannersilva.global.process.initialize-serial", target:process_master_queue)

@@ -12,17 +12,12 @@ fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 	return (_WSTATUS(status) != 0) && (_WSTATUS(status) != 0x7f)
 }
 
-func dupedFD(_ fdIn:Int32) -> Int32 {
+func execute_process(_ fdIn:Int32) -> Int32 {
     print("being called")
     let rtv = dup(STDIN_FILENO)
     fcntl(rtv, F_SETFD, FD_CLOEXEC)
     return rtv
 }
-
-fileprivate let dupedStdin = dupedFD(STDIN_FILENO)
-fileprivate let dupedStdout = dupedFD(STDOUT_FILENO)
-fileprivate let dupedStderr = dupedFD(STDERR_FILENO)
-
 /*
 	The ExitWatcher is a class that guarantees its availability to monitor an external process for exits.
 	ExitWatcher is able to provide this functionality by launching an external thread on initialization, and sleeping the thread until a process is ready to be monitored.
@@ -214,8 +209,9 @@ internal class ExecutingProcess {
 	*/
 	private let internalSync:DispatchQueue
 	private var _executable:URL
+    private var _workingDirectory:URL
 	private var _arguments:[String]? = nil
-	private var _environment:[String:String]? = nil
+//	private var _environment:[String:String]? = nil
 	var executable:URL {
 		get {
 			return internalSync.sync {
@@ -240,18 +236,31 @@ internal class ExecutingProcess {
 			}
 		}
 	}
-	var environment:[String:String]? {
-		get {
-			return internalSync.sync {
-				return _environment
-			}
-		}
-		set {
-			internalSync.sync {
-				_environment = newValue
-			}
-		}
-	}
+    var workingDirectory:URL {
+        get {
+            return internalSync.sync {
+                return _workingDirectory
+            }
+        }
+        set {
+            internalSync.sync {
+                _workingDirectory = newValue
+            }
+        }
+    }
+
+//	var environment:[String:String]? {
+//		get {
+//			return internalSync.sync {
+//				return _environment
+//			}
+//		}
+//		set {
+//			internalSync.sync {
+//				_environment = newValue
+//			}
+//		}
+//	}
 	
 	/*
 		These variables are related to the execution state of the process.
@@ -261,7 +270,6 @@ internal class ExecutingProcess {
 	*/
 	private var _launchTime:Date? = nil
 	private var _exitTime:Date? = nil
-	private var _exitWatcher:ExitWatcher
 	private var _exitCode:Int32? = nil
 	private var _processId:Int32? = nil
 	var processIdentifier:Int32? {
@@ -376,97 +384,35 @@ internal class ExecutingProcess {
 		return launchString
 	}
 	
-	init(execute:URL, arguments:[String]?, environment:[String:String]) throws {
+    init(execute:URL, arguments:[String]?, workingDirectory:URL) throws {
 		self._executable = execute
 		self._arguments = arguments
-		self._environment = environment
+		self._workingDirectory = workingDirectory
 		
 		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.execute.sync")
-		self._exitWatcher = try ExitWatcher()
 	}
 	
-	func run() {
+    func run(sync:Bool) {
         try? self.internalSync.sync {
             guard self._isRunning == false && self._exitCode == nil else {
                 throw ExecutingProcessError.processAlreadyRunning
             }
-            guard let launchPath = Self.isLaunchURLExecutable(self._executable) else {
+            guard var launchPath = Self.isLaunchURLExecutable(self._executable) else {
                 throw ExecutingProcessError.unableToExecute
             }
             var argBuild = [launchPath]
             if let hasArguments = self._arguments {
                 argBuild.append(contentsOf:hasArguments)
             }
-            
-            //convert the arguments into C compatible variables
-            let argC:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?> = argBuild.withUnsafeBufferPointer {
-                let arr:UnsafeBufferPointer<String> = $0
-                let buff = UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>.allocate(capacity:arr.count + 1)
-                buff.initialize(from:arr.map { $0.withCString(strdup) }, count:arr.count)
-                buff[arr.count] = nil
-                return buff
-            }
-            defer {
-                for arg in argC ..< argC + argBuild.count {
-                    free(UnsafeMutableRawPointer(arg.pointee))
-                }
-                argC.deallocate()
-            }
-            
-            //convert the environment variables into c compatible variables
-            var env:[String:String]
-            if let e = self._environment {
-                env = e
-            } else {
-                env = [String:String]()
-            }
-            let envCount = env.count
-            let envC = UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>.allocate(capacity:1 + envCount)
-            envC.initialize(from:env.map { strdup("\($0)=\($1)") }, count: envCount)
-            envC[envCount] = nil
-            defer {
-                for pair in envC ..< envC + envCount {
-                    free(UnsafeMutableRawPointer(pair.pointee))
-                }
-                envC.deallocate()
-            }
-            //there are some weird differences between Linux and macOS in terms of their preference with optionals
-            //here, the specific allocators and deallocators for each platform are specified
-    #if os(macOS)
-            var fileActions:UnsafeMutablePointer<posix_spawn_file_actions_t?> = UnsafeMutablePointer<posix_spawn_file_actions_t?>.allocate(capacity:1)
-    #else
-            var fileActions:UnsafeMutablePointer<posix_spawn_file_actions_t> = UnsafeMutablePointer<posix_spawn_file_actions_t>.allocate(capacity:1)
-    #endif
-            posix_spawn_file_actions_init(fileActions)
-            defer {
-                posix_spawn_file_actions_destroy(fileActions)
-                fileActions.deallocate()
-            }
-        
-            var fHandles = [Int32:Int32]()
-            "/dev/null".withCString({ nullCString in
-                if let hasStdin = self._stdin {
-                    fHandles[STDIN_FILENO] = hasStdin.reading.fileDescriptor
-                    posix_spawn_file_actions_addopen(fileActions, STDIN_FILENO, nullCString, O_CLOEXEC, 0)
-                     print(Colors.cyan("ACTIONS TAKEN"))
-//                    posix_spawn_file_actions_addclose(fileActions, STDIN_FILENO)
-                }
-                if let hasStdout = self._stdout {
-                    fHandles[STDOUT_FILENO] = hasStdout.writing.fileDescriptor
-                    posix_spawn_file_actions_addopen(fileActions, STDOUT_FILENO, nullCString, O_CLOEXEC, 0)
-                     print(Colors.cyan("ACTIONS TAKEN"))
-//                    posix_spawn_file_actions_addclose(fileActions, hasStdout.writing.fileDescriptor)
-//                    posix_spawn_file_actions_addclose(fileActions, STDOUT_FILENO)
-                }
-                if let hasStderr = self._stderr {
-                    fHandles[STDERR_FILENO] = hasStderr.writing.fileDescriptor
-                    posix_spawn_file_actions_addopen(fileActions, STDERR_FILENO, nullCString, O_CLOEXEC, 0)
-                    print(Colors.cyan("ACTIONS TAKEN"))
-//                    posix_spawn_file_actions_addclose(fileActions, hasStderr.writing.fileDescriptor)
-//                    posix_spawn_file_actions_addclose(fileActions, STDERR_FILENO)
-                }
+//
+            let launchedPid = try launchPath.withCString({ cPath in
+                try self._workingDirectory.path.withCString({ wdPath in
+                    try self._arguments!.with_spawn_ready_arguments { argC in
+                        return try tt_spawn(path:cPath, args:argC, wd:wdPath, stdin:self._stdin?.reading.fileDescriptor, stdout:self._stdout?.writing.fileDescriptor, stderr:self._stderr?.reading.fileDescriptor, notify:dup(STDOUT_FILENO))
+                    }
+                })
             })
-                        
+            
 //            for (destination, source) in fHandles {
 //                let result = posix_spawn_file_actions_adddup2(fileActions, source, destination)
 //                if result != 0 {
@@ -474,44 +420,9 @@ internal class ExecutingProcess {
 //                }
 //            }
             
-            var lpid = pid_t()
-//            try ExecutingProcess.globalSerialRun.sync {
-                guard posix_spawn(&lpid, launchPath, fileActions, nil, argC, envC) == 0 && lpid != 0 else {
-                    throw ExecutingProcessError.unableToExecute
-                }
-//            }
-            
             self._launchTime = Date()
-            self._processId = lpid
+            self._processId = launchedPid
 
-            do {
-                try self._exitWatcher.engage(pid:lpid) { [weak self] exitCode, exitDate in
-                    guard let self = self else {
-                        return
-                    }
-//                    if let hasStdin = self.stdin {
-//                            hasStdin.close()
-//                    }
-//                    if let hasStdout = self.stdout {
-//                            hasStdout.close()
-//                    }
-//                    if let hasStderr = self.stderr {
-//                            hasStderr.close()
-//                    }
-                    let termHandle = self.internalSync.sync { () -> DispatchWorkItem? in
-                        self._exitTime = exitDate
-                        self._exitCode = exitCode
-                        return self._terminationHandler
-                    }
-                       if let hasTerminationHandler = termHandle {
-                            hasTerminationHandler.perform()
-                        }
-                }
-            } catch let error {
-                kill(lpid, SIGKILL)
-                throw error
-            }
-        }
     }
 	
 	func suspend() -> Bool? {

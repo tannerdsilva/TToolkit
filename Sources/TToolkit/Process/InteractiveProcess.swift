@@ -232,7 +232,7 @@ public class InteractiveProcess:Hashable {
     
     var lines = [Data]() 
 	
-	public init<C>(command:C, priority:Priority, run:Bool) throws where C:Command {
+    public init<C>(command:C, priority:Priority, run:Bool, workingDirectory:URL) throws where C:Command {
         print("ip says hello")
         self._priority = priority
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
@@ -347,7 +347,7 @@ public class InteractiveProcess:Hashable {
                 return
             }
             do {
-                let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, environment:command.environment)
+                let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, workingDirectory: workingDirectory)
                 let input = try ProcessPipes()
                 let output = try ProcessPipes()
                 let err = try ProcessPipes()
@@ -448,7 +448,7 @@ public class InteractiveProcess:Hashable {
             }
             do {
                 pmon.processLaunched(self)
-                try initializedProcess.run()
+                try initializedProcess.run(sync:false)
                 self.internalSync.sync {
                     self._state = .running
                 }
