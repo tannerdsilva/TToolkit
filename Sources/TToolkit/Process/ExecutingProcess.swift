@@ -11,178 +11,148 @@ fileprivate func WIFEXITED(_ status:Int32) -> Bool {
 fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 	return (_WSTATUS(status) != 0) && (_WSTATUS(status) != 0x7f)
 }
-
-func execute_process(_ fdIn:Int32) -> Int32 {
-    print("being called")
-    let rtv = dup(STDIN_FILENO)
-    fcntl(rtv, F_SETFD, FD_CLOEXEC)
-    return rtv
-}
 /*
 	The ExitWatcher is a class that guarantees its availability to monitor an external process for exits.
 	ExitWatcher is able to provide this functionality by launching an external thread on initialization, and sleeping the thread until a process is ready to be monitored.
 	ExitWatcher is not reusable. After a process has exited and the handler is called, exithandler should be discarded.
 */
-internal class ExitWatcher {
-	typealias ExitHandler = (Int32, Date) -> Void
-	enum ExitWatcherError:Error {
-		case unableToLaunchThread
-		case engagementError
-	}
-	
-	private enum ExitWatcherState {
-		case initialized
-		case engaged
-		case failed
-		case exited
-	}
-	
-	private let backgroundQueue:DispatchQueue
-	private let internalSync:DispatchQueue
-	
-	private let flightGroup:DispatchGroup			//this group represents the external thread that is "in flight" 
-	private let engageWaitGroup:DispatchGroup		//this is the group that instructs the external thread when it should be waiting to engage
-	private let engageResponseGroup:DispatchGroup	//this is the group that the external thread uses to signal its engagement response
-	private let didExitGroup:DispatchGroup			//this is the group that the external thread uses to signal that the external process has exited
-	
-	private var pid:pid_t
-	private var state:ExitWatcherState
-	
-	private var _handler:ExitHandler? = nil
-	
-	init() throws {
-		let bgThread = DispatchQueue(label:"com.tannersilva.instance.process-executing.exit-watch", qos:Priority.highest.asDispatchQoS(relative:10))
-		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-executing.exit-watch.sync")
-		self.backgroundQueue = bgThread
-		self.internalSync = syncQueue
-		
-		let flight = DispatchGroup()
-		let engageWait = DispatchGroup()
-		let didExit = DispatchGroup()
-		let engageResponse = DispatchGroup()
-		engageWait.enter()
-		
-		self.flightGroup = flight
-		self.engageWaitGroup = engageWait
-		self.engageResponseGroup = engageResponse
-		self.didExitGroup = didExit
-		
-		var internalFail:Bool = false
-		
-		self.pid = pid_t()
-		self.state = ExitWatcherState.initialized
-		
-		let threadLaunchedGroup = DispatchGroup()
-		threadLaunchedGroup.enter()
-		let launchtime = Date()
-		bgThread.async { [weak self] in
-			//state 1: guarantee initialization of this async work
-			flight.enter()
-			defer {
-				flight.leave()
-			}
-			guard let self = self else {
-				syncQueue.sync {
-					internalFail = true
-				}
-				threadLaunchedGroup.leave()
-				return
-			}
-			didExit.enter()
-			engageResponse.enter()
-			threadLaunchedGroup.leave()
-			
-			//stage 2: wait for a pid to be assigned
-			engageWait.wait()
-			
-			//stage 3: validate the state of self and start watching the pid if configured to do so (else, return from this thread)
-			var pidCapture:Int32? = nil
-			var stateCapture:ExitWatcherState? = nil
-			var handleCapture:ExitHandler? = nil
-			syncQueue.sync {
-				pidCapture = self.pid
-				stateCapture = self.state
-				handleCapture = self._handler
-			}
-			guard var pidWatch = pidCapture, var validatedState = stateCapture, let validHandler = handleCapture, pidWatch != 0 && validatedState == .initialized else {
-				syncQueue.sync {
-					self.state = .failed
-				}
-				didExit.leave()
-				engageResponse.leave()
-				return
-			}
-			syncQueue.sync {
-				self.state = .engaged
-			}
-			engageResponse.leave()
-			pmon.exiterEngaged(pidWatch)
-			var waitResult:Int32 = 0
-			var exitCode:Int32 = 0
-			var errNo:Int32 = 0
-			repeat {
-				waitResult = waitpid(pidWatch, &exitCode, 0)
-				errNo = errno
-				if waitResult == -1 && errNo == EINTR || WIFEXITED(exitCode) == false {
-					print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\nEXIT ERROR RESULT \(waitResult) - \(errNo)\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-				}
-				
-			} while waitResult == -1 && errNo == EINTR || WIFEXITED(exitCode) == false
-			let exitTime = Date()
-			pmon.exiterDisengaged(pidWatch)
-			validHandler(exitCode, exitTime)
-			syncQueue.sync {
-				self.state = .exited
-			}
-			didExit.leave()
-		}
-		threadLaunchedGroup.wait()
-		try syncQueue.sync {
-			guard internalFail == false else {
-				engageWait.leave()
-				throw ExitWatcherError.unableToLaunchThread
-			}
-		}
-	}
-	
-	func engage(pid:pid_t, _ handler:@escaping(ExitHandler)) throws {
-		try internalSync.sync {
-			guard self.state == .initialized else {
-				throw ExitWatcherError.engagementError
-			}
-			self.pid = pid
-			self._handler = handler
-		}
-		engageWaitGroup.leave()
-		engageResponseGroup.wait()
-		try internalSync.sync {
-			guard self.state == .engaged else {
-				throw ExitWatcherError.engagementError
-			}
-		}
-	}
-	
-	deinit {
-		var capturedState = internalSync.sync {
-			return self.state
-		}
-		switch capturedState {
-			case .initialized:
-				internalSync.sync {
-					self.state = .failed
-				}
-				engageWaitGroup.leave()
-				engageResponseGroup.wait()
-				flightGroup.wait()
-			case .engaged:
-				didExitGroup.wait()
-				flightGroup.wait()
-			default:
-				flightGroup.wait()
-		}
-		print(Colors.dim("Successfully deinitted ExitWatcher"))
-	}
-}
+//internal class ExitWatcher {
+//    let internalSync:DispatchQueue
+//    
+//	init() throws {
+//		let bgThread = DispatchQueue(label:"com.tannersilva.instance.process-executing.exit-watch", qos:Priority.highest.asDispatchQoS(relative:10))
+//		let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-executing.exit-watch.sync")
+//		self.backgroundQueue = bgThread
+//		self.internalSync = syncQueue
+//		
+//		let flight = DispatchGroup()
+//		let engageWait = DispatchGroup()
+//		let didExit = DispatchGroup()
+//		let engageResponse = DispatchGroup()
+//		engageWait.enter()
+//		
+//		self.flightGroup = flight
+//		self.engageWaitGroup = engageWait
+//		self.engageResponseGroup = engageResponse
+//		self.didExitGroup = didExit
+//		
+//		var internalFail:Bool = false
+//		
+//		self.pid = pid_t()
+//		self.state = ExitWatcherState.initialized
+//		
+//		let threadLaunchedGroup = DispatchGroup()
+//		threadLaunchedGroup.enter()
+//		let launchtime = Date()
+//		bgThread.async { [weak self] in
+//			//state 1: guarantee initialization of this async work
+//			flight.enter()
+//			defer {
+//				flight.leave()
+//			}
+//			guard let self = self else {
+//				syncQueue.sync {
+//					internalFail = true
+//				}
+//				threadLaunchedGroup.leave()
+//				return
+//			}
+//			didExit.enter()
+//			engageResponse.enter()
+//			threadLaunchedGroup.leave()
+//			
+//			//stage 2: wait for a pid to be assigned
+//			engageWait.wait()
+//			
+//			//stage 3: validate the state of self and start watching the pid if configured to do so (else, return from this thread)
+//			var pidCapture:Int32? = nil
+//			var stateCapture:ExitWatcherState? = nil
+//			var handleCapture:ExitHandler? = nil
+//			syncQueue.sync {
+//				pidCapture = self.pid
+//				stateCapture = self.state
+//				handleCapture = self._handler
+//			}
+//			guard var pidWatch = pidCapture, var validatedState = stateCapture, let validHandler = handleCapture, pidWatch != 0 && validatedState == .initialized else {
+//				syncQueue.sync {
+//					self.state = .failed
+//				}
+//				didExit.leave()
+//				engageResponse.leave()
+//				return
+//			}
+//			syncQueue.sync {
+//				self.state = .engaged
+//			}
+//			engageResponse.leave()
+//			pmon.exiterEngaged(pidWatch)
+//			var waitResult:Int32 = 0
+//			var exitCode:Int32 = 0
+//			var errNo:Int32 = 0
+//			repeat {
+//				waitResult = waitpid(pidWatch, &exitCode, 0)
+//				errNo = errno
+//				if waitResult == -1 && errNo == EINTR || WIFEXITED(exitCode) == false {
+//					print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\nEXIT ERROR RESULT \(waitResult) - \(errNo)\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+//				}
+//				
+//			} while waitResult == -1 && errNo == EINTR || WIFEXITED(exitCode) == false
+//			let exitTime = Date()
+//			pmon.exiterDisengaged(pidWatch)
+//			validHandler(exitCode, exitTime)
+//			syncQueue.sync {
+//				self.state = .exited
+//			}
+//			didExit.leave()
+//		}
+//		threadLaunchedGroup.wait()
+//		try syncQueue.sync {
+//			guard internalFail == false else {
+//				engageWait.leave()
+//				throw ExitWatcherError.unableToLaunchThread
+//			}
+//		}
+//	}
+//	
+//	func engage(pid:pid_t, _ handler:@escaping(ExitHandler)) throws {
+//		try internalSync.sync {
+//			guard self.state == .initialized else {
+//				throw ExitWatcherError.engagementError
+//			}
+//			self.pid = pid
+//			self._handler = handler
+//		}
+//		engageWaitGroup.leave()
+//		engageResponseGroup.wait()
+//		try internalSync.sync {
+//			guard self.state == .engaged else {
+//				throw ExitWatcherError.engagementError
+//			}
+//		}
+//	}
+//	
+//	deinit {
+//		var capturedState = internalSync.sync {
+//			return self.state
+//		}
+//		switch capturedState {
+//			case .initialized:
+//				internalSync.sync {
+//					self.state = .failed
+//				}
+//				engageWaitGroup.leave()
+//				engageResponseGroup.wait()
+//				flightGroup.wait()
+//			case .engaged:
+//				didExitGroup.wait()
+//				flightGroup.wait()
+//			default:
+//				flightGroup.wait()
+//		}
+//		print(Colors.dim("Successfully deinitted ExitWatcher"))
+//	}
+//}
+
 
 /*
 	ExecutingProcess is my interpretation of the Process object from the Swift Standard Library.
@@ -412,7 +382,8 @@ internal class ExecutingProcess {
                     }
                 })
             })
-            
+            print("Launched process \(launchedPid)")
+            try tt_spawn_watcher(pid: launchedPid, stdout: STDOUT_FILENO)
 //            for (destination, source) in fHandles {
 //                let result = posix_spawn_file_actions_adddup2(fileActions, source, destination)
 //                if result != 0 {

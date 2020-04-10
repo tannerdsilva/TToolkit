@@ -31,16 +31,14 @@ internal let pp_make_destroy_queue = DispatchQueue(label:"com.tannersilva.global
 */
 internal class PipeReader {
 	let internalSync:DispatchQueue
-	
 	var handleQueue:[ProcessHandle:DispatchSourceProtocol]
-	
 	init() {
 		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.sync")
 		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
 	}
-	
 	func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler)) {
 			internalSync.sync {
+                print(Colors.magenta("scheduled fd \(handle._fd)"))
                 let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:Priority.highest.globalConcurrentQueue)
 				newSource.setEventHandler {
 					if let newData = handle.availableData() {
@@ -52,7 +50,6 @@ internal class PipeReader {
 				newSource.activate()
 			}
 	}
-	
 	func unschedule(_ handle:ProcessHandle) {
 			internalSync.sync {
 				if let hasExisting = handleQueue[handle] {
@@ -170,7 +167,6 @@ internal class ProcessPipes {
 	}
 	
 	fileprivate static func forReadingAndWriting() throws -> (r:ProcessHandle, w:ProcessHandle) {
-		print("trying to make file descriptors")
         let fds = UnsafeMutablePointer<Int32>.allocate(capacity:2)
 		defer {
 			fds.deallocate()
@@ -217,7 +213,7 @@ internal class ProcessHandle:Hashable {
 		}
 	}
 	
-	private let _fd:Int32
+	fileprivate let _fd:Int32
 	var fileDescriptor:Int32 {
 		get {
 			internalSync.sync {

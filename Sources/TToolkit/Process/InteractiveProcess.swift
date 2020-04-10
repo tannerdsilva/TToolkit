@@ -2,6 +2,8 @@ import Foundation
 
 internal class ProcessMonitor {
 	
+//    let eventPipe:ProcessPipes
+    
 	let internalSync = DispatchQueue(label:"com.tannersilva.process.monitor.sync")
 	
 	var announceTimer:TTimer
@@ -20,6 +22,7 @@ internal class ProcessMonitor {
 	}
 	
 	init() {
+//        eventPipe = try ProcessPipes()
 		announceTimer = TTimer()
 		announceTimer.duration = 5
 		announceTimer.handler = { [weak self] _ in

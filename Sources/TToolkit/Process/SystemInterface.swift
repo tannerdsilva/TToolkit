@@ -85,22 +85,34 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
             forkedWork()
         default:
             //in parent, success
-            
             return forkResult
     }
 }
 
-
 //this forked process simply watches
-internal func tt_spawn_watcher(pid:pid_t, fd:Int32) throws -> pid_t {
+internal func tt_spawn_watcher(pid:pid_t, stdout:Int32?) throws -> pid_t {
     
     let forkResult = fork()
     
     func forkedWork() -> Never {
-        _close(STDIN_FILENO)
+//        if let hasStdin = stdin {
+//            _dup2(hasStdin, STDIN_FILENO)
+//            _close(STDIN_FILENO)
+//        }
+//
+        if let hasStdout = stdout {
+            _dup2(hasStdout, STDOUT_FILENO)
+            _close(STDOUT_FILENO)
+        }
         _close(STDERR_FILENO)
-        _dup2(fd, STDOUT_FILENO)
-        _close(STDOUT_FILENO)
+        
+        let newTimer = TTimer()
+        newTimer.handler = { _ in
+            print("engaged")
+        }
+        newTimer.duration = 10
+        newTimer.activate()
+        
         var waitResult:Int32 = 0
         var exitCode:Int32 = 0
         var errNo:Int32 = 0
@@ -108,7 +120,8 @@ internal func tt_spawn_watcher(pid:pid_t, fd:Int32) throws -> pid_t {
             waitResult = waitpid(pid, &exitCode, 0)
             errNo = errno
         } while waitResult == -1 && errNo == EINTR || WIFEXITED(exitCode) == false
-        print(fd)
+        newTimer.cancel()
+        print("exited")
         _exit(0)
     }
     
