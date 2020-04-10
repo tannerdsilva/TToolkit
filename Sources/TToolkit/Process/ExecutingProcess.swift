@@ -382,8 +382,11 @@ internal class ExecutingProcess {
                     }
                 })
             })
+            
+            
             print("Launched process \(launchedPid)")
-            try tt_spawn_watcher(pid: launchedPid, stdout: STDOUT_FILENO)
+            tt_wait_sync(pid:launchedPid)
+//            try tt_spawn_watcher(pid: launchedPid, stdout: STDOUT_FILENO)
 //            for (destination, source) in fHandles {
 //                let result = posix_spawn_file_actions_adddup2(fileActions, source, destination)
 //                if result != 0 {

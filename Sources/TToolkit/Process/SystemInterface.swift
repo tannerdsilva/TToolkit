@@ -89,6 +89,16 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
     }
 }
 
+internal func tt_wait_sync(pid:pid_t) {
+    var waitResult:Int32 = 0
+    var exitCode:Int32 = 0
+    var errNo:Int32 = 0
+    repeat {
+        waitResult = waitpid(pid, &exitCode, 0)
+        errNo = errno
+    } while waitResult == -1 && errNo == EINTR || WIFEXITED(exitCode) == false
+}
+
 //this forked process simply watches
 internal func tt_spawn_watcher(pid:pid_t, stdout:Int32?) throws -> pid_t {
     
