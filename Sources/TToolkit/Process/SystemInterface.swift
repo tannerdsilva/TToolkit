@@ -75,7 +75,6 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
             _dup2(STDERR_FILENO, hasStderr.writing)
             hasStderr.configureOutbound()
             _close(STDERR_FILENO)
-//            hasStderr.close()
         }
         _exit(Glibc.execvp(path, args))
         
