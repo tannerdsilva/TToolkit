@@ -347,10 +347,13 @@ public class InteractiveProcess:Hashable {
                 return
             }
             do {
+                print("init")
                 let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, workingDirectory: workingDirectory)
+                print("trying to make pipes")
                 let input = try ProcessPipes()
                 let output = try ProcessPipes()
                 let err = try ProcessPipes()
+                print("pipes made")
                 externalProcess.terminationHandler = termHandle
                 output.readHandler = { [weak self] someData in
                     guard let self = self else {
@@ -411,6 +414,7 @@ public class InteractiveProcess:Hashable {
                 print("error initializing")
             }
         }
+        print("scheduling")
         process_intialize_serial.async(execute:initializeWork)
         initSem.wait()
     }
