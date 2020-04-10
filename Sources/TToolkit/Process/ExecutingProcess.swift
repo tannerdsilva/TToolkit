@@ -356,7 +356,11 @@ internal class ExecutingProcess {
 	
     init(execute:URL, arguments:[String]?, workingDirectory:URL) throws {
 		self._executable = execute
-		self._arguments = arguments
+        
+        var argBuild = arguments ?? [String]()
+        argBuild.insert(_executable.path, at:0)
+		self._arguments = argBuild
+        
 		self._workingDirectory = workingDirectory
 		
 		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.execute.sync")
