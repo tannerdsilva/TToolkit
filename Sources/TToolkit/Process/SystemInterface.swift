@@ -81,7 +81,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         }
             
         if let hasStderr = stderr {
-            guard _dup2(hasStdout.writing, STDERR_FILENO) == 0 else {
+            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
             	fatalError("COULD NOT DUPE")
             }
             _close(hasStderr.writing)
