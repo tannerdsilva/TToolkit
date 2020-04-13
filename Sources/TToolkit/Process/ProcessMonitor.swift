@@ -204,7 +204,7 @@ internal class ProcessMonitor {
         
 		newSem.wait()
         
-		return try internalSync.sync {
+        let launchVars:(Int32, Date) = try internalSync.sync {
 			//guard that there was a worker pid launched (guard that there was no error launching the worker process
 			guard let hasWorkIdentifier = monitorWorkMapping[launchedMonitor], let launchTime = monitorWorkLaunchTimes[launchedMonitor] else {
 				//shoot, there was an error
@@ -218,5 +218,6 @@ internal class ProcessMonitor {
 			exitHandlers[hasWorkIdentifier] = onExit
 			return (hasWorkIdentifier, launchTime)
 		}
+        return launchVars
 	}
 }
