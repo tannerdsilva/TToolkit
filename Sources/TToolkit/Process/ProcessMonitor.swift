@@ -26,7 +26,7 @@ internal class ProcessMonitor {
 	private var dataLines = [Data]()
 	
 	init() {
-		let isync = DispatchQueue(label:"com.tannersilva.com.instance.process.monitor.sync", target:global_lock_queue)
+		let isync = DispatchQueue(label:"com.tannersilva.com.instance.process.monitor.sync")
 		
 		self.internalSync = isync
 		self.monitorWorkLaunchWaiters = [ProcessKey:DispatchSemaphore]()
@@ -79,15 +79,6 @@ internal class ProcessMonitor {
             print("poop")
             let hasNewLine = self.inputData(incomingData)
         }
-//            if hasNewLine, let newLines = extractNewLines() {
-//                for (_, curNewLine) in newLines.enumerated() {
-//                    print(Colors.red("enumerating"))
-//                    if let canLineBeString = String(data:curNewLine, encoding:.utf8) {
-//                        eventHandle(canLineBeString)
-//                    }
-//                }
-//            }
-//        }
 	}
 	
 	//when data is built to the point of becoming a valid event, it is passed here for parsing
