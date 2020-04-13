@@ -73,11 +73,14 @@ internal class ProcessMonitor {
 				self.dataBuffer.removeAll(keepingCapacity:true)
 				self.dataBuffer.append(tailData)
 				if parsedLines.count > 0 {
+					print(Colors.blue("Parsed lines!"))
 					return parsedLines
 				} else {
+					print(Colors.blue("nil"))
 					return nil
 				}
 			}
+			print(Colors.blue("nil"))
 			return nil
 		}
 	}
@@ -86,6 +89,7 @@ internal class ProcessMonitor {
 	private func processData(_ incomingData:Data) {
 		print(Colors.cyan("Process data is being called ------------------------------------------------------------"))
 		if self.inputData(incomingData) == true, let newLines = extractNewLines() {
+			print(Colors.red("enumerating"))
 			for (_, curNewLine) in newLines.enumerated() {
                 if let canLineBeString = String(data:curNewLine, encoding:.utf8) {
 					eventHandle(canLineBeString)
