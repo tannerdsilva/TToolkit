@@ -37,26 +37,26 @@ internal class PipeReader {
 		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
 	}
 	func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler)) {
-			internalSync.sync {
-                print(Colors.magenta("scheduled fd \(handle._fd)"))
-                let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:Priority.highest.globalConcurrentQueue)
-				newSource.setEventHandler {
-					if let newData = handle.availableData() {
-                        print(Colors.Green("READ \(newData.count)"))
-						work(newData)
-					}
-				}
-                handleQueue[handle] = newSource
-				newSource.activate()
+		print(Colors.magenta("scheduled fd \(handle._fd)"))
+		let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:Priority.highest.globalConcurrentQueue)
+		newSource.setEventHandler {
+			if let newData = handle.availableData() {
+				print(Colors.Green("READ \(newData.count)"))
+				work(newData)
 			}
+		}
+		internalSync.sync {
+			handleQueue[handle] = newSource
+		}
+		newSource.activate()
 	}
 	func unschedule(_ handle:ProcessHandle) {
-			internalSync.sync {
-				if let hasExisting = handleQueue[handle] {
-					hasExisting.cancel()
-					handleQueue[handle] = nil
-				}
+		internalSync.sync {
+			if let hasExisting = handleQueue[handle] {
+				hasExisting.cancel()
+				handleQueue[handle] = nil
 			}
+		}
 	}
 }
 internal let globalPR = PipeReader()
@@ -104,6 +104,7 @@ internal let globalPR = PipeReader()
 //	}
 //}
 //internal let globalWH = WriteWatcher()
+
 internal struct ExportedPipe {
     let reading:Int32
     let writing:Int32
@@ -115,8 +116,8 @@ internal struct ExportedPipe {
         _close(writing)
     }
     func close() {
-        configureOutbound()
-        configureInbound()
+        _close(writing)
+        _close(reading)
     }
 }
 
@@ -141,7 +142,7 @@ internal class ProcessPipes {
 					globalPR.scheduleForReading(reading, work:hasNewHandler)
 				} else {
 					if _readHandler != nil {
-//						globalPR.unschedule(reading)
+						globalPR.unschedule(reading)
 					}
 					_readHandler = nil
 				}
@@ -149,7 +150,7 @@ internal class ProcessPipes {
 		}
 	}
 	
-//	write handler
+	//write handler
 //	private var _writeHandler:WriteHandler? = nil
 //	var writeHandler:WriteHandler? {
 //		get {
@@ -173,12 +174,17 @@ internal class ProcessPipes {
 	
 	init() throws {
 		let readWrite = try Self.forReadingAndWriting()
-		
 		self.reading = readWrite.r
 		self.writing = readWrite.w
-
-		let ints = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", target:ppLocks)
+		
+		let ints = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", target:global_lock_queue)
 		self.internalSync = ints
+	}
+	
+	init(_ export:ExportedPipe) {
+		self.reading = ProcessHandle(fd:export.reading)
+		self.writing = ProcessHandle(fd:export.writing)
+		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", target:global_lock_queue)
 	}
 	
 	fileprivate static func forReadingAndWriting() throws -> (r:ProcessHandle, w:ProcessHandle) {
@@ -214,7 +220,13 @@ internal class ProcessPipes {
     }
 }
 
+
+
 internal class ProcessHandle:Hashable {
+	enum ProcessHandleError:Error {
+		case handleClosed
+	}
+	
 	fileprivate let internalSync:DispatchQueue
 	
 	private var _isClosed:Bool
@@ -241,11 +253,15 @@ internal class ProcessHandle:Hashable {
 		self._isClosed = false
 	}
 	
+	func write(_ stringObj:String) throws {
+		let stringData = try stringObj.safeData(using:.utf8)
+		try self.write(stringData)
+	}
+	
 	func write(_ dataObj:Data) throws {
 		try internalSync.sync {
 			guard _isClosed != true else {
-				//should throw
-				return
+				throw ProcessHandleError.handleClosed
 			}
 			try dataObj.withUnsafeBytes({
 				if let hasBaseAddress = $0.baseAddress {
@@ -262,18 +278,14 @@ internal class ProcessHandle:Hashable {
 			repeat {
 				bytesWritten = _write(_fd, buf.advanced(by:length - bytesRemaining), bytesRemaining)
 			} while (bytesWritten < 0 && errno == EINTR)
-			if bytesWritten <= 0 {
-				//should throw something here
-				return
-			}
 			bytesRemaining -= bytesWritten
 		}
 	}
 	
 	func availableData() -> Data? {
-		return internalSync.sync {
+		return try? internalSync.sync {
 			guard _isClosed != true else {
-				return nil
+				throw ProcessHandleError.handleClosed
 			}
 			var statbuf = stat()
 			if fstat(_fd, &statbuf) < 0 {

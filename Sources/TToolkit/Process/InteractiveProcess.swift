@@ -1,6 +1,6 @@
 import Foundation
 
-internal class ProcessMonitor {
+internal class DebugProcessMonitor {
 	
 //    let eventPipe:ProcessPipes
     
@@ -22,7 +22,6 @@ internal class ProcessMonitor {
 	}
 	
 	init() {
-//        eventPipe = try ProcessPipes()
 		announceTimer = TTimer()
 		announceTimer.duration = 5
 		announceTimer.handler = { [weak self] _ in
@@ -101,7 +100,7 @@ internal class ProcessMonitor {
 	}
 }
 
-internal let pmon = ProcessMonitor()
+internal let pmon = DebugProcessMonitor()
 
 public class InteractiveProcess:Hashable {
     private var _priority:Priority
@@ -236,14 +235,9 @@ public class InteractiveProcess:Hashable {
     var lines = [Data]() 
 	
     public init<C>(command:C, priority:Priority, run:Bool, workingDirectory:URL) throws where C:Command {
-        print("ip says hello")
         self._priority = priority
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
-
-        print("yay queues")
-        
         let rs = DispatchSemaphore(value:0)
-		
         let initSem = DispatchSemaphore(value:0)
         
 		self.runSemaphore = rs

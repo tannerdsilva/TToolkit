@@ -21,7 +21,6 @@ import Foundation
 fileprivate func _WSTATUS(_ status:Int32) -> Int32 {
     return status & 0x7f
 }
-
 fileprivate func WIFEXITED(_ status:Int32) -> Bool {
     return _WSTATUS(status) == 0
 }
@@ -52,60 +51,7 @@ extension Array where Element == String {
     }
 }
 
-//stdin: needs the write end
-//stdou
-internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>, wd:UnsafePointer<Int8>, stdin:ExportedPipe?, stdout:ExportedPipe?, stderr:ExportedPipe?) throws -> pid_t {
-    
-    let forkResult = fork()
-    
-    
-    func forkedWork() -> Never {
-        chdir(wd)
-        
-//         let dupedIn = _dup(STDIN_FILENO)
-//         let dupedOut = _dup(STDOUT_FILENO)
-//         let dupedErr = _dup(STDERR_FILENO)
-
-		if let hasStdin = stdin {
-            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
-				fatalError("COULD NOT DUPE")
-			}
-            _close(hasStdin.reading)
-        }
-        
-        if let hasStdout = stdout {
-            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
-            	fatalError("COULD NOT DUPE")
-            }
-            _close(hasStdout.writing)
-        }
-            
-        if let hasStderr = stderr {
-            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
-            	fatalError("COULD NOT DUPE")
-            }
-            _close(hasStderr.writing)
-        }
-        
-        
-        _exit(Glibc.execvp(path, args))
-        
-    }
-    
-    switch forkResult {
-        case -1:
-            //in parent, error
-            throw tt_spawn_error.systemForkErrorno(errno)
-        case 0:
-            //in child: success
-            forkedWork()
-        default:
-            //in parent, success
-            return forkResult
-    }
-}
-
-internal func tt_wait_sync(pid:pid_t) {
+internal func tt_wait_sync(pid:pid_t) -> Int32 {
     var waitResult:Int32 = 0
     var exitCode:Int32 = 0
     var errNo:Int32 = 0
@@ -113,41 +59,120 @@ internal func tt_wait_sync(pid:pid_t) {
         waitResult = waitpid(pid, &exitCode, 0)
         errNo = errno
     } while waitResult == -1 && errNo == EINTR || WIFEXITED(exitCode) == false
+    return exitCode
 }
 
-//this forked process simply watches
-internal func tt_spawn_watcher(pid:pid_t, stdout:Int32?) throws -> pid_t {
-    
+
+//spawns two processes. first process is responsible for executing the actual command. second process is responsible for watching the executing process, and notifying the parent about the status of the executing process. This "monitor process" is also responsible for closing the standard inputs and outputs so that they do not get mixed in with the parents standard file descriptors
+//the primary means of I/O for the monitor process is the file descriptor passed to this function `notify`. This file descriptor acts as the activity log for the monitor process.
+//three types of monitor process events, launch event, exit event, and fatal event
+internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>, wd:UnsafePointer<Int8>, stdin:ExportedPipe?, stdout:ExportedPipe?, stderr:ExportedPipe?, notify:Int32) throws -> ProcessMonitor.ProcessKey {    
     let forkResult = fork()
-    
-    func forkedWork() -> Never {
-//        if let hasStdin = stdin {
-//            _dup2(hasStdin, STDIN_FILENO)
-//            _close(STDIN_FILENO)
-//        }
-//
+
+	func executeProcessWork() {
+		_close(notify)
+		if let hasStdin = stdin {
+            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
+				_exit(-1)
+			}
+            hasStdin.close()
+        } else {
+        	_close(STDIN_FILENO)
+        }
         if let hasStdout = stdout {
-            _dup2(hasStdout, STDOUT_FILENO)
-            _close(STDOUT_FILENO)
+            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
+				_exit(-1)
+            }
+            hasStdout.close()
+        } else {
+        	_close(STDOUT_FILENO)
         }
-        _close(STDERR_FILENO)
-        
-        let newTimer = TTimer()
-        newTimer.handler = { _ in
-            print("engaged")
+        if let hasStderr = stderr {
+            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
+				_exit(-1)
+            }
+            hasStderr.close()
+        } else {
+        	_close(STDERR_FILENO)
         }
-        newTimer.duration = 10
-        newTimer.activate()
+
+        _exit(Glibc.execvp(path, args))
+	}
+	
+	func notifyFatal(_ ph:ProcessHandle) -> Never {
+		try! ph.write("x\(getpid())\n")
+		ph.close()
+		_exit(-1)
+	}
+	
+	func notifyAccess(_ ph:ProcessHandle) -> Never {
+		try! ph.write("a\(getpid())\n")
+		ph.close()
+		_exit(-1)
+	}
+	
+    func processMonitor() -> Never {
+    	let notifyHandle = ProcessHandle(fd:notify)
+    	
+    	//detach from parents standard inputs and outputs
+		_close(STDIN_FILENO)
+		_close(STDOUT_FILENO)
+		_close(STDERR_FILENO)
         
-        var waitResult:Int32 = 0
-        var exitCode:Int32 = 0
-        var errNo:Int32 = 0
-        repeat {
-            waitResult = waitpid(pid, &exitCode, 0)
-            errNo = errno
-        } while waitResult == -1 && errNo == EINTR || WIFEXITED(exitCode) == false
-        newTimer.cancel()
-        print("exited")
+        //access checks
+    	guard tt_directory_check(ptr:wd) == true && tt_execute_check(ptr:path) == true else {
+    		notifyAccess(notifyHandle)
+    	}
+    	
+    	//change working directory
+		guard chdir(wd) == 0 else {
+			notifyFatal(notifyHandle)
+		}
+		
+       	let processForkResult = fork()
+		switch processForkResult {
+			case -1:
+				notifyFatal(notifyHandle)
+				
+			case 0:
+				//in child: success
+				executeProcessWork()
+				
+			default:
+				//in monitor process, success
+				if let hasStdin = stdin {
+					hasStdin.close()
+				}
+				if let hasStdout = stdout {
+					hasStdout.close()
+				}
+				if let hasStderr = stderr {
+					hasStderr.close()
+				}
+
+				//detach from the executing process's standard inputs and outputs
+				//notify the process monitor of the newly launched worker process
+				let processIDEventMapping = "\(getpid()) -> \(processForkResult)"
+				let launchEvent = "l" + processIDEventMapping + "\n"
+				do {
+					try notifyHandle.write(launchEvent)
+				} catch _ {
+                    notifyFatal(notifyHandle)
+				}
+								
+				//wait for the worker process to exit
+                let exitCode = tt_wait_sync(pid:processForkResult)
+				
+				//notify the process monitor about the exit of the executing process
+				let exitEvent = "e" + processIDEventMapping + " -> \(exitCode)" + "\n"
+				do {
+					try notifyHandle.write(exitEvent)
+				} catch _ {
+                    notifyFatal(notifyHandle)
+				}
+				_close(notify)
+		}
+
         _exit(0)
     }
     
@@ -157,9 +182,45 @@ internal func tt_spawn_watcher(pid:pid_t, stdout:Int32?) throws -> pid_t {
             throw tt_spawn_error.systemForkErrorno(errno)
         case 0:
             //in child: success
-            forkedWork()
+            processMonitor()
         default:
             //in parent, success
             return forkResult
     }
+}
+
+internal func tt_execute_check(url:URL) -> Bool {
+	let urlPath = url.path
+	return urlPath.withCString { cstrBuff in
+		return tt_execute_check(ptr:cstrBuff)
+	}
+}
+
+internal func tt_directory_check(url:URL) -> Bool {
+	let urlPath = url.path
+	return urlPath.withCString { cstrBuff in
+		return tt_directory_check(ptr:cstrBuff)
+	}
+}
+
+internal func tt_directory_check(ptr:UnsafePointer<Int8>) -> Bool {
+	var statInfo = stat()
+	guard stat(ptr, &statInfo) == 0, statInfo.st_mode & S_IFMT == S_IFDIR else {
+		return false
+	}
+	guard access(ptr, X_OK) == 0 else {
+		return false
+	}
+	return true
+}
+
+internal func tt_execute_check(ptr:UnsafePointer<Int8>) -> Bool {
+	var statInfo = stat()
+	guard stat(ptr, &statInfo) == 0, statInfo.st_mode & S_IFMT == S_IFREG else {
+		return false
+	}
+	guard access(ptr, X_OK) == 0 else {
+		return false
+	}
+	return true
 }
