@@ -54,42 +54,39 @@ internal class ProcessMonitor {
 			}
 			return false
 		}
-		self.internalSync.sync {
-			self.dataBuffer.append(someData)
-		}
+        self.dataBuffer.append(someData)
 		return hasNewLine
 	}
 	
 	//parses the data buffer for potential new lines, returns any of those lines
 	private func extractNewLines() -> [Data]? {
-		let newParsedLines:[Data]? = self.internalSync.sync {
-			if var parsedLines = self.dataBuffer.lineSlice(removeBOM:false) {
-				let tailData = parsedLines.removeLast()
-				self.dataBuffer.removeAll(keepingCapacity:true)
-				self.dataBuffer.append(tailData)
-				if parsedLines.count > 0 {
-					return parsedLines
-				} else {
-					return nil
-				}
-			}
-			return nil
-		}
-		return newParsedLines
+        if var parsedLines = self.dataBuffer.lineSlice(removeBOM:false) {
+            let tailData = parsedLines.removeLast()
+            self.dataBuffer.removeAll(keepingCapacity:true)
+            self.dataBuffer.append(tailData)
+            if parsedLines.count > 0 {
+                return parsedLines
+            } else {
+                return nil
+            }
+        }
+        return nil
 	}
 	
 	//when data comes off the file descriptor, it is passed here to be processed into an instance
 	private func processData(_ incomingData:Data) {
-		print(Colors.cyan("Process data is being called ------------------------------------------------------------"))
-		let hasNewLine = self.inputData(incomingData)
-		if hasNewLine, let newLines = extractNewLines() {
-			for (_, curNewLine) in newLines.enumerated() {
-				print(Colors.red("enumerating"))
-				if let canLineBeString = String(data:curNewLine, encoding:.utf8) {
-					eventHandle(canLineBeString)
-				}
-			}
-		}
+        self.internalSync.sync {
+            print(Colors.cyan("Process data is being called ------------------------------------------------------------"))
+            let hasNewLine = self.inputData(incomingData)
+            if hasNewLine, let newLines = extractNewLines() {
+                for (_, curNewLine) in newLines.enumerated() {
+                    print(Colors.red("enumerating"))
+                    if let canLineBeString = String(data:curNewLine, encoding:.utf8) {
+                        eventHandle(canLineBeString)
+                    }
+                }
+            }
+        }
 	}
 	
 	//when data is built to the point of becoming a valid event, it is passed here for parsing
@@ -150,50 +147,42 @@ internal class ProcessMonitor {
 		}
 	}
 	
-	fileprivate func fatalEventOccurred(mon:Int32) { 
-		internalSync.sync {
-			if let hasWaiter = monitorWorkLaunchWaiters[mon] {
-				hasWaiter.signal()
-				monitorWorkLaunchWaiters[mon] = nil
-			}
-			monitorWorkMapping[mon] = nil
-		}
+	fileprivate func fatalEventOccurred(mon:Int32) {
+        if let hasWaiter = monitorWorkLaunchWaiters[mon] {
+            hasWaiter.signal()
+            monitorWorkLaunchWaiters[mon] = nil
+        }
+        monitorWorkMapping[mon] = nil
 	}
 		
-	fileprivate func accessErrorOccurred(mon:Int32) { 
-		internalSync.sync {
-			monitorWorkMapping[mon] = nil
-			_ = accessErrors.update(with:mon)
-			if let hasWaiter = monitorWorkLaunchWaiters[mon] {
-				hasWaiter.signal()
-				monitorWorkLaunchWaiters[mon] = nil
-			}
-		}
+	fileprivate func accessErrorOccurred(mon:Int32) {
+        monitorWorkMapping[mon] = nil
+        _ = accessErrors.update(with:mon)
+        if let hasWaiter = monitorWorkLaunchWaiters[mon] {
+            hasWaiter.signal()
+            monitorWorkLaunchWaiters[mon] = nil
+        }
 	}
 	
 	fileprivate func processLaunched(mon:Int32, work:Int32, time:Date) {
-		internalSync.sync {
-			guard let hasWaiter = monitorWorkLaunchWaiters[mon] else {
-				print("unable to find the waiting semaphore for monitor \(mon) and pid \(work)")
-				return
-			}
-			monitorWorkMapping[mon] = work
-			monitorWorkLaunchTimes[mon] = time
-			hasWaiter.signal()
-			monitorWorkLaunchWaiters[mon] = nil
-		}
+        guard let hasWaiter = monitorWorkLaunchWaiters[mon] else {
+            print("unable to find the waiting semaphore for monitor \(mon) and pid \(work)")
+            return
+        }
+        monitorWorkMapping[mon] = work
+        monitorWorkLaunchTimes[mon] = time
+        hasWaiter.signal()
+        monitorWorkLaunchWaiters[mon] = nil
 	}
 	
 	fileprivate func processExited(mon:Int32, work:Int32, code:Int32) {
-		internalSync.sync {
-			guard let hasExitHandler = exitHandlers[work] else {
-				print("unable to find the waiting semaphore for monitor \(mon) and pid \(work)")
-				return
-			}
-			monitorWorkMapping[mon] = nil
-			monitorWorkLaunchTimes[mon] = nil
-			hasExitHandler(code)
-		}
+        guard let hasExitHandler = exitHandlers[work] else {
+            print("unable to find the waiting semaphore for monitor \(mon) and pid \(work)")
+            return
+        }
+        monitorWorkMapping[mon] = nil
+        monitorWorkLaunchTimes[mon] = nil
+        hasExitHandler(code)
 	}
 		
 	func launchProcessContainer(_ workToRegister:@escaping(Int32) throws -> ProcessMonitor.ProcessKey, onExit:@escaping(ExitHandler)) throws -> (Int32, Date) {
