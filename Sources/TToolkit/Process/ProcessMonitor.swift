@@ -48,50 +48,44 @@ internal class ProcessMonitor {
 	
 	//put the data in the buffer, return true if it contains a new line
 	private func inputData(_ someData:Data) -> Bool {
-		print(Colors.yellow("input data?"))
         let hasNewLine = someData.withUnsafeBytes { unsafeBuffer -> Bool in
 			if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
 				return true
 			}
 			return false
 		}
-		print(Colors.yellow("\(hasNewLine)"))
 		self.internalSync.sync {
 			self.dataBuffer.append(someData)
 		}
-		print(Colors.yellow("input data!"))
 		return hasNewLine
 	}
 	
 	//parses the data buffer for potential new lines, returns any of those lines
 	private func extractNewLines() -> [Data]? {
-		print(Colors.blue("extract?"))
-		return self.internalSync.sync {
-			print(Colors.blue("extract!"))
+		let newParsedLines:[Data]? = self.internalSync.sync {
 			if var parsedLines = self.dataBuffer.lineSlice(removeBOM:false) {
 				let tailData = parsedLines.removeLast()
 				self.dataBuffer.removeAll(keepingCapacity:true)
 				self.dataBuffer.append(tailData)
 				if parsedLines.count > 0 {
-					print(Colors.blue("Parsed lines!"))
 					return parsedLines
 				} else {
-					print(Colors.blue("nil"))
 					return nil
 				}
 			}
-			print(Colors.blue("nil"))
 			return nil
 		}
+		return newParsedLines
 	}
 	
 	//when data comes off the file descriptor, it is passed here to be processed into an instance
 	private func processData(_ incomingData:Data) {
 		print(Colors.cyan("Process data is being called ------------------------------------------------------------"))
-		if self.inputData(incomingData) == true, let newLines = extractNewLines() {
-			print(Colors.red("enumerating"))
+		let hasNewLine = self.inputData(incomingData)
+		if hasNewLine, let newLines = extractNewLines() {
 			for (_, curNewLine) in newLines.enumerated() {
-                if let canLineBeString = String(data:curNewLine, encoding:.utf8) {
+				print(Colors.red("enumerating"))
+				if let canLineBeString = String(data:curNewLine, encoding:.utf8) {
 					eventHandle(canLineBeString)
 				}
 			}
