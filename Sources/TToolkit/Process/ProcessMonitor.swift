@@ -79,6 +79,7 @@ internal class ProcessMonitor {
 	
 	//when data comes off the file descriptor, it is passed here to be processed into an instance
 	private func processData(_ incomingData:Data) {
+		print(Colors.cyan("Process data is being called ------------------------------------------------------------"))
 		if self.inputData(incomingData) == true, let newLines = extractNewLines() {
 			for (_, curNewLine) in newLines.enumerated() {
                 if let canLineBeString = String(data:curNewLine, encoding:.utf8) {
