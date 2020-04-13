@@ -48,21 +48,26 @@ internal class ProcessMonitor {
 	
 	//put the data in the buffer, return true if it contains a new line
 	private func inputData(_ someData:Data) -> Bool {
+		print(Colors.yellow("input data?"))
         let hasNewLine = someData.withUnsafeBytes { unsafeBuffer -> Bool in
 			if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
 				return true
 			}
 			return false
 		}
+		print(Colors.yellow("\(hasNewLine)"))
 		self.internalSync.sync {
 			self.dataBuffer.append(someData)
 		}
+		print(Colors.yellow("input data!"))
 		return hasNewLine
 	}
 	
 	//parses the data buffer for potential new lines, returns any of those lines
 	private func extractNewLines() -> [Data]? {
+		print(Colors.blue("extract?"))
 		return self.internalSync.sync {
+			print(Colors.blue("extract!"))
 			if var parsedLines = self.dataBuffer.lineSlice(removeBOM:false) {
 				let tailData = parsedLines.removeLast()
 				self.dataBuffer.removeAll(keepingCapacity:true)
