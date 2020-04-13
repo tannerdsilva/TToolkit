@@ -44,11 +44,9 @@ internal class PipeReader {
 				work(newData)
 			}
 		}
-        print(Colors.blue("scheduled fd \(handle._fd)"))
 		internalSync.sync {
 			handleQueue[handle] = newSource
-		}
-        print(Colors.blue("scheduling successful"))
+        }
 		newSource.activate()
 	}
 	func unschedule(_ handle:ProcessHandle) {
@@ -106,6 +104,7 @@ internal let globalPR = PipeReader()
 //}
 //internal let globalWH = WriteWatcher()
 
+//the exported pipe is passed to forked child processes. would rather pass structured data to forking
 internal struct ExportedPipe {
     let reading:Int32
     let writing:Int32
@@ -117,8 +116,8 @@ internal struct ExportedPipe {
         _close(writing)
     }
     func close() {
-        _close(writing)
-        _close(reading)
+        _ = _close(writing)
+        _ = _close(reading)
     }
 }
 
@@ -127,8 +126,27 @@ internal class ProcessPipes {
 
 	let reading:ProcessHandle
 	let writing:ProcessHandle
+    
+    //related to data intake
+    private var _readBuffer = Data()
+    private var _readLines = [Data]()
+    private var _readQueue:DispatchQueue? = nil
+    var readQueue:DispatchQueue? {
+        get {
+            return internalSync.sync {
+                return _readQueue
+            }
+        }
+        set {
+            return internalSync.sync {
+                _readQueue = newValue
+                if _readQueue != nil && _readLines.count > 0 {
+                    _scheduleReadCallback(_readLines.count)
+                }
+            }
+        }
+    }
 
-	//readability handler
 	private var _readHandler:ReadHandler? = nil
 	var readHandler:ReadHandler? {
 		get {
@@ -140,7 +158,12 @@ internal class ProcessPipes {
 			internalSync.sync {
 				if let hasNewHandler = newValue {
 					_readHandler = hasNewHandler
-					globalPR.scheduleForReading(reading, work:hasNewHandler)
+					globalPR.scheduleForReading(reading, work:{ [weak self] someData in
+                        guard let self = self else {
+                            return
+                        }
+                        self.intake(someData)
+                    })
 				} else {
 					if _readHandler != nil {
 						globalPR.unschedule(reading)
@@ -150,30 +173,59 @@ internal class ProcessPipes {
 			}
 		}
 	}
+    
+    func intake(_ dataIn:Data) {
+        let hasNewLine = dataIn.withUnsafeBytes { unsafeBuffer -> Bool in
+            if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
+                return true
+            }
+            return false
+        }
+        self.internalSync.sync {
+            _readBuffer.append(dataIn)
+            if hasNewLine {
+                if var parsedLines = _readBuffer.lineSlice(removeBOM:false) {
+                    let tailData = parsedLines.removeLast()
+                    _readBuffer.removeAll(keepingCapacity:true)
+                    _readBuffer.append(tailData)
+                    if parsedLines.count > 0 {
+                        _readLines.append(contentsOf:parsedLines)
+                        _scheduleReadCallback(parsedLines.count)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func popIntakeLineAndHandler() -> (Data?, ReadHandler?) {
+        return self.internalSync.sync {
+            if self._readLines.count > 0 {
+                return (self._readLines.remove(at:0), _readHandler)
+            }
+            return (nil, _readHandler)
+        }
+    }
+    
+    func _scheduleReadCallback(_ nTimes:Int) {
+        let asyncCallbackHandler = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
+            guard let self = self else {
+                return
+            }
+            let (newDataLine, handlerToCall) = self.popIntakeLineAndHandler()
+            if let hasNewDataLine = newDataLine, let hasHandler = handlerToCall {
+                print(Colors.BgBlue("CALLING CALLBAK"))
+                hasHandler(hasNewDataLine)
+            }
+        }
+        
+        if let hasCallback = _readQueue {
+            for _ in 0..<nTimes {
+                hasCallback.async(execute:asyncCallbackHandler)
+            }
+        }
+    }
 	
-	//write handler
-//	private var _writeHandler:WriteHandler? = nil
-//	var writeHandler:WriteHandler? {
-//		get {
-//			return internalSync.sync {
-//				return _writeHandler
-//			}
-//		}
-//		set {
-//			internalSync.sync {
-//				if let hasNewHandler = newValue {
-//					_writeHandler = hasNewHandler
-//					globalWH.scheduleWriteAvailability(writing, queue:internalCallback, group:_callbackGroup, work:hasNewHandler)
-//				} else {
-//					if _writeHandler != nil {
-//						globalWH.unschedule(writing)
-//					}
-//				}
-//			}
-//		}
-//	}
-	
-	init() throws {
+    init() throws {
 		let readWrite = try Self.forReadingAndWriting()
 		self.reading = readWrite.r
 		self.writing = readWrite.w

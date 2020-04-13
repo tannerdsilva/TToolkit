@@ -5,6 +5,68 @@ internal enum ProcessLaunchedError:Error {
 	case internalError
 }
 
+//fileprivate let processMonitorAsyncPriority = Priority.highest.asDispatchQoS(relative:Int(Int32.max))
+//internal class ProcessMonitor {
+//    internal typealias ProcessKey = pid_t
+//    internal typealias ExitHandler = (Int32) -> Void
+//    
+//    //these is the pipe that is used to read data from the containing monitor process
+//    private var masterPipe:ProcessPipes?
+//    
+//    private let internalSync:DispatchQueue
+//    private let internalAsync:DispatchQueue
+//    
+//    //step 1: waiting for containers to launch their worker processes
+//    var monitorWorkLaunchWaiters:[ProcessKey:DispatchSemaphore]
+//    
+//    //step 1.5: processes that failed to launch their work
+//    var monitorWorkErrors:[ProcessKey:ProcessLaunchedError]
+//    
+//    //step 2: processes that are working
+//    var monitorWorkLaunchTimes:[ProcessKey:Date]
+//    var monitorWorkMapping:[ProcessKey:Int32]
+//    
+//    //step 3: exit handlers
+//    var monitorWorkHandlers:[ProcessKey:ExitHandler]
+//    
+//    //data buffers
+//    var dataIntake = Data()
+//    
+//    
+//    init() {
+//        self.masterPipe = nil
+//        self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.monitor.sync", target:global_lock_queue)
+//        self.internalAsync = DispatchQueue(label:"com.tannersilva.instance.process.monitor.async", qos:processMonitorAsyncPriority, target:process_master_queue)
+//        self.monitorWorkLaunchWaiters = [ProcessKey:DispatchSemaphore]()
+//        self.monitorWorkErrors = [ProcessKey:ProcessLaunchedError]()
+//        self.monitorWorkLaunchTimes = [ProcessKey:Date]()
+//        self.monitorWorkMapping = [ProcessKey:Int32]()
+//        self.monitorWorkHandlers = [ProcessKey:ExitHandler]()
+//    }
+//    
+//    func intakeData(_ inputData:Data) {
+//        let hasNewLine = inputData.withUnsafeBytes { unsafeBuffer -> Bool in
+//            if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
+//                return true
+//            }
+//            return false
+//        }
+//        internalSync.sync {
+//            dataIntake.append(inputData)
+//            if hasNewLine == true {
+//                if var parsedLines = dataIntake.lineSlice(removeBOM:false) {
+//                    let tailData = parsedLines.removeLast()
+//                    dataIntake.removeAll(keepingCapacity:true)
+//                    dataIntake.append(tailData)
+//                    if parsedLines.count > 0 {
+//                        return parsedLines
+//                    }
+//                }
+//            }
+//        }
+//    }
+//}
+
 internal var globalProcessMonitor:ProcessMonitor = ProcessMonitor()
 internal class ProcessMonitor {
 	internal typealias ProcessKey = pid_t
@@ -37,51 +99,17 @@ internal class ProcessMonitor {
 	private func loadPipes() throws {
 		let mainPipe = try ProcessPipes()
 		mainPipe.readHandler = { [weak self] someData in
-			guard let self = self else {
+            guard let self = self, let asString = String(data:someData, encoding:.utf8) else {
 				return
 			}
-			self.processData(someData)
+			self.eventHandle(asString)
 		}
 		self.masterPipe = mainPipe
 	}
 	
-	//put the data in the buffer, return true if it contains a new line
-	private func inputData(_ someData:Data) -> Bool {
-        let hasNewLine = someData.withUnsafeBytes { unsafeBuffer -> Bool in
-			if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
-				return true
-			}
-			return false
-		}
-        self.dataBuffer.append(someData)
-		return hasNewLine
-	}
-	
-	//parses the data buffer for potential new lines, returns any of those lines
-	private func extractNewLines() -> [Data]? {
-        if var parsedLines = self.dataBuffer.lineSlice(removeBOM:false) {
-            let tailData = parsedLines.removeLast()
-            self.dataBuffer.removeAll(keepingCapacity:true)
-            self.dataBuffer.append(tailData)
-            if parsedLines.count > 0 {
-                return parsedLines
-            } else {
-                return nil
-            }
-        }
-        return nil
-	}
-	
-	//when data comes off the file descriptor, it is passed here to be processed into an instance
-	private func processData(_ incomingData:Data) {
-        self.internalSync.sync {
-            print("poop")
-            let hasNewLine = self.inputData(incomingData)
-        }
-	}
-	
 	//when data is built to the point of becoming a valid event, it is passed here for parsing
 	internal func eventHandle(_ newEvent:String) {
+        print("event")
 		guard let eventMode = newEvent.first else {
 			return
 		}
