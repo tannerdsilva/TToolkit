@@ -37,17 +37,18 @@ internal class PipeReader {
 		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
 	}
 	func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler)) {
-		print(Colors.magenta("scheduled fd \(handle._fd)"))
-		let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:Priority.highest.globalConcurrentQueue)
+        let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:Priority.highest.globalConcurrentQueue)
 		newSource.setEventHandler {
 			if let newData = handle.availableData() {
 				print(Colors.Green("READ \(newData.count)"))
 				work(newData)
 			}
 		}
+        print(Colors.blue("scheduled fd \(handle._fd)"))
 		internalSync.sync {
 			handleQueue[handle] = newSource
 		}
+        print(Colors.blue("scheduling successful"))
 		newSource.activate()
 	}
 	func unschedule(_ handle:ProcessHandle) {

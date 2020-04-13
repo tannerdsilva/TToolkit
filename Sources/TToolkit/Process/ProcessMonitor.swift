@@ -6,7 +6,6 @@ internal enum ProcessLaunchedError:Error {
 }
 
 internal var globalProcessMonitor:ProcessMonitor = ProcessMonitor()
-
 internal class ProcessMonitor {
 	internal typealias ProcessKey = pid_t
 	internal typealias ExitHandler = (Int32) -> Void
@@ -188,20 +187,18 @@ internal class ProcessMonitor {
             }
 		}
         
-        let launchedMonitor:ProcessMonitor.ProcessKey = try internalSync.sync {
-            let newWorkId = try workToRegister(writeFD)
-			monitorWorkLaunchWaiters[newWorkId] = newSem
-			return newWorkId
-		}
-        
+        let launchedProcess = try workToRegister(writeFD)
+        internalSync.sync {
+            monitorWorkLaunchWaiters[launchedProcess] = newSem
+        }
 		newSem.wait()
         
         let launchVars:(Int32, Date) = try internalSync.sync {
 			//guard that there was a worker pid launched (guard that there was no error launching the worker process
-			guard let hasWorkIdentifier = monitorWorkMapping[launchedMonitor], let launchTime = monitorWorkLaunchTimes[launchedMonitor] else {
+			guard let hasWorkIdentifier = monitorWorkMapping[launchedProcess], let launchTime = monitorWorkLaunchTimes[launchedProcess] else {
 				//shoot, there was an error
-				if accessErrors.contains(launchedMonitor) == true {
-					accessErrors.remove(launchedMonitor)
+				if accessErrors.contains(launchedProcess) == true {
+					accessErrors.remove(launchedProcess)
 					throw ProcessLaunchedError.badAccess
 				} else {
 					throw ProcessLaunchedError.internalError
