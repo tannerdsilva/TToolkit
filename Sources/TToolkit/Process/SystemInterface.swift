@@ -72,30 +72,10 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
     
 	func executeProcessWork() {
 		_close(notify)
-        if let hasStdin = stdin {
-            print("in is triggered")
-            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
-                _exit(-1)
-            }
-//            hasStdin.close()
-        }
-        if let hasStderr = stderr {
-            print("err is triggered")
-            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
-                _exit(-1)
-            }
-//            hasStderr.close()
-        }
-        if let hasStdout = stdout {
-            print("out is triggered")
-            for i in 0..<5000 {
-                write(hasStdout.writing, "fuck you\n", "fuck you\n".count)
-            }
-            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
-                _exit(-1)
-            }
-//            hasStdout.close()
-        }
+        stdout?.close()
+        stderr?.close()
+        stdin?.close()
+        
         _exit(Glibc.execvp(path, args))
 	}
 	
@@ -127,7 +107,32 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         _close(STDIN_FILENO)
         _close(STDOUT_FILENO)
         _close(STDERR_FILENO)
-
+        
+        if let hasStdin = stdin {
+            print("in is triggered")
+            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
+                _exit(-1)
+            }
+//            hasStdin.close()
+        }
+        if let hasStderr = stderr {
+            print("err is triggered")
+            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
+                _exit(-1)
+            }
+//            hasStderr.close()
+        }
+        if let hasStdout = stdout {
+            print("out is triggered")
+            for i in 0..<5000 {
+                write(hasStdout.writing, "fuck you\n", "fuck you\n".count)
+            }
+            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
+                _exit(-1)
+            }
+//            hasStdout.close()
+        }
+        
        	let processForkResult = fork()
 		switch processForkResult {
 			case -1:
@@ -138,6 +143,13 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 				executeProcessWork()
 				
 			default:
+                _close(STDIN_FILENO)
+                _close(STDOUT_FILENO)
+                _close(STDERR_FILENO)
+                
+                stdout?.close()
+                stderr?.close()
+                stdin?.close()
                 
 				//detach from the executing process's standard inputs and outputs
 				//notify the process monitor of the newly launched worker process
