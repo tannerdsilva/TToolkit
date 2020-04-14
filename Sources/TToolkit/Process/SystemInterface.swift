@@ -119,7 +119,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 //            hasStderr.close()
         }
         for i in 0..<10000 {
-            write(hasStdout.writing, "fuck you\n", "fuck you\n".count)
+            write(stdout!.writing, "fuck you\n", "fuck you\n".count)
         }
         
        	let processForkResult = fork()
