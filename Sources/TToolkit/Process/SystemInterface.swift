@@ -71,30 +71,24 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 
 	func executeProcessWork() {
 		_close(notify)
-//		if let hasStdin = stdin {
-//            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
-//				_exit(-1)
-//			}
-//            hasStdin.close()
-//        } else {
-//        	_close(STDIN_FILENO)
-//        }
-//        if let hasStdout = stdout {
-//            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
-//				_exit(-1)
-//            }
-//            hasStdout.close()
-//        } else {
-//        	_close(STDOUT_FILENO)
-//        }
-//        if let hasStderr = stderr {
-//            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
-//				_exit(-1)
-//            }
-//            hasStderr.close()
-//        } else {
-//        	_close(STDERR_FILENO)
-//        }
+        if let hasStdin = stdin {
+            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
+                _exit(-1)
+            }
+            hasStdin.close()
+        }
+        if let hasStdout = stdout {
+            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
+                _exit(-1)
+            }
+            hasStdout.close()
+        }
+        if let hasStderr = stderr {
+            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
+                _exit(-1)
+            }
+            hasStderr.close()
+        }
 
         _exit(Glibc.execvp(path, args))
 	}
@@ -114,24 +108,6 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
     func processMonitor() -> Never {
     	let notifyHandle = ProcessHandle(fd:notify)
         
-        if let hasStdin = stdin {
-            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
-                _exit(-1)
-            }
-            hasStdin.close()
-        }
-        if let hasStdout = stdout {
-            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
-                _exit(-1)
-            }
-            hasStdout.close()
-        }
-        if let hasStderr = stderr {
-            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
-                _exit(-1)
-            }
-            hasStderr.close()
-        }
         //access checks
     	guard tt_directory_check(ptr:wd) == true && tt_execute_check(ptr:path) == true else {
     		notifyAccess(notifyHandle)
@@ -157,7 +133,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
                 _close(STDIN_FILENO)
                 _close(STDOUT_FILENO)
                 _close(STDERR_FILENO)
-
+                
 				//detach from the executing process's standard inputs and outputs
 				//notify the process monitor of the newly launched worker process
 				let processIDEventMapping = "\(getpid()) -> \(processForkResult)"
