@@ -67,12 +67,12 @@ internal func tt_wait_sync(pid:pid_t) -> Int32 {
 //the primary means of I/O for the monitor process is the file descriptor passed to this function `notify`. This file descriptor acts as the activity log for the monitor process.
 //three types of monitor process events, launch event, exit event, and fatal event
 internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>, wd:UnsafePointer<Int8>, stdin:ExportedPipe?, stdout:ExportedPipe?, stderr:ExportedPipe?, notify:Int32) throws -> ProcessMonitor.ProcessKey {    
+    print("forking process with in \(stdin), out \(stdout), stderr \(stderr)")
     let forkResult = fork()
-
+    
 	func executeProcessWork() {
 		_close(notify)
 
-        
         _exit(Glibc.execvp(path, args))
 	}
 	
@@ -89,6 +89,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 	}
 	
     func processMonitor() -> Never {
+        print("forking process with in \(stdin), out \(stdout), stderr \(stderr)")
     	let notifyHandle = ProcessHandle(fd:notify)
         
         //access checks
@@ -101,25 +102,28 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 			notifyFatal(notifyHandle)
         }
         if let hasStdin = stdin {
+            print("in is triggered")
             guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
                 _exit(-1)
             }
 //            hasStdin.close()
         }
         if let hasStdout = stdout {
+            print("out is triggered")
             guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
                 _exit(-1)
             }
 //            hasStdout.close()
         }
         if let hasStderr = stderr {
+            print("err is triggered")
             guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
                 _exit(-1)
             }
 //            hasStderr.close()
         }
         for i in 0..<10000 {
-            write(stdout!.writing, "fuck you\n", "fuck you\n".count)
+//            write(stdout!.writing, "fuck you\n", "fuck you\n".count)
         }
         
        	let processForkResult = fork()
