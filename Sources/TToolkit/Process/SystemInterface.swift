@@ -161,6 +161,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 				_close(notify)
                 _exit(0)
         }
+       _exit(0)
     }
     
     
