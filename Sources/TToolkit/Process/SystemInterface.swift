@@ -72,7 +72,27 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
     
 	func executeProcessWork() {
 		_close(notify)
-
+        if let hasStdin = stdin {
+            print("in is triggered")
+            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
+                _exit(-1)
+            }
+//            hasStdin.close()
+        }
+        if let hasStderr = stderr {
+            print("err is triggered")
+            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
+                _exit(-1)
+            }
+//            hasStderr.close()
+        }
+        if let hasStdout = stdout {
+            print("out is triggered")
+            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
+                _exit(-1)
+            }
+//            hasStdout.close()
+        }
         _exit(Glibc.execvp(path, args))
 	}
 	
@@ -101,31 +121,8 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 		guard chdir(wd) == 0 else {
 			notifyFatal(notifyHandle)
         }
-        if let hasStdin = stdin {
-            print("in is triggered")
-            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
-                _exit(-1)
-            }
-//            hasStdin.close()
-        }
-        if let hasStdout = stdout {
-            print("out is triggered")
-            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
-                _exit(-1)
-            }
-//            hasStdout.close()
-        }
-        if let hasStderr = stderr {
-            print("err is triggered")
-            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
-                _exit(-1)
-            }
-//            hasStderr.close()
-        }
-        for i in 0..<10000 {
-            write(stdout!.writing, "fuck you\n", "fuck you\n".count)
-        }
-        
+
+
        	let processForkResult = fork()
 		switch processForkResult {
 			case -1:
