@@ -238,7 +238,7 @@ public class InteractiveProcess:Hashable {
         self._priority = priority
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
         let rs = DispatchSemaphore(value:0)
-        let initSem = DispatchSemaphore(value:0)
+//        let initSem = DispatchSemaphore(value:0)
         
 		self.runSemaphore = rs
 		self._state = .initialized
@@ -408,14 +408,15 @@ public class InteractiveProcess:Hashable {
                     self.stderr = err
                 }
                 
-                initSem.signal()
+//                initSem.signal()
             } catch let error {
                 print("error initializing")
             }
         }
         print("scheduling")
-        process_intialize_serial.async(execute:initializeWork)
-        initSem.wait()
+        initializeWork.perform()
+//        process_intialize_serial.async(execute:initializeWork)
+//        initSem.wait()
     }
 	
 	
