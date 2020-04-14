@@ -213,6 +213,7 @@ internal class ProcessMonitor {
                 print("unable to find the waiting semaphore for monitor \(mon) and pid \(work)")
                 return
             }
+            print("exit thing")
             monitorWorkMapping[mon] = nil
             monitorWorkLaunchTimes[mon] = nil
             hasExitHandler(code)

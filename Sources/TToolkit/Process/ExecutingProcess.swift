@@ -250,6 +250,7 @@ internal class ExecutingProcess {
     }
     
     internal func exitHandle(_ exitCode:Int32) {
+        print("EXIT HANDLER")
         if let hasHandler = terminationHandler, let hasQueue = terminationQueue {
             hasQueue.async(execute:hasHandler)
         }
