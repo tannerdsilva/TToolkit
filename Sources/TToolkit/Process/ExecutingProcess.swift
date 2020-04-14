@@ -246,8 +246,6 @@ internal class ExecutingProcess {
             self._launchTime = launchedDate
             
             print("Launched process \(launchedPid)")
-            
-            tt_wait_sync(pid:launchedPid)
 
             self._launchTime = Date()
             self._processId = launchedPid
