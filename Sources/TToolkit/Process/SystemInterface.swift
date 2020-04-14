@@ -124,9 +124,6 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
             guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
                 _exit(-1)
             }
-            for i in 0..<555 {
-                try write(STDOUT_FILENO, "you fucking suck\n", "you fucking suck\n".count)
-            }
 //            hasStdout.close()
         }
 

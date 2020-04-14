@@ -132,7 +132,7 @@ internal class ProcessPipes {
     //related to data intake
     private var _readBuffer = Data()
     private var _readLines = [Data]()
-    private var _readQoS:DispatchQoS = Priority.default.asDispatchQoS()
+    private var _readQoS:DispatchQoS = Priority.highest.asDispatchQoS()
     var readQoS:DispatchQoS {
         get {
             return internalSync.sync {
