@@ -211,6 +211,7 @@ internal class ProcessMonitor {
 		
 	func launchProcessContainer(_ workToRegister:@escaping(Int32) throws -> ProcessMonitor.ProcessKey, onExit:@escaping(ExitHandler)) throws -> (Int32, Date) {
         let newSem = DispatchSemaphore(value:0)
+        print("attempting to get write fd")
         let writeFD:Int32 = try self.internalSync.sync {
 			if masterPipe == nil {
 				try loadPipes()
@@ -220,11 +221,14 @@ internal class ProcessMonitor {
             }
 		}
         
+        print("asking for work register")
         let launchedProcess = try workToRegister(writeFD)
         internalSync.sync {
             monitorWorkLaunchWaiters[launchedProcess] = newSem
         }
+        print("waiting...")
 		newSem.wait()
+        print("yay done waiting")
         
         let launchVars:(Int32, Date) = try internalSync.sync {
 			//guard that there was a worker pid launched (guard that there was no error launching the worker process

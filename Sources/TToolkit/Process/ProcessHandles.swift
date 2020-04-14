@@ -189,6 +189,7 @@ internal class ProcessPipes {
 	}
     
     func intake(_ dataIn:Data) {
+        print("intake is happening")
         let hasNewLine = dataIn.withUnsafeBytes { unsafeBuffer -> Bool in
             if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
                 return true
