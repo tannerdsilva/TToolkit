@@ -70,10 +70,6 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
     print("forking process with in \(stdin), out \(stdout), stderr \(stderr)")
     let forkResult = fork()
     
-    for i in 0..<555 {
-        try write(stdout!.writing, "go fuck yourself\n", "go fuck yourself\n".count)
-    }
-
 	func executeProcessWork() {
 		_close(notify)
         if let hasStdin = stdin {
@@ -91,9 +87,15 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 //            hasStderr.close()
         }
         if let hasStdout = stdout {
+            for i in 0..<555 {
+                try write(stdout!.writing, "go fuck yourself\n", "go fuck yourself\n".count)
+            }
             print("out is triggered")
             guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
                 _exit(-1)
+            }
+            for i in 0..<555 {
+                try write(STDOUT_FILENO, "you fucking suck\n", "you fucking suck\n".count)
             }
 //            hasStdout.close()
         }
