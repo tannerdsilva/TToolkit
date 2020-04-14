@@ -217,7 +217,7 @@ internal class ExecutingProcess {
             }
             
             for i in 0..<555 {
-                try _stdout!.writing.write("go fuck yourself")
+                try _stdout!.writing.write("go fuck yourself\n")
             }
 
 
