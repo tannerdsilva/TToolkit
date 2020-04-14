@@ -46,8 +46,8 @@ internal class PipeReader {
 		}
 		internalSync.sync {
 			handleQueue[handle] = newSource
+            newSource.activate()
         }
-		newSource.activate()
 	}
 	func unschedule(_ handle:ProcessHandle) {
 		internalSync.sync {
