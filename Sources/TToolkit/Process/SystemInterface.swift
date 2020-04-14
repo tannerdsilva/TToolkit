@@ -148,10 +148,10 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
                 _close(STDOUT_FILENO)
                 _close(STDERR_FILENO)
                 
-                stdout?.close()
-                stderr?.close()
-                stdin?.close()
-                
+//                stdout?.close()
+//                stderr?.close()
+//                stdin?.close()
+//
 				//detach from the executing process's standard inputs and outputs
 				//notify the process monitor of the newly launched worker process
 				let processIDEventMapping = "\(getpid()) -> \(processForkResult)"
