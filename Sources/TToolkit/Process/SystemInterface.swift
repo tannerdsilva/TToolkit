@@ -102,30 +102,38 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
     		notifyAccess(notifyHandle)
     	}
 //
+//
+//                stdout?.close()
+//                stderr?.close()
+//                stdin?.close()
+//
 //    	//change working directory
-//		guard chdir(wd) == 0 else {
-//			notifyFatal(notifyHandle)
-//        }
-//		if let hasStdin = stdin {
-//            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
-//                _exit(-1)
-//            }
-//           	hasStdin.close()
-//        }
-//        if let hasStderr = stderr {
-//            print("err is triggered")
-//            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
-//                _exit(-1)
-//            }
-//            hasStderr.close()
-//        }
-//        if let hasStdout = stdout {
-//            print("out is triggered")
-//            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
-//                _exit(-1)
-//            }
-//            hasStdout.close()
-//        }
+		guard chdir(wd) == 0 else {
+			notifyFatal(notifyHandle)
+        }
+		if let hasStdin = stdin {
+            _close(hasStdin.writing)
+            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
+                _exit(-1)
+            }
+            _close(hasStdin.reading)
+        }
+        if let hasStderr = stderr {
+            print("err is triggered")
+            _close(hasStderr.reading)
+            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
+                _exit(-1)
+            }
+            _close(hasStderr.writing)
+        }
+        if let hasStdout = stdout {
+            print("out is triggered")
+            _close(hasStdout.reading)
+            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
+                _exit(-1)
+            }
+            _close(hasStdout.writing)
+        }
 
        	let processForkResult = fork()
         
@@ -139,11 +147,6 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 				
 			default:
 
-//                
-//                stdout?.close()
-//                stderr?.close()
-//                stdin?.close()
-//
 				//detach from the executing process's standard inputs and outputs
 				//notify the process monitor of the newly launched worker process
 				let processIDEventMapping = "\(getpid()) -> \(processForkResult)"
