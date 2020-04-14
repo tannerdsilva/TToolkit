@@ -130,6 +130,20 @@ internal class ProcessPipes {
     //related to data intake
     private var _readBuffer = Data()
     private var _readLines = [Data]()
+    private var _readQoS:DispatchQoS? = nil
+    var readQoS:DispatchQoS? {
+        get {
+            return internalSync.sync {
+                return _readQoS
+            }
+        }
+        set {
+            internalSync.sync {
+                _readQoS = newValue
+            }
+        }
+    }
+    
     private var _readQueue:DispatchQueue? = nil
     var readQueue:DispatchQueue? {
         get {
@@ -207,7 +221,8 @@ internal class ProcessPipes {
     }
     
     func _scheduleReadCallback(_ nTimes:Int) {
-        let asyncCallbackHandler = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
+        let useQos = _readQoS ?? DispatchQoS.unspecified
+        let asyncCallbackHandler = DispatchWorkItem(qos:useQos, flags:[.enforceQoS]) { [weak self] in
             guard let self = self else {
                 return
             }
