@@ -237,7 +237,7 @@ internal class ExecutingProcess {
                     		guard let self = self else {
                     			return
                     		}
-                    		self._exitHandle(exitCode)
+                    		self.exitHandle(exitCode)
                     	})
                     }
                 })
@@ -246,14 +246,13 @@ internal class ExecutingProcess {
             self._launchTime = launchedDate
             
             print("Launched process \(launchedPid)")
-
-            self._launchTime = Date()
-            self._processId = launchedPid
         }
     }
     
-    internal func _exitHandle(_ exitCode:Int32) {
-    	
+    internal func exitHandle(_ exitCode:Int32) {
+        if let hasHandler = terminationHandler, let hasQueue = terminationQueue {
+            hasQueue.async(execute:hasHandler)
+        }
     }
 	
 	func suspend() -> Bool? {
