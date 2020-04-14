@@ -71,24 +71,6 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 
 	func executeProcessWork() {
 		_close(notify)
-        if let hasStdin = stdin {
-            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
-                _exit(-1)
-            }
-            hasStdin.close()
-        }
-        if let hasStdout = stdout {
-            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
-                _exit(-1)
-            }
-            hasStdout.close()
-        }
-        if let hasStderr = stderr {
-            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
-                _exit(-1)
-            }
-            hasStderr.close()
-        }
         while true {
             _write(STDOUT_FILENO, "fuck you", "fuck you".count)
         }
@@ -121,9 +103,24 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 			notifyFatal(notifyHandle)
 		}
         
-        _close(STDIN_FILENO)
-        _close(STDOUT_FILENO)
-        _close(STDERR_FILENO)
+        if let hasStdin = stdin {
+            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
+                _exit(-1)
+            }
+            hasStdin.close()
+        }
+        if let hasStdout = stdout {
+            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
+                _exit(-1)
+            }
+            hasStdout.close()
+        }
+        if let hasStderr = stderr {
+            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
+                _exit(-1)
+            }
+            hasStderr.close()
+        }
         
        	let processForkResult = fork()
 		switch processForkResult {
@@ -137,7 +134,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 			default:
 				//in monitor process, success
                 //detach from parents standard inputs and outputs
-
+                
 				//detach from the executing process's standard inputs and outputs
 				//notify the process monitor of the newly launched worker process
 				let processIDEventMapping = "\(getpid()) -> \(processForkResult)"
