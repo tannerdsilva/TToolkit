@@ -71,7 +71,24 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 
 	func executeProcessWork() {
 		_close(notify)
-            
+        if let hasStdin = stdin {
+            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
+                _exit(-1)
+            }
+//            hasStdin.close()
+        }
+        if let hasStdout = stdout {
+            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
+                _exit(-1)
+            }
+//            hasStdout.close()
+        }
+        if let hasStderr = stderr {
+            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
+                _exit(-1)
+            }
+//            hasStderr.close()
+        }
 //        while true {
 //            _write(STDOUT_FILENO, "fuck you", "fuck you".count)
 //        }
@@ -107,27 +124,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         _close(STDERR_FILENO)
         _close(STDOUT_FILENO)
         _close(STDIN_FILENO)
-        
-        if let hasStdin = stdin {
-            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
-                _exit(-1)
-            }
-//            hasStdin.close()
-        }
-        if let hasStdout = stdout {
-            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
-                _exit(-1)
-            }
-//            hasStdout.close()
-        }
-        if let hasStderr = stderr {
-            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
-                _exit(-1)
-            }
-//            hasStderr.close()
-        }
-
-        
+    
        	let processForkResult = fork()
 		switch processForkResult {
 			case -1:
