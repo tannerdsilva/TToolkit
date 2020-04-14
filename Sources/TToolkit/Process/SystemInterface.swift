@@ -113,11 +113,6 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 	
     func processMonitor() -> Never {
     	let notifyHandle = ProcessHandle(fd:notify)
-    	
-    	//detach from parents standard inputs and outputs
-		_close(STDIN_FILENO)
-		_close(STDOUT_FILENO)
-		_close(STDERR_FILENO)
         
         if let hasStdin = stdin {
             guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
