@@ -91,9 +91,9 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
             hasStderr.close()
         }
             
-        while true {
-            _write(STDOUT_FILENO, "fuck you", "fuck you".count)
-        }
+//        while true {
+//            _write(STDOUT_FILENO, "fuck you", "fuck you".count)
+//        }
 
         _exit(Glibc.execvp(path, args))
 	}
