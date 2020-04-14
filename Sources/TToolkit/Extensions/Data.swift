@@ -345,7 +345,10 @@ extension Data {
     public func lineSlice(removeBOM:Bool) -> [Data] {
         return self.lineSlice(removeBOM: removeBOM) ?? [Data]()
     }
-	public func lineSlice(removeBOM:Bool) -> [Data]? {
+    public func lineSlice(removeBOM:Bool) -> [Data]? {
+        return self.lineSlice(removeBOM: removeBOM, completeLinesOnly:false).lines
+    }
+    public func lineSlice(removeBOM:Bool, completeLinesOnly:Bool) -> (lines:[Data]?, remain:Data?) {
 		let bytesCount = self.count
 		if (bytesCount > 0) {
             
@@ -381,6 +384,46 @@ extension Data {
 			var cr = Set<Range<Self.Index>>()
 			var crlf = Set<Range<Self.Index>>()
 			var suspectedLineCount:UInt64 = 0
+            
+            //this enum and function are needed for later
+            enum int_line_mode:Int8 {
+                case cr
+                case lf
+                case crlf
+            }
+            func isLastLineComplete(_ mode:int_line_mode) -> Bool {
+                switch mode {
+                    case .cr:
+                        guard bytesCount > 0 else {
+                            return false
+                        }
+                        let lastIndex = endIndex.advanced(by: -1)
+                        if self[lastIndex] == 13 {
+                            return true
+                        }
+                        return false
+                    case .lf:
+                        guard bytesCount > 0 else {
+                            return false
+                        }
+                        let lastIndex = endIndex.advanced(by: -1)
+                        if self[lastIndex] == 10 {
+                            return true
+                        }
+                        return false
+                    case .crlf:
+                        guard bytesCount > 2 else {
+                            return false
+                        }
+                        let lastIndex = endIndex.advanced(by: -1)
+                        let secondLast = endIndex.advanced(by: -2)
+                        if self[lastIndex] == 10 && self[secondLast] == 13 {
+                            return true
+                        }
+                        return false
+                }
+                return false
+            }
 			
 			for (n, curByte) in enumerated() {
                 switch curByte {
@@ -419,7 +462,12 @@ extension Data {
 			
 			if suspectedLineCount == 0 { 
 				let lb = bomTail ?? startIndex
-				return [self[lb..<bytesCount]]
+                
+                if completeLinesOnly == true {
+                    return (lines:nil, remain:self)
+                } else {
+                    return (lines:[self[lb..<bytesCount]], remain:nil)
+                }
 			}
 			
 			let crlfTotal = crlf.count
@@ -448,9 +496,29 @@ extension Data {
 				if lb < endIndex {
 					crlf.update(with:lb..<endIndex)
 				}
-
-                return crlf.sorted(by: { $0.lowerBound < $1.lowerBound }).map {
+                
+                var linesToReturn = crlf.sorted(by: { $0.lowerBound < $1.lowerBound }).map {
                     self[$0]
+                }
+                
+                //remove last line if not complete
+                if completeLinesOnly == true {
+                    if isLastLineComplete(.crlf) == true {
+                        if linesToReturn.count == 1 {
+                            return (lines:[self], remain:nil)
+                        } else {
+                            return (lines:linesToReturn, remain:nil)
+                        }
+                    } else {
+                        if linesToReturn.count == 1 {
+                            return (lines:nil, remain:self)
+                        } else {
+                            let lastLine = linesToReturn.removeLast()
+                            return (lines:linesToReturn, remain:lastLine)
+                        }
+                    }
+                } else {
+                    return (lines:linesToReturn, remain:nil)
                 }
 				
 			} else if (lfPercent > crlfPercent && lfPercent > crPercent) {
@@ -465,10 +533,30 @@ extension Data {
                     lf.update(with:lb..<endIndex)
                 }
 				
-                return lf.sorted(by: { $0.lowerBound < $1.lowerBound }).map {
+                var linesToReturn = lf.sorted(by: { $0.lowerBound < $1.lowerBound }).map {
                     self[$0]
                 }
 				
+                //remove last line if not complete
+                if completeLinesOnly == true {
+                    if isLastLineComplete(.crlf) == true {
+                        if linesToReturn.count == 1 {
+                            return (lines:[self], remain:nil)
+                        } else {
+                            return (lines:linesToReturn, remain:nil)
+                        }
+                    } else {
+                        if linesToReturn.count == 1 {
+                            return (lines:nil, remain:self)
+                        } else {
+                            let lastLine = linesToReturn.removeLast()
+                            return (lines:linesToReturn, remain:lastLine)
+                        }
+                    }
+                } else {
+                    return (lines:linesToReturn, remain:nil)
+                }
+                
 			} else {
 				var lb:Self.Index
                 if let hasLb = crLast {
@@ -481,12 +569,32 @@ extension Data {
 					cr.update(with:lb..<endIndex)
 				}
 			
-                return cr.sorted(by: { $0.lowerBound < $1.lowerBound }).map {
+                var linesToReturn = cr.sorted(by: { $0.lowerBound < $1.lowerBound }).map {
                     self[$0]
+                }
+                
+                //remove last line if not complete
+                if completeLinesOnly == true {
+                    if isLastLineComplete(.crlf) == true {
+                        if linesToReturn.count == 1 {
+                            return (lines:[self], remain:nil)
+                        } else {
+                            return (lines:linesToReturn, remain:nil)
+                        }
+                    } else {
+                        if linesToReturn.count == 1 {
+                            return (lines:nil, remain:self)
+                        } else {
+                            let lastLine = linesToReturn.removeLast()
+                            return (lines:linesToReturn, remain:lastLine)
+                        }
+                    }
+                } else {
+                    return (lines:linesToReturn, remain:nil)
                 }
 			}
 		} else {
-			return nil
+            return (lines:nil, remain:nil)
 		}
 	}
 }

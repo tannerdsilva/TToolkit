@@ -200,19 +200,22 @@ internal class ProcessPipes {
             print("data intake syncronized")
             _readBuffer.append(dataIn)
             if hasNewLine {
-                print("new line")
-                if var parsedLines = _readBuffer.lineSlice(removeBOM:false) {
-                    print("parsed lines found \(parsedLines.count)")
+                print("has line")
+                let sliceResult = _readBuffer.lineSlice(removeBOM:false, completeLinesOnly: true)
+                if var parsedLines = sliceResult.lines {
+                    print("parsed lines found \(parsedLines.count) with \(sliceResult.remain?.count) remaining")
                     let tailData = parsedLines.removeLast()
                     _readBuffer.removeAll(keepingCapacity:true)
-                    _readBuffer.append(tailData)
+                    if let hasRemainder = sliceResult.remain {
+                        _readBuffer.append(hasRemainder)
+                    }
                     if parsedLines.count > 0 {
                         _readLines.append(contentsOf:parsedLines)
                         _scheduleReadCallback(parsedLines.count)
                     }
+                } else {
+                    print("nope")
                 }
-            } else {
-                print("not new line")
             }
         }
     }
