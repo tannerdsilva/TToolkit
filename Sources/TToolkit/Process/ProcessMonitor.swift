@@ -172,41 +172,49 @@ internal class ProcessMonitor {
 	}
 	
 	fileprivate func fatalEventOccurred(mon:Int32) {
-        if let hasWaiter = monitorWorkLaunchWaiters[mon] {
-            hasWaiter.signal()
-            monitorWorkLaunchWaiters[mon] = nil
+        internalSync.sync {
+            if let hasWaiter = monitorWorkLaunchWaiters[mon] {
+                hasWaiter.signal()
+                monitorWorkLaunchWaiters[mon] = nil
+            }
+            monitorWorkMapping[mon] = nil
         }
-        monitorWorkMapping[mon] = nil
 	}
 		
 	fileprivate func accessErrorOccurred(mon:Int32) {
-        monitorWorkMapping[mon] = nil
-        _ = accessErrors.update(with:mon)
-        if let hasWaiter = monitorWorkLaunchWaiters[mon] {
-            hasWaiter.signal()
-            monitorWorkLaunchWaiters[mon] = nil
+        internalSync.sync {
+            monitorWorkMapping[mon] = nil
+            _ = accessErrors.update(with:mon)
+            if let hasWaiter = monitorWorkLaunchWaiters[mon] {
+                hasWaiter.signal()
+                monitorWorkLaunchWaiters[mon] = nil
+            }
         }
 	}
 	
 	fileprivate func processLaunched(mon:Int32, work:Int32, time:Date) {
-        guard let hasWaiter = monitorWorkLaunchWaiters[mon] else {
-            print("unable to find the waiting semaphore for monitor \(mon) and pid \(work)")
-            return
+         internalSync.sync {
+            guard let hasWaiter = monitorWorkLaunchWaiters[mon] else {
+                print("unable to find the waiting semaphore for monitor \(mon) and pid \(work)")
+                return
+            }
+            monitorWorkMapping[mon] = work
+            monitorWorkLaunchTimes[mon] = time
+            hasWaiter.signal()
+            monitorWorkLaunchWaiters[mon] = nil
         }
-        monitorWorkMapping[mon] = work
-        monitorWorkLaunchTimes[mon] = time
-        hasWaiter.signal()
-        monitorWorkLaunchWaiters[mon] = nil
 	}
 	
 	fileprivate func processExited(mon:Int32, work:Int32, code:Int32) {
-        guard let hasExitHandler = exitHandlers[work] else {
-            print("unable to find the waiting semaphore for monitor \(mon) and pid \(work)")
-            return
+        internalSync.sync {
+            guard let hasExitHandler = exitHandlers[work] else {
+                print("unable to find the waiting semaphore for monitor \(mon) and pid \(work)")
+                return
+            }
+            monitorWorkMapping[mon] = nil
+            monitorWorkLaunchTimes[mon] = nil
+            hasExitHandler(code)
         }
-        monitorWorkMapping[mon] = nil
-        monitorWorkLaunchTimes[mon] = nil
-        hasExitHandler(code)
 	}
 		
 	func launchProcessContainer(_ workToRegister:@escaping(Int32) throws -> ProcessMonitor.ProcessKey, onExit:@escaping(ExitHandler)) throws -> (Int32, Date) {
