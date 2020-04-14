@@ -215,11 +215,6 @@ internal class ExecutingProcess {
             guard self._isRunning == false && self._exitCode == nil else {
                 throw ExecutingProcessError.processAlreadyRunning
             }
-            
-            for i in 0..<555 {
-                try _stdout!.writing.write("go fuck yourself\n")
-            }
-
 
             let launchPath = _executable.path
             
