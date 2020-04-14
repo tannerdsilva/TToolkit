@@ -72,33 +72,6 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
     
 	func executeProcessWork() {
 		_close(notify)
-        if let hasStdin = stdin {
-            print("in is triggered")
-            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
-                _exit(-1)
-            }
-//            hasStdin.close()
-        }
-        if let hasStderr = stderr {
-            print("err is triggered")
-            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
-                _exit(-1)
-            }
-//            hasStderr.close()
-        }
-        if let hasStdout = stdout {
-            for i in 0..<555 {
-                try write(stdout!.writing, "go fuck yourself\n", "go fuck yourself\n".count)
-            }
-            print("out is triggered")
-            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
-                _exit(-1)
-            }
-            for i in 0..<555 {
-                try write(STDOUT_FILENO, "you fucking suck\n", "you fucking suck\n".count)
-            }
-//            hasStdout.close()
-        }
 //
 //        stdout?.close()
 //        stderr?.close()
@@ -131,6 +104,30 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
     	//change working directory
 		guard chdir(wd) == 0 else {
 			notifyFatal(notifyHandle)
+        }
+		if let hasStdin = stdin {
+            print("in is triggered")
+            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
+                _exit(-1)
+            }
+//            hasStdin.close()
+        }
+        if let hasStderr = stderr {
+            print("err is triggered")
+            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
+                _exit(-1)
+            }
+//            hasStderr.close()
+        }
+        if let hasStdout = stdout {
+            print("out is triggered")
+            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
+                _exit(-1)
+            }
+            for i in 0..<555 {
+                try write(STDOUT_FILENO, "you fucking suck\n", "you fucking suck\n".count)
+            }
+//            hasStdout.close()
         }
 
                 
