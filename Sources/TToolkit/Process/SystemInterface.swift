@@ -162,7 +162,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
             }
         }
         _exit(0)
-    }
+    
     
     switch forkResult {
         case -1:
