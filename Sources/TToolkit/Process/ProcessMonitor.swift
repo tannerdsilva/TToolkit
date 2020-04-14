@@ -68,12 +68,14 @@ internal enum ProcessLaunchedError:Error {
 //}
 
 internal var globalProcessMonitor:ProcessMonitor = ProcessMonitor()
+fileprivate let processMonitorPriority = Priority.highest.asDispatchQoS(relative:Int.max)
 internal class ProcessMonitor {
 	internal typealias ProcessKey = pid_t
 	internal typealias ExitHandler = (Int32) -> Void
 	
 	private var masterPipe:ProcessPipes? = nil
 	private let internalSync:DispatchQueue
+    private let dataProcess:DispatchQueue
 
 	var monitorWorkLaunchWaiters:[ProcessKey:DispatchSemaphore]
 	
@@ -87,9 +89,10 @@ internal class ProcessMonitor {
 	private var dataLines = [Data]()
 	
 	init() {
-		let isync = DispatchQueue(label:"com.tannersilva.com.instance.process.monitor.sync")
-		
-		self.internalSync = isync
+        let isync = DispatchQueue(label:"com.tannersilva.com.instance.process.monitor.sync", target:global_lock_queue)
+        let dataIntake = DispatchQueue(label:"com.tannersilva.instance.process.monitor.events", qos:processMonitorPriority, target:process_master_queue)
+        self.dataProcess = dataIntake
+        self.internalSync = isync
 		self.monitorWorkLaunchWaiters = [ProcessKey:DispatchSemaphore]()
 		self.monitorWorkMapping = [ProcessKey:Int32]()
 		self.monitorWorkLaunchTimes = [ProcessKey:Date]()
@@ -104,6 +107,7 @@ internal class ProcessMonitor {
 			}
 			self.eventHandle(asString)
 		}
+        mainPipe.readQueue = dataProcess
 		self.masterPipe = mainPipe
 	}
 	
