@@ -339,85 +339,70 @@ public class InteractiveProcess:Hashable {
             }
         }
 		
-        let initializeWork = DispatchWorkItem(qos:priority.asDispatchQoS(), flags:[.enforceQoS]) { [weak self] in
+
+        let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, workingDirectory: workingDirectory)
+        print("trying to make pipes")
+        
+        let inputSerial = DispatchQueue(label:"footest", target:process_master_queue)
+        let input = try ProcessPipes(read:inputSerial)
+        let output = try ProcessPipes(read:inputSerial)
+        let err = try ProcessPipes(read:inputSerial)
+        print("pipes made")
+        externalProcess.terminationQueue = inputSerial
+        externalProcess.terminationHandler = termHandle
+        output.readHandler = { [weak self] someData in
             guard let self = self else {
                 return
             }
-            do {
-                print("init")
-                let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, workingDirectory: workingDirectory)
-                print("trying to make pipes")
-                
-                let inputSerial = DispatchQueue(label:"footest", target:process_master_queue)
-                let input = try ProcessPipes(read:inputSerial)
-                let output = try ProcessPipes(read:inputSerial)
-                let err = try ProcessPipes(read:inputSerial)
-                print("pipes made")
-                externalProcess.terminationQueue = inputSerial
-                externalProcess.terminationHandler = termHandle
-                output.readHandler = { [weak self] someData in
-                    guard let self = self else {
-                        return
-                    }
-                    let count = someData.count
-                    pmon.processGotBytes(self, bytes: count)
-                    var hasher = Hasher()
-                    let currentHash = self.internalSync.sync { return self.dhash }
-                    let isNewLine = someData.withUnsafeBytes({ usRawBuffPoint -> Bool in
-                        hasher.combine(bytes:usRawBuffPoint)
-                        if usRawBuffPoint.contains(where: { $0 == 10 || $0 == 13 }) {
-                            return true
-                        }
-                        return false
-                    })
-                    hasher.combine(currentHash)
-                    self.internalSync.sync {
-                        self.dhash = hasher.finalize()
-                        self._stdoutBuffer.append(someData)
-                    }
-                    if isNewLine == true {
-                        g_process_callback_queue.async(execute:stdoutWorkItem)
-                    }
+            let count = someData.count
+            pmon.processGotBytes(self, bytes: count)
+            var hasher = Hasher()
+            let currentHash = self.internalSync.sync { return self.dhash }
+            let isNewLine = someData.withUnsafeBytes({ usRawBuffPoint -> Bool in
+                hasher.combine(bytes:usRawBuffPoint)
+                if usRawBuffPoint.contains(where: { $0 == 10 || $0 == 13 }) {
+                    return true
                 }
-                err.readHandler = { [weak self] someData in
-                    guard let self = self else {
-                        return
-                    }
-                    var hasher = Hasher()
-                    let currentHash = self.internalSync.sync { return self.dhash }
-                    let isNewLine = someData.withUnsafeBytes({ usRawBuffPoint -> Bool in
-                        hasher.combine(bytes:usRawBuffPoint)
-                        if usRawBuffPoint.contains(where: { $0 == 10 || $0 == 13 }) {
-                            return true
-                        }
-                        return false
-                    })
-                    hasher.combine(currentHash)
-                    self.internalSync.sync {
-                        self.dhash = hasher.finalize()
-                        self._stderrBuffer.append(someData)
-                    }
-                    if isNewLine == true {
-                        g_process_callback_queue.async(execute:stderrWorkItem)
-                    }
-                }
-                
-                self.internalSync.sync {
-                    self.proc = externalProcess
-                    self.stdin = input
-                    self.stdout = output
-                    self.stderr = err
-                }
-                
-//                initSem.signal()
-            } catch let error {
-                print("error initializing")
+                return false
+            })
+            hasher.combine(currentHash)
+            self.internalSync.sync {
+                self.dhash = hasher.finalize()
+                self._stdoutBuffer.append(someData)
+            }
+            if isNewLine == true {
+                g_process_callback_queue.async(execute:stdoutWorkItem)
             }
         }
-        print("scheduling")
-        initializeWork.perform()
-//        process_intialize_serial.async(execute:initializeWork)
-//        initSem.wait()
+        err.readHandler = { [weak self] someData in
+            guard let self = self else {
+                return
+            }
+            var hasher = Hasher()
+            let currentHash = self.internalSync.sync { return self.dhash }
+            let isNewLine = someData.withUnsafeBytes({ usRawBuffPoint -> Bool in
+                hasher.combine(bytes:usRawBuffPoint)
+                if usRawBuffPoint.contains(where: { $0 == 10 || $0 == 13 }) {
+                    return true
+                }
+                return false
+            })
+            hasher.combine(currentHash)
+            self.internalSync.sync {
+                self.dhash = hasher.finalize()
+                self._stderrBuffer.append(someData)
+            }
+            if isNewLine == true {
+                g_process_callback_queue.async(execute:stderrWorkItem)
+            }
+        }
+        
+        self.internalSync.sync {
+            self.proc = externalProcess
+            self.stdin = input
+            self.stdout = output
+            self.stderr = err
+        }
     }
 	
 	
