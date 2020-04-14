@@ -212,6 +212,7 @@ internal class ProcessPipes {
                     }
                     if parsedLines.count > 0 {
                         _scheduleReadCallback(parsedLines.count)
+                        self._readLines.append(contentsOf:parsedLines)
                         return parsedLines.count
                     }
                 } else {
@@ -249,6 +250,8 @@ internal class ProcessPipes {
             if let hasNewDataLine = newDataLine, let hasHandler = handlerToCall {
                 print(Colors.BgBlue("CALLING CALLBAK"))
                 hasHandler(hasNewDataLine)
+            } else {
+                
             }
         }
     
