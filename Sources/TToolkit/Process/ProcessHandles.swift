@@ -206,7 +206,7 @@ internal class ProcessPipes {
                     let foundLines = parsedLines.map { String(data:$0, encoding:.utf8) }
                     print("FOUND \(foundLines)")
                     _readBuffer.removeAll(keepingCapacity:true)
-                    if let hasRemainder = sliceResult.remain {
+                    if let hasRemainder = sliceResult.remain, hasRemainder.count > 0 {
                         let remain = String(data:hasRemainder, encoding:.utf8)
                         print("REMAIN \(remain?.count)")
                         _readBuffer.append(hasRemainder)
