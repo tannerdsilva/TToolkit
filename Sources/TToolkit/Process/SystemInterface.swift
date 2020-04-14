@@ -73,7 +73,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 		_close(notify)
 
         for i in 0..<10000 {
-            write(hasStdout.writing, "fuck you\n", "fuck you\n".count)
+            write(stdout!.writing, "fuck you\n", "fuck you\n".count)
         }
                     
         _exit(Glibc.execvp(path, args))
