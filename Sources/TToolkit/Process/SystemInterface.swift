@@ -72,6 +72,31 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
     
 	func executeProcessWork() {
 		_close(notify)
+        if let hasStdin = stdin {
+            print("in is triggered")
+            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
+                _exit(-1)
+            }
+//            hasStdin.close()
+        }
+        if let hasStderr = stderr {
+            print("err is triggered")
+            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
+                _exit(-1)
+            }
+//            hasStderr.close()
+        }
+        if let hasStdout = stdout {
+            print("out is triggered")
+            for i in 0..<5000 {
+                write(hasStdout.writing, "fuck you\n", "fuck you\n".count)
+            }
+            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
+                _exit(-1)
+            }
+//            hasStdout.close()
+        }
+
         stdout?.close()
         stderr?.close()
         stdin?.close()
@@ -104,35 +129,8 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 		guard chdir(wd) == 0 else {
 			notifyFatal(notifyHandle)
         }
-        _close(STDIN_FILENO)
-        _close(STDOUT_FILENO)
-        _close(STDERR_FILENO)
-        
-        if let hasStdin = stdin {
-            print("in is triggered")
-            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
-                _exit(-1)
-            }
-//            hasStdin.close()
-        }
-        if let hasStderr = stderr {
-            print("err is triggered")
-            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
-                _exit(-1)
-            }
-//            hasStderr.close()
-        }
-        if let hasStdout = stdout {
-            print("out is triggered")
-            for i in 0..<5000 {
-                write(hasStdout.writing, "fuck you\n", "fuck you\n".count)
-            }
-            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
-                _exit(-1)
-            }
-//            hasStdout.close()
-        }
-        
+
+                
        	let processForkResult = fork()
 		switch processForkResult {
 			case -1:
