@@ -100,7 +100,7 @@ internal class ProcessMonitor {
 	}
 	
 	private func loadPipes() throws {
-		let mainPipe = try ProcessPipes()
+        let mainPipe = try ProcessPipes(read:dataProcess)
 		mainPipe.readHandler = { [weak self] someData in
             guard let self = self, let asString = String(data:someData, encoding:.utf8) else {
 				return

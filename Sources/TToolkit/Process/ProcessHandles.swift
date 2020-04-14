@@ -36,12 +36,12 @@ internal class PipeReader {
 		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.sync")
 		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
 	}
-	func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler)) {
+    func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler), queue:DispatchQueue) {
         let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:Priority.highest.globalConcurrentQueue)
 		newSource.setEventHandler {
 			if let newData = handle.availableData() {
 				print(Colors.Green("READ \(newData.count)"))
-				work(newData)
+                queue.async { work(newData) }
 			}
 		}
 		internalSync.sync {
@@ -130,8 +130,8 @@ internal class ProcessPipes {
     //related to data intake
     private var _readBuffer = Data()
     private var _readLines = [Data]()
-    private var _readQoS:DispatchQoS? = nil
-    var readQoS:DispatchQoS? {
+    private var _readQoS:DispatchQoS = Priority.default.asDispatchQoS()
+    var readQoS:DispatchQoS {
         get {
             return internalSync.sync {
                 return _readQoS
@@ -144,8 +144,8 @@ internal class ProcessPipes {
         }
     }
     
-    private var _readQueue:DispatchQueue? = nil
-    var readQueue:DispatchQueue? {
+    private var _readQueue:DispatchQueue
+    var readQueue:DispatchQueue {
         get {
             return internalSync.sync {
                 return _readQueue
@@ -177,7 +177,7 @@ internal class ProcessPipes {
                             return
                         }
                         self.intake(someData)
-                    })
+                    }, queue:_readQueue)
 				} else {
 					if _readHandler != nil {
 						globalPR.unschedule(reading)
@@ -189,7 +189,6 @@ internal class ProcessPipes {
 	}
     
     func intake(_ dataIn:Data) {
-        print("intake is happening")
         let hasNewLine = dataIn.withUnsafeBytes { unsafeBuffer -> Bool in
             if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
                 return true
@@ -244,34 +243,37 @@ internal class ProcessPipes {
             guard let self = self else {
                 return
             }
+            print("attempting to pop")
             let (newDataLine, handlerToCall) = self.popIntakeLineAndHandler()
+            print("callback popped")
             if let hasNewDataLine = newDataLine, let hasHandler = handlerToCall {
                 print(Colors.BgBlue("CALLING CALLBAK"))
                 hasHandler(hasNewDataLine)
             }
         }
+    
         print("not sure why this line is interesting but whatever")
-        if let hasQueue = _readQueue {
-            for _ in 0..<nTimes {
-                print(">")
-                hasQueue.async(execute:asyncCallbackHandler)
-            }
+        for _ in 0..<nTimes {
+            print(">")
+            _readQueue.async(execute:asyncCallbackHandler)
         }
     }
 	
-    init() throws {
+    init(read:DispatchQueue) throws {
 		let readWrite = try Self.forReadingAndWriting()
 		self.reading = readWrite.r
 		self.writing = readWrite.w
 		
 		let ints = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", target:global_lock_queue)
 		self.internalSync = ints
+        self._readQueue = read
 	}
 	
-	init(_ export:ExportedPipe) {
+    init(_ export:ExportedPipe, readQueue:DispatchQueue) {
 		self.reading = ProcessHandle(fd:export.reading)
 		self.writing = ProcessHandle(fd:export.writing)
 		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", target:global_lock_queue)
+        self._readQueue = readQueue
 	}
 	
 	fileprivate static func forReadingAndWriting() throws -> (r:ProcessHandle, w:ProcessHandle) {

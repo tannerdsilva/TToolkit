@@ -347,9 +347,11 @@ public class InteractiveProcess:Hashable {
                 print("init")
                 let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, workingDirectory: workingDirectory)
                 print("trying to make pipes")
-                let input = try ProcessPipes()
-                let output = try ProcessPipes()
-                let err = try ProcessPipes()
+                
+                let inputSerial = DispatchQueue(label:"footest", target:process_master_queue)
+                let input = try ProcessPipes(read:inputSerial)
+                let output = try ProcessPipes(read:inputSerial)
+                let err = try ProcessPipes(read:inputSerial)
                 print("pipes made")
                 externalProcess.terminationHandler = termHandle
                 output.readHandler = { [weak self] someData in
