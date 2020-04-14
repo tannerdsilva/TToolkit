@@ -216,6 +216,11 @@ internal class ExecutingProcess {
                 throw ExecutingProcessError.processAlreadyRunning
             }
             
+            for i in 0..<555 {
+                try _stdout!.writing.write("go fuck yourself")
+            }
+
+
             let launchPath = _executable.path
             
             var argBuild = [launchPath]

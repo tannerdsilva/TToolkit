@@ -357,6 +357,7 @@ public class InteractiveProcess:Hashable {
             guard let self = self else {
                 return
             }
+            print(Colors.bgGreen("DATA ACQUIRED"))
             let count = someData.count
             pmon.processGotBytes(self, bytes: count)
             var hasher = Hasher()
@@ -406,6 +407,7 @@ public class InteractiveProcess:Hashable {
             self.stdout = output
             self.stderr = err
         }
+        
     }
 	
 	
