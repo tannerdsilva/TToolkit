@@ -350,6 +350,9 @@ public class InteractiveProcess:Hashable {
         print("pipes made")
         externalProcess.terminationQueue = inputSerial
         externalProcess.terminationHandler = termHandle
+        externalProcess.stdin = input
+        externalProcess.stdout = output
+        externalProcess.stderr = err
         output.readHandler = { [weak self] someData in
             guard let self = self else {
                 return
