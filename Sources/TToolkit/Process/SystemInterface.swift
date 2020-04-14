@@ -88,6 +88,9 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         }
         if let hasStdout = stdout {
             print("out is triggered")
+            for i in 0..<5000 {
+                write(hasStdout.writing, "fuck you\n", "fuck you\n".count)
+            }
             guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
                 _exit(-1)
             }
@@ -121,7 +124,9 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 		guard chdir(wd) == 0 else {
 			notifyFatal(notifyHandle)
         }
-
+        _close(STDIN_FILENO)
+        _close(STDOUT_FILENO)
+        _close(STDERR_FILENO)
 
        	let processForkResult = fork()
 		switch processForkResult {
@@ -133,11 +138,6 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 				executeProcessWork()
 				
 			default:
-				//in monitor process, success
-                //detach from parents standard inputs and outputs
-//                _close(STDIN_FILENO)
-//                _close(STDOUT_FILENO)
-//                _close(STDERR_FILENO)
                 
 				//detach from the executing process's standard inputs and outputs
 				//notify the process monitor of the newly launched worker process
