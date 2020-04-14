@@ -220,20 +220,19 @@ internal class ProcessMonitor {
         }
 	}
 		
-	func launchProcessContainer(_ workToRegister:@escaping(Int32) throws -> ProcessMonitor.ProcessKey, onExit:@escaping(ExitHandler)) throws -> (Int32, Date) {
+	func launchProcessContainer(_ workToRegister:@escaping(ExportedPipe) throws -> ProcessMonitor.ProcessKey, onExit:@escaping(ExitHandler)) throws -> (Int32, Date) {
         let newSem = DispatchSemaphore(value:0)
         print("attempting to get write fd")
-        let writeFD:Int32 = try self.internalSync.sync {
+        let notifyPipe:ExportedPipe = try self.internalSync.sync {
 			if masterPipe == nil {
 				try loadPipes()
-                return masterPipe!.writing.fileDescriptor
+                return masterPipe!.export()
             } else {
-                return masterPipe!.writing.fileDescriptor
+                return masterPipe!.export()
             }
 		}
-        
         print("asking for work register")
-        let launchedProcess = try workToRegister(writeFD)
+        let launchedProcess = try workToRegister(notifyPipe)
         internalSync.sync {
             monitorWorkLaunchWaiters[launchedProcess] = newSem
         }

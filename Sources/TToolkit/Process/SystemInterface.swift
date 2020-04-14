@@ -62,17 +62,16 @@ internal func tt_wait_sync(pid:pid_t) -> Int32 {
     return exitCode
 }
 
-
 //spawns two processes. first process is responsible for executing the actual command. second process is responsible for watching the executing process, and notifying the parent about the status of the executing process. This "monitor process" is also responsible for closing the standard inputs and outputs so that they do not get mixed in with the parents standard file descriptors
 //the primary means of I/O for the monitor process is the file descriptor passed to this function `notify`. This file descriptor acts as the activity log for the monitor process.
 //three types of monitor process events, launch event, exit event, and fatal event
-internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>, wd:UnsafePointer<Int8>, stdin:ExportedPipe?, stdout:ExportedPipe?, stderr:ExportedPipe?, notify:Int32) throws -> ProcessMonitor.ProcessKey {    
+internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>, wd:UnsafePointer<Int8>, stdin:ExportedPipe?, stdout:ExportedPipe?, stderr:ExportedPipe?, notify:ExportedPipe) throws -> ProcessMonitor.ProcessKey {
     print("forking process with in \(stdin), out \(stdout), stderr \(stderr)")
     
     let forkResult = fork()
     
 	func executeProcessWork() {
-		_close(notify)
+        _close(notify.writing)
 //
 //        stdout?.close()
 //        stderr?.close()
@@ -95,40 +94,41 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 	
     func processMonitor() -> Never {
         print("forking process with in \(stdin), out \(stdout), stderr \(stderr)")
-    	let notifyHandle = ProcessHandle(fd:notify)
+        _close(notify.reading)
+        let notifyHandle = ProcessHandle(fd:notify.writing)
         
         //access checks
     	guard tt_directory_check(ptr:wd) == true && tt_execute_check(ptr:path) == true else {
     		notifyAccess(notifyHandle)
     	}
-    	
-    	//change working directory
-		guard chdir(wd) == 0 else {
-			notifyFatal(notifyHandle)
-        }
-		if let hasStdin = stdin {
-            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
-                _exit(-1)
-            }
-           	hasStdin.close()
-        }
-        if let hasStderr = stderr {
-            print("err is triggered")
-            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
-                _exit(-1)
-            }
-            hasStderr.close()
-        }
-        if let hasStdout = stdout {
-            print("out is triggered")
-            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
-                _exit(-1)
-            }
-            hasStdout.close()
-        }
+//
+//    	//change working directory
+//		guard chdir(wd) == 0 else {
+//			notifyFatal(notifyHandle)
+//        }
+//		if let hasStdin = stdin {
+//            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
+//                _exit(-1)
+//            }
+//           	hasStdin.close()
+//        }
+//        if let hasStderr = stderr {
+//            print("err is triggered")
+//            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
+//                _exit(-1)
+//            }
+//            hasStderr.close()
+//        }
+//        if let hasStdout = stdout {
+//            print("out is triggered")
+//            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
+//                _exit(-1)
+//            }
+//            hasStdout.close()
+//        }
 
-                
        	let processForkResult = fork()
+        
 		switch processForkResult {
 			case -1:
 				notifyFatal(notifyHandle)
@@ -164,7 +164,6 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 				} catch _ {
                     notifyFatal(notifyHandle)
 				}
-				_close(notify)
                 _exit(0)
         }
        _exit(0)

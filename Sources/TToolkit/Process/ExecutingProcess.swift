@@ -230,8 +230,8 @@ internal class ExecutingProcess {
             let (launchedPid, launchedDate) = try launchPath.withCString({ cPath in
                 try self._workingDirectory.path.withCString({ wdPath in
                     try argBuild.with_spawn_ready_arguments { argC in
-                    	return try globalProcessMonitor.launchProcessContainer({ notifyDescriptor in
-                    		return try tt_spawn(path:cPath, args:argC, wd:wdPath, stdin:stdinExport, stdout:stdoutExport, stderr:stderrExport, notify:notifyDescriptor)
+                    	return try globalProcessMonitor.launchProcessContainer({ notifyPipe in
+                    		return try tt_spawn(path:cPath, args:argC, wd:wdPath, stdin:stdinExport, stdout:stdoutExport, stderr:stderrExport, notify:notifyPipe)
                     	}, onExit: { [weak self] exitCode in
                             let exitTime = Date()
                     		guard let self = self else {
