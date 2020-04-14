@@ -197,14 +197,13 @@ internal class ProcessPipes {
             return false
         }
         self.internalSync.sync {
-            print("data intake syncronized")
+            print("data intake syncronized with buffer size of \(_readBuffer.count) bytes")
             _readBuffer.append(dataIn)
             if hasNewLine {
                 print("has line")
                 let sliceResult = _readBuffer.lineSlice(removeBOM:false, completeLinesOnly: true)
                 if var parsedLines = sliceResult.lines {
-                    print("parsed lines found \(parsedLines.count) with \(sliceResult.remain?.count) remaining")
-                    let tailData = parsedLines.removeLast()
+                    print("parsed lines found \(parsedLines.compactMap({ $0.count }).reduce(0, +)) bytes in lines ( across \(parsedLines.count) lines ) with \(sliceResult.remain?.count) bytes remaining")
                     _readBuffer.removeAll(keepingCapacity:true)
                     if let hasRemainder = sliceResult.remain {
                         _readBuffer.append(hasRemainder)
