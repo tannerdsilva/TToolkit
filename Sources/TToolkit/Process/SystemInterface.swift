@@ -68,6 +68,7 @@ internal func tt_wait_sync(pid:pid_t) -> Int32 {
 //three types of monitor process events, launch event, exit event, and fatal event
 internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>, wd:UnsafePointer<Int8>, stdin:ExportedPipe?, stdout:ExportedPipe?, stderr:ExportedPipe?, notify:Int32) throws -> ProcessMonitor.ProcessKey {    
     print("forking process with in \(stdin), out \(stdout), stderr \(stderr)")
+    
     let forkResult = fork()
     
 	func executeProcessWork() {
@@ -106,25 +107,24 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 			notifyFatal(notifyHandle)
         }
 		if let hasStdin = stdin {
-            print("in is triggered")
             guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
                 _exit(-1)
             }
-//            hasStdin.close()
+           	hasStdin.close()
         }
         if let hasStderr = stderr {
             print("err is triggered")
             guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
                 _exit(-1)
             }
-//            hasStderr.close()
+            hasStderr.close()
         }
         if let hasStdout = stdout {
             print("out is triggered")
             guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
                 _exit(-1)
             }
-//            hasStdout.close()
+            hasStdout.close()
         }
 
                 
@@ -138,9 +138,9 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 				executeProcessWork()
 				
 			default:
-//                _close(STDIN_FILENO)
-//                _close(STDOUT_FILENO)
-//                _close(STDERR_FILENO)
+               _close(STDIN_FILENO)
+               _close(STDOUT_FILENO)
+               _close(STDERR_FILENO)
 //                
 //                stdout?.close()
 //                stderr?.close()
@@ -182,6 +182,9 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
             processMonitor()
         default:
             //in parent, success
+            _close(stdin!.reading)
+            _close(stdout!.writing)
+            _close(stderr!.writing)
             return forkResult
     }
 }
