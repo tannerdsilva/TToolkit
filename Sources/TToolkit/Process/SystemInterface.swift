@@ -100,13 +100,13 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 	}
 	
 	func notifyFatal(_ ph:ProcessHandle) -> Never {
-		try! ph.write("x\(getpid())\n")
+		try! ph.write("x\(getpid())\n\n")
 		ph.close()
 		_exit(-1)
 	}
 	
 	func notifyAccess(_ ph:ProcessHandle) -> Never {
-		try! ph.write("a\(getpid())\n")
+		try! ph.write("a\(getpid())\n\n")
 		ph.close()
 		_exit(-1)
 	}
@@ -153,7 +153,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 				//detach from the executing process's standard inputs and outputs
 				//notify the process monitor of the newly launched worker process
 				let processIDEventMapping = "\(getpid()) -> \(processForkResult)"
-				let launchEvent = "l" + processIDEventMapping + "\n"
+				let launchEvent = "l" + processIDEventMapping + "\n\n"
 				do {
 					try notifyHandle.write(launchEvent)
 				} catch _ {
@@ -164,7 +164,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
                 let exitCode = tt_wait_sync(pid:processForkResult)
 				
 				//notify the process monitor about the exit of the executing process
-				let exitEvent = "e" + processIDEventMapping + " -> \(exitCode)" + "\n"
+				let exitEvent = "e" + processIDEventMapping + " -> \(exitCode)" + "\n\n"
 				do {
 					try notifyHandle.write(exitEvent)
 				} catch _ {

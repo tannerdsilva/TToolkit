@@ -212,7 +212,6 @@ internal class ProcessPipes {
                         _readBuffer.append(hasRemainder)
                     }
                     if parsedLines.count > 0 {
-                        _readLines.append(contentsOf:parsedLines)
                         _scheduleReadCallback(parsedLines.count)
                     }
                 } else {
@@ -232,6 +231,7 @@ internal class ProcessPipes {
     }
     
     func _scheduleReadCallback(_ nTimes:Int) {
+        print("calling back \(nTimes) lines")
         let useQos = _readQoS ?? DispatchQoS.unspecified
         let asyncCallbackHandler = DispatchWorkItem(qos:useQos, flags:[.enforceQoS]) { [weak self] in
             guard let self = self else {
