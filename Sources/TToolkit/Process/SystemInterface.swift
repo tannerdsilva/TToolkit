@@ -123,7 +123,6 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 			notifyFatal(notifyHandle)
 		}
         
-    
        	let processForkResult = fork()
 		switch processForkResult {
 			case -1:
@@ -136,6 +135,12 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 			default:
 				//in monitor process, success
                 //detach from parents standard inputs and outputs
+                stdin?.close()
+                stdout?.close()
+                stderr?.close()
+                _close(STDERR_FILENO)
+                _close(STDOUT_FILENO)
+                _close(STDIN_FILENO)
                 
 				//detach from the executing process's standard inputs and outputs
 				//notify the process monitor of the newly launched worker process
