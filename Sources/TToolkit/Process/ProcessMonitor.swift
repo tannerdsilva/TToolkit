@@ -114,7 +114,6 @@ internal class ProcessMonitor {
 	
 	//when data is built to the point of becoming a valid event, it is passed here for parsing
 	internal func eventHandle(_ newEvent:String) {
-        
 		guard let eventMode = newEvent.first else {
 			return
 		}
@@ -167,7 +166,6 @@ internal class ProcessMonitor {
 				return
 			}
 			accessErrorOccurred(mon:monitorId)
-
 			
 			default:
 			print("unknown process event occurred")
