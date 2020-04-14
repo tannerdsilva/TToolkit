@@ -250,10 +250,13 @@ internal class ExecutingProcess {
     }
     
     internal func exitHandle(_ exitCode:Int32) {
-        print("EXIT HANDLER")
-        if let hasHandler = terminationHandler, let hasQueue = terminationQueue {
-            hasQueue.async(execute:hasHandler)
+        internalSync.sync {
+            _exitCode = exitCode
+            if let hasHandler = _terminationHandler, let hasQueue = _terminationQueue {
+                hasQueue.async(execute:hasHandler)
+            }
         }
+        print("EXIT HANDLER")
     }
 	
 	func suspend() -> Bool? {
