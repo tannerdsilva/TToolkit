@@ -144,10 +144,10 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 				executeProcessWork()
 				
 			default:
-                _close(STDIN_FILENO)
-                _close(STDOUT_FILENO)
-                _close(STDERR_FILENO)
-                
+//                _close(STDIN_FILENO)
+//                _close(STDOUT_FILENO)
+//                _close(STDERR_FILENO)
+//                
 //                stdout?.close()
 //                stderr?.close()
 //                stdin?.close()
