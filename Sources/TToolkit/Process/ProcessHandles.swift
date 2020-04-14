@@ -32,18 +32,24 @@ internal let pp_make_destroy_queue = DispatchQueue(label:"com.tannersilva.global
 internal class PipeReader {
 	let internalSync:DispatchQueue
 	var handleQueue:[ProcessHandle:DispatchSourceProtocol]
+    
 	init() {
 		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.sync")
 		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
 	}
     func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler), queue:DispatchQueue) {
         print("scheduling \(handle._fd)")
-        let newSource = DispatchSource.makeReadSource(fileDescriptor:handle.fileDescriptor, queue:Priority.highest.globalConcurrentQueue)
+        let inFD = handle.fileDescriptor
+        let duped = dup(inFD)
+        let newSource = DispatchSource.makeReadSource(fileDescriptor:duped, queue:Priority.highest.globalConcurrentQueue)
 		newSource.setEventHandler {
 			if let newData = handle.availableData() {
                 queue.async { work(newData) }
 			}
 		}
+        newSource.setCancelHandler {
+            _close(duped)
+        }
 		internalSync.sync {
 			handleQueue[handle] = newSource
             newSource.activate()
