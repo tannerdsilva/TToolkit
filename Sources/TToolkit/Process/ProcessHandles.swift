@@ -196,7 +196,7 @@ internal class ProcessPipes {
             }
             return false
         }
-        self.internalSync.sync {
+        let linesToSchedule:Int = self.internalSync.sync {
             print("data intake syncronized with buffer size of \(_readBuffer.count) bytes")
             _readBuffer.append(dataIn)
             if hasNewLine {
@@ -213,12 +213,18 @@ internal class ProcessPipes {
                     }
                     if parsedLines.count > 0 {
                         _scheduleReadCallback(parsedLines.count)
+                        return parsedLines.count
                     }
                 } else {
                     print("nope")
                 }
             }
+            return 0
         }
+        print("returned")
+//        if linesToSchedule != 0 {
+//            _scheduleReadCallback(linesToSchedule)
+//        }
     }
     
     private func popIntakeLineAndHandler() -> (Data?, ReadHandler?) {
@@ -233,7 +239,8 @@ internal class ProcessPipes {
     func _scheduleReadCallback(_ nTimes:Int) {
         print("calling back \(nTimes) lines")
         let useQos = _readQoS ?? DispatchQoS.unspecified
-        let asyncCallbackHandler = DispatchWorkItem(qos:useQos, flags:[.enforceQoS]) { [weak self] in
+        print("qos picked")
+        let asyncCallbackHandler = DispatchWorkItem() { [weak self] in
             guard let self = self else {
                 return
             }
@@ -243,7 +250,7 @@ internal class ProcessPipes {
                 hasHandler(hasNewDataLine)
             }
         }
-        
+        print("not sure why this line is interesting but whatever")
         if let hasQueue = _readQueue {
             for _ in 0..<nTimes {
                 print(">")
