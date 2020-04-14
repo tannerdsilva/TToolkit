@@ -197,6 +197,7 @@ internal class ProcessPipes {
             return false
         }
         self.internalSync.sync {
+            print("data intake syncronized")
             _readBuffer.append(dataIn)
             if hasNewLine {
                 if var parsedLines = _readBuffer.lineSlice(removeBOM:false) {
@@ -234,9 +235,10 @@ internal class ProcessPipes {
             }
         }
         
-        if let hasCallback = _readQueue {
+        if let hasQueue = _readQueue {
             for _ in 0..<nTimes {
-                hasCallback.async(execute:asyncCallbackHandler)
+                print(">")
+                hasQueue.async(execute:asyncCallbackHandler)
             }
         }
     }
