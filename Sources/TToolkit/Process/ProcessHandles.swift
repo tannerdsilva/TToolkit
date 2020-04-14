@@ -208,7 +208,7 @@ internal class ProcessPipes {
                     _readBuffer.removeAll(keepingCapacity:true)
                     if let hasRemainder = sliceResult.remain {
                         let remain = String(data:hasRemainder, encoding:.utf8)
-                        print("REMAIN \(remain)")
+                        print("REMAIN \(remain?.count)")
                         _readBuffer.append(hasRemainder)
                     }
                     if parsedLines.count > 0 {
