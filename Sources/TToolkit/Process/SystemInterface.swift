@@ -125,6 +125,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
                 }
                 notifyFatal(notifyHandle)
             }
+            print("all good in the hood")
 //            _close(hasStdout.writing)
         }
 		if let hasStdin = stdin {
@@ -135,7 +136,6 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 //            _close(hasStdin.reading)
         }
         if let hasStderr = stderr {
-            print("err is triggered")
             _close(hasStderr.reading)
             guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
                 notifyFatal(notifyHandle)
