@@ -72,21 +72,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
     
 	func executeProcessWork() {
         _close(notify.writing)
-          if let hasStdout = stdout {
-            _close(hasStdout.reading)
-            let dupVal = _dup2(hasStdout.writing, STDERR_FILENO)
-            guard dupVal == 0 else {
-                let err = errno
-                print(Colors.Red("failed because got val \(dupVal) and errno \(err)"))
-                if err == EBUSY {
-                    print("it was busy")
-                } else if err == EBADF {
-                    print("it was a bad descriptor")
-                }
-                _exit(-1)
-            }
-            print("all good in the hood")
-        }
+          
 //            _close(hasStdout.writing)
 //        stdout?.close()
 //        stderr?.close()
@@ -111,7 +97,22 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         print("forking process with in \(stdin), out \(stdout), stderr \(stderr)")
         _close(notify.reading)
         let notifyHandle = ProcessHandle(fd:notify.writing)
-        
+        if let hasStdout = stdout {
+            _close(hasStdout.reading)
+            _close(STDERR_FILENO)
+            let dupVal = _dup2(hasStdout.writing, STDERR_FILENO)
+            guard dupVal == 0 else {
+                let err = errno
+                print(Colors.Red("failed because got val \(dupVal) and errno \(err)"))
+                if err == EBUSY {
+                    print("it was busy")
+                } else if err == EBADF {
+                    print("it was a bad descriptor")
+                }
+                _exit(-1)
+            }
+            print("all good in the hood")
+        }
         //access checks
     	guard tt_directory_check(ptr:wd) == true && tt_execute_check(ptr:path) == true else {
     		notifyAccess(notifyHandle)
