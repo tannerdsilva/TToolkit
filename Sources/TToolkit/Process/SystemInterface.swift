@@ -97,8 +97,8 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         _close(notify.reading)
         let notifyHandle = ProcessHandle(fd:notify.writing)
         
-        try! notifyHandle.write("go fuck yourself only once though hahah")
-        _write(stdout!.writing, "foooooooooooooo gooooo mooooooooo", "foooooooooooooo gooooo mooooooooo".count)
+        try! notifyHandle.write("go fuck yourself only once though hahah\n")
+        _write(stdout!.writing, "foooooooooooooo gooooo mooooooooo\n", "foooooooooooooo gooooo mooooooooo\n".count)
         print("hooray we wrote stuff")
         
         //access checks
