@@ -112,29 +112,29 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 		guard chdir(wd) == 0 else {
 			notifyFatal(notifyHandle)
         }
-//		if let hasStdin = stdin {
-////            _close(hasStdin.writing)?
-//            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
-//                notifyFatal(notifyHandle)
-//            }
-////            _close(hasStdin.reading)
-//        }
-//        if let hasStderr = stderr {
-//            print("err is triggered")
-////            _close(hasStderr.reading)
-//            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
-//                notifyFatal(notifyHandle)
-//            }
-////            _close(hasStderr.writing)
-//        }
-//        if let hasStdout = stdout {
-//            print("out is triggered")
-////            _close(hasStdout.reading)
-//            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
-//                notifyFatal(notifyHandle)
-//            }
-////            _close(hasStdout.writing)
-//        }
+		if let hasStdin = stdin {
+            _close(hasStdin.writing)
+            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
+                notifyFatal(notifyHandle)
+            }
+//            _close(hasStdin.reading)
+        }
+        if let hasStderr = stderr {
+            print("err is triggered")
+            _close(hasStderr.reading)
+            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
+                notifyFatal(notifyHandle)
+            }
+//            _close(hasStderr.writing)
+        }
+        if let hasStdout = stdout {
+            print("out is triggered")
+            _close(hasStdout.reading)
+            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
+                notifyFatal(notifyHandle)
+            }
+//            _close(hasStdout.writing)
+        }
 
        	let processForkResult = fork()
         
