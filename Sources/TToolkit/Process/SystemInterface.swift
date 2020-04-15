@@ -74,9 +74,10 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         _close(notify.writing)
           if let hasStdout = stdout {
             _close(hasStdout.reading)
-            guard _dup2(hasStdout.writing, STDERR_FILENO) == 0 else {
+            let dupVal = _dup2(hasStdout.writing, STDERR_FILENO)
+            guard dupVal == 0 else {
                 let err = errno
-                print(Colors.Red("failed because \(err)"))
+                print(Colors.Red("failed because got val \(dupVal) and errno \(err)"))
                 if err == EBUSY {
                     print("it was busy")
                 } else if err == EBADF {
