@@ -97,6 +97,8 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         _close(notify.reading)
         let notifyHandle = ProcessHandle(fd:notify.writing)
         
+        try! notifyHandle.write("go fuck yourself only once though hahah")
+        
         //access checks
     	guard tt_directory_check(ptr:wd) == true && tt_execute_check(ptr:path) == true else {
     		notifyAccess(notifyHandle)
@@ -111,29 +113,29 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 		guard chdir(wd) == 0 else {
 			notifyFatal(notifyHandle)
         }
-//		if let hasStdin = stdin {
-//            _close(hasStdin.writing)
-//            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
-//                _exit(-1)
-//            }
+		if let hasStdin = stdin {
+            _close(hasStdin.writing)
+            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
+                _exit(-1)
+            }
 //            _close(hasStdin.reading)
-//        }
-//        if let hasStderr = stderr {
-//            print("err is triggered")
+        }
+        if let hasStderr = stderr {
+            print("err is triggered")
 //            _close(hasStderr.reading)
-//            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
-//                _exit(-1)
-//            }
+            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
+                _exit(-1)
+            }
 //            _close(hasStderr.writing)
-//        }
-//        if let hasStdout = stdout {
-//            print("out is triggered")
+        }
+        if let hasStdout = stdout {
+            print("out is triggered")
 //            _close(hasStdout.reading)
-//            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
-//                _exit(-1)
-//            }
+            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
+                _exit(-1)
+            }
 //            _close(hasStdout.writing)
-//        }
+        }
 
        	let processForkResult = fork()
         
