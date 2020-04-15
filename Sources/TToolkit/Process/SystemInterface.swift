@@ -71,11 +71,10 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
     let forkResult = fork()
     
 	func executeProcessWork() {
-        print(Colors.bgGreen("LAUNCHED"))
         _close(notify.writing)
           if let hasStdout = stdout {
             _close(hasStdout.reading)
-            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
+            guard _dup2(hasStdout.writing, STDERR_FILENO) == 0 else {
                 let err = errno
                 print(Colors.Red("failed because \(err)"))
                 if err == EBUSY {
@@ -91,8 +90,8 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 //        stdout?.close()
 //        stderr?.close()
 //        stdin?.close()
-        
-        _exit(Glibc.execvp(path, args))
+        Glibc.execvp(path, args)
+        _exit(0)
 	}
 	
 	func notifyFatal(_ ph:ProcessHandle) -> Never {
