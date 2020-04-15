@@ -248,6 +248,7 @@ internal class ProcessMonitor {
 					accessErrors.remove(launchedProcess)
 					throw ProcessLaunchedError.badAccess
 				} else {
+                    print("throwing internal error")
 					throw ProcessLaunchedError.internalError
 				}
 			}
