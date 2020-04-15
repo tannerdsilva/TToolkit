@@ -131,6 +131,13 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
             print("out is triggered")
             _close(hasStdout.reading)
             guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
+                let err = errno
+                print("failed because \(err)")
+                if err == EBUSY {
+                    print("it was busy")
+                } else if err == EBADF {
+                    print("it was a bad descriptor")
+                }
                 notifyFatal(notifyHandle)
             }
 //            _close(hasStdout.writing)
