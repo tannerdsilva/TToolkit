@@ -71,6 +71,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
     let forkResult = fork()
     
 	func executeProcessWork() {
+        print(Colors.bgGreen("LAUNCHED"))
         _close(notify.writing)
           if let hasStdout = stdout {
             _close(hasStdout.reading)
