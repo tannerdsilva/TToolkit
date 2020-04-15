@@ -82,6 +82,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
                 } else if err == EBADF {
                     print("it was a bad descriptor")
                 }
+                _exit(-1)
             }
             print("all good in the hood")
         }
