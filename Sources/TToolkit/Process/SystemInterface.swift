@@ -96,9 +96,6 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         print("forking process with in \(stdin), out \(stdout), stderr \(stderr)")
         _close(notify.reading)
         let notifyHandle = ProcessHandle(fd:notify.writing)
-        
-        try! notifyHandle.write("go fuck yourself only once though hahah\n")
-        _write(stdout!.writing, "foooooooooooooo gooooo mooooooooo\n", "foooooooooooooo gooooo mooooooooo\n".count)
         print("hooray we wrote stuff")
         
         //access checks
@@ -186,9 +183,9 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
             processMonitor()
         default:
             //in parent, success
-//            _close(stdin!.reading)
-//            _close(stdout!.writing)
-//            _close(stderr!.writing)
+            _close(stdin!.reading)
+            _close(stdout!.writing)
+            _close(stderr!.writing)
             return forkResult
     }
 }
