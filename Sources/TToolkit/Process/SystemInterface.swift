@@ -72,7 +72,20 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
     
 	func executeProcessWork() {
         _close(notify.writing)
-//
+          if let hasStdout = stdout {
+            _close(hasStdout.reading)
+            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
+                let err = errno
+                print(Colors.Red("failed because \(err)"))
+                if err == EBUSY {
+                    print("it was busy")
+                } else if err == EBADF {
+                    print("it was a bad descriptor")
+                }
+            }
+            print("all good in the hood")
+        }
+//            _close(hasStdout.writing)
 //        stdout?.close()
 //        stderr?.close()
 //        stdin?.close()
@@ -96,7 +109,6 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         print("forking process with in \(stdin), out \(stdout), stderr \(stderr)")
         _close(notify.reading)
         let notifyHandle = ProcessHandle(fd:notify.writing)
-        print("hooray we wrote stuff")
         
         //access checks
     	guard tt_directory_check(ptr:wd) == true && tt_execute_check(ptr:path) == true else {
@@ -109,24 +121,10 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 //                stdin?.close()
 //
 //    	//change working directory
-		guard chdir(wd) == 0 else {
-			notifyFatal(notifyHandle)
-        }
-        if let hasStdout = stdout {
-            _close(hasStdout.reading)
-            guard _dup2(hasStdout.writing, STDOUT_FILENO) == 0 else {
-                let err = errno
-                print("failed because \(err)")
-                if err == EBUSY {
-                    print("it was busy")
-                } else if err == EBADF {
-                    print("it was a bad descriptor")
-                }
-                notifyFatal(notifyHandle)
-            }
-            print("all good in the hood")
-//            _close(hasStdout.writing)
-        }
+//		guard chdir(wd) == 0 else {
+//			notifyFatal(notifyHandle)
+//        }
+
 //		if let hasStdin = stdin {
 //            _close(hasStdin.writing)
 //            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
@@ -189,9 +187,9 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
             processMonitor()
         default:
             //in parent, success
-            _close(stdin!.reading)
-            _close(stdout!.writing)
-            _close(stderr!.writing)
+//            _close(stdin!.reading)
+//            _close(stdout!.writing)
+//            _close(stderr!.writing)
             return forkResult
     }
 }
