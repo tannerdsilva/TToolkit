@@ -72,11 +72,21 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
     
 	func executeProcessWork() {
         _close(notify.writing)
-          
-//            _close(hasStdout.writing)
-//        stdout?.close()
-//        stderr?.close()
-//        stdin?.close()
+        
+        if let hasStdout = stdout {
+            let dupVal = _dup2(hasStdout.writing, STDERR_FILENO)
+            guard dupVal == 0 else {
+                let err = errno
+                print(Colors.Red("failed because got val \(dupVal) and errno \(err)"))
+                if err == EBUSY {
+                    print("it was busy")
+                } else if err == EBADF {
+                    print("it was a bad descriptor")
+                }
+                _exit(-1)
+            }
+            print("all good in the hood")
+        }
         Glibc.execvp(path, args)
         _exit(0)
 	}
@@ -100,49 +110,12 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         if let hasStdout = stdout {
             _close(hasStdout.reading)
             _close(STDERR_FILENO)
-            let dupVal = _dup2(hasStdout.writing, STDERR_FILENO)
-            guard dupVal == 0 else {
-                let err = errno
-                print(Colors.Red("failed because got val \(dupVal) and errno \(err)"))
-                if err == EBUSY {
-                    print("it was busy")
-                } else if err == EBADF {
-                    print("it was a bad descriptor")
-                }
-                _exit(-1)
-            }
-            print("all good in the hood")
         }
         //access checks
     	guard tt_directory_check(ptr:wd) == true && tt_execute_check(ptr:path) == true else {
     		notifyAccess(notifyHandle)
     	}
-//
-//
-//                stdout?.close()
-//                stderr?.close()
-//                stdin?.close()
-//
-//    	//change working directory
-//		guard chdir(wd) == 0 else {
-//			notifyFatal(notifyHandle)
-//        }
 
-//		if let hasStdin = stdin {
-//            _close(hasStdin.writing)
-//            guard _dup2(hasStdin.reading, STDIN_FILENO) == 0 else {
-//                notifyFatal(notifyHandle)
-//            }
-////            _close(hasStdin.reading)
-//        }
-//        if let hasStderr = stderr {
-//            _close(hasStderr.reading)
-//            guard _dup2(hasStderr.writing, STDERR_FILENO) == 0 else {
-//                notifyFatal(notifyHandle)
-//            }
-////            _close(hasStderr.writing)
-//        }
-        
        	let processForkResult = fork()
         
 		switch processForkResult {
