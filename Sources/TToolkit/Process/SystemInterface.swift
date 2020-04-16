@@ -75,7 +75,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         
         if let hasStdout = stdout {
             let dupVal = _dup2(hasStdout.writing, STDERR_FILENO)
-            guard dupVal <= 0 else {
+            guard dupVal >= 0 else {
                 let err = errno
                 print(Colors.Red("failed because got val \(dupVal) and errno \(err)"))
                 if err == EBUSY {
