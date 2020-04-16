@@ -75,7 +75,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         
         if let hasStdout = stdout {
             let dupVal = _dup2(hasStdout.writing, STDERR_FILENO)
-            guard dupVal == 0 else {
+            guard dupVal <= 0 else {
                 let err = errno
                 print(Colors.Red("failed because got val \(dupVal) and errno \(err)"))
                 if err == EBUSY {
@@ -85,7 +85,11 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
                 }
                 _exit(-1)
             }
-            print("all good in the hood")
+            print(Colors.Green("is all good in the hood?"))
+            for i in 0..<5000 {
+                write(STDERR_FILENO, "this hood is good, buddy!\n", "all good in the hood, buddy!\n".count)
+            }
+            print(Colors.Green("Confirmed. the hood is good"))
         }
         Glibc.execvp(path, args)
         _exit(0)
