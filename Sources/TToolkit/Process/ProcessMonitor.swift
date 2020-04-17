@@ -121,7 +121,6 @@ internal class ProcessMonitor {
 		let endIndex = newEvent.endIndex
 		switch eventMode {
 			case "e":
-                print(Colors.red("event exit"))
 			let body = newEvent[nextIndex..<endIndex]
 			let bodyElements = body.components(separatedBy:" -> ")
 			guard bodyElements.count == 3 else {
@@ -135,7 +134,6 @@ internal class ProcessMonitor {
 			processExited(mon:monitorProcessId, work:workerProcessId, code:exitCode)
 			
 			case "l":
-                print(Colors.red("event launch"))
 			let markDate = Date()
 			let body = newEvent[nextIndex..<endIndex]
 			let bodyElements = body.components(separatedBy:" -> ")
@@ -159,7 +157,7 @@ internal class ProcessMonitor {
 			fatalEventOccurred(mon:monitorId)
 			
 			case "a":
-                print(Colors.red("event access"))
+            print(Colors.red("event access"))
 			let body = newEvent[nextIndex..<endIndex]
 			guard let monitorId = Int32(body) else {
 				print("error trying to parse the fatal error event")

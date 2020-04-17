@@ -166,6 +166,8 @@ public class InteractiveProcess:Hashable {
 		}
 	}
 	
+    internal var ioGroup:DispatchGroup = DispatchGroup()
+    
 	internal var stdin:ProcessPipes? = nil
 	internal var stdout:ProcessPipes? = nil
 	internal var stderr:ProcessPipes? = nil
@@ -238,8 +240,7 @@ public class InteractiveProcess:Hashable {
         self._priority = priority
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
         let rs = DispatchSemaphore(value:0)
-//        let initSem = DispatchSemaphore(value:0)
-        
+
 		self.runSemaphore = rs
 		self._state = .initialized
         
@@ -247,25 +248,13 @@ public class InteractiveProcess:Hashable {
             guard let self = self else {
                 return
             }
-            print(Colors.red("XX"))
-            sleep(1)
-            if let hasIn = self.stdin {
-                hasIn.close()
-            }
-
-            if let hasOut = self.stdout {
-                hasOut.close()
-            }
-
-            if let hasErr = self.stderr {
-                hasErr.close()
-            }
+            self.ioGroup.wait()
+            print("done waiting for io to finish")
         }
         termHandle.notify(qos:priority.process_launch_priority, flags:[.enforceQoS, .barrier], queue: process_master_queue, execute: { [weak self] in
             guard let self = self else {
                 return
             }
-            print(Colors.red("exit no"))
             
             let errLines = self.internalSync.sync { return self._finishStderr() }
             let outLines = self.internalSync.sync { return self._finishStdout() }
@@ -286,12 +275,15 @@ public class InteractiveProcess:Hashable {
         })
         
         let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, workingDirectory: workingDirectory)
-        print("trying to make pipes")
-        
         let inputSerial = DispatchQueue(label:"footest", target:process_master_queue)
+       
         let input = try ProcessPipes(read:inputSerial)
+        input.readGroup = ioGroup
         let output = try ProcessPipes(read:inputSerial)
+        output.readGroup = ioGroup
         let err = try ProcessPipes(read:inputSerial)
+        err.readGroup = ioGroup
+        
         externalProcess.terminationQueue = inputSerial
         externalProcess.terminationHandler = termHandle
         externalProcess.stdin = input
