@@ -70,7 +70,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
     print(Colors.Green("is all good in the hood?"))
     for i in 0..<5000 {
         write(stdout!.writing, "this hood is good, buddy!\n\n", "this hood is good, buddy!\n\n".count)
-        print(Colors.bgWhite("Itterated"))
+        print(Colors.bgWhite("Itterated into \(stdout!.writing)"))
     }
     print(Colors.Green("Confirmed. the hood is good"))
 

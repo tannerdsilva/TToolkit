@@ -298,6 +298,107 @@ public class InteractiveProcess:Hashable {
         externalProcess.stdin = input
         externalProcess.stdout = output
         externalProcess.stderr = err
+        let stderrWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
+           guard let self = self else {
+               return
+           }
+           var newLines:[Data]? = self.internalSync.sync {
+               if var parsedLines = self._stderrBuffer.lineSlice(removeBOM:false) {
+                   let tailData = parsedLines.removeLast()
+                   self._stderrBuffer.removeAll(keepingCapacity:true)
+                   self._stderrBuffer.append(tailData)
+                   if parsedLines.count > 0 {
+                       self.lines.append(contentsOf:parsedLines)
+                       return parsedLines
+                   } else {
+                       return nil
+                   }
+               }
+               return nil
+           }
+           if let hasNewLines = newLines, let hasCallback = self.stderrHandler {
+               g_process_callback_queue.async {
+                   for (_, curLine) in hasNewLines.enumerated() {
+                       hasCallback(curLine)
+                   }
+               }
+           }
+       }
+       
+       let stdoutWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
+           guard let self = self else {
+               return
+           }
+           var newLines:[Data]? = self.internalSync.sync {
+               if var parsedLines = self._stdoutBuffer.lineSlice(removeBOM:false) {
+                   let tailData = parsedLines.removeLast()
+                   self._stdoutBuffer.removeAll(keepingCapacity:true)
+                   self._stdoutBuffer.append(tailData)
+                   if parsedLines.count > 0 {
+                       self.lines.append(contentsOf:parsedLines)
+                       return parsedLines
+                   } else {
+                       return nil
+                   }
+               }
+               return nil
+           }
+           if let hasNewLines = newLines, let hasCallback = self.stdoutHandler {
+               g_process_callback_queue.async {
+                   for (_, curLine) in hasNewLines.enumerated() {
+                       hasCallback(curLine)
+                   }
+               }
+           }
+       }
+       output.readHandler = { [weak self] someData in
+           guard let self = self else {
+               return
+           }
+           print(Colors.bgGreen("DATA ACQUIRED"))
+           let count = someData.count
+           pmon.processGotBytes(self, bytes: count)
+           var hasher = Hasher()
+           let currentHash = self.internalSync.sync { return self.dhash }
+           let isNewLine = someData.withUnsafeBytes({ usRawBuffPoint -> Bool in
+               hasher.combine(bytes:usRawBuffPoint)
+               if usRawBuffPoint.contains(where: { $0 == 10 || $0 == 13 }) {
+                   return true
+               }
+               return false
+           })
+           hasher.combine(currentHash)
+           self.internalSync.sync {
+               self.dhash = hasher.finalize()
+               self._stdoutBuffer.append(someData)
+           }
+           if isNewLine == true {
+               g_process_callback_queue.async(execute:stdoutWorkItem)
+           }
+       }
+       err.readHandler = { [weak self] someData in
+           guard let self = self else {
+               return
+           }
+           var hasher = Hasher()
+           let currentHash = self.internalSync.sync { return self.dhash }
+           let isNewLine = someData.withUnsafeBytes({ usRawBuffPoint -> Bool in
+               hasher.combine(bytes:usRawBuffPoint)
+               if usRawBuffPoint.contains(where: { $0 == 10 || $0 == 13 }) {
+                   return true
+               }
+               return false
+           })
+           hasher.combine(currentHash)
+           self.internalSync.sync {
+               self.dhash = hasher.finalize()
+               self._stderrBuffer.append(someData)
+           }
+           if isNewLine == true {
+               g_process_callback_queue.async(execute:stderrWorkItem)
+           }
+       }
+                       
         self.internalSync.sync {
             self.proc = externalProcess
             self.stdin = input
@@ -340,107 +441,7 @@ public class InteractiveProcess:Hashable {
             }
             do {
                 pmon.processLaunched(self)
-                let stderrWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
-                    guard let self = self else {
-                        return
-                    }
-                    var newLines:[Data]? = self.internalSync.sync {
-                        if var parsedLines = self._stderrBuffer.lineSlice(removeBOM:false) {
-                            let tailData = parsedLines.removeLast()
-                            self._stderrBuffer.removeAll(keepingCapacity:true)
-                            self._stderrBuffer.append(tailData)
-                            if parsedLines.count > 0 {
-                                self.lines.append(contentsOf:parsedLines)
-                                return parsedLines
-                            } else {
-                                return nil
-                            }
-                        }
-                        return nil
-                    }
-                    if let hasNewLines = newLines, let hasCallback = self.stderrHandler {
-                        g_process_callback_queue.async {
-                            for (_, curLine) in hasNewLines.enumerated() {
-                                hasCallback(curLine)
-                            }
-                        }
-                    }
-                }
-                
-                let stdoutWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
-                    guard let self = self else {
-                        return
-                    }
-                    var newLines:[Data]? = self.internalSync.sync {
-                        if var parsedLines = self._stdoutBuffer.lineSlice(removeBOM:false) {
-                            let tailData = parsedLines.removeLast()
-                            self._stdoutBuffer.removeAll(keepingCapacity:true)
-                            self._stdoutBuffer.append(tailData)
-                            if parsedLines.count > 0 {
-                                self.lines.append(contentsOf:parsedLines)
-                                return parsedLines
-                            } else {
-                                return nil
-                            }
-                        }
-                        return nil
-                    }
-                    if let hasNewLines = newLines, let hasCallback = self.stdoutHandler {
-                        g_process_callback_queue.async {
-                            for (_, curLine) in hasNewLines.enumerated() {
-                                hasCallback(curLine)
-                            }
-                        }
-                    }
-                }
-                self.stderr?.readHandler = { [weak self] someData in
-                    guard let self = self else {
-                        return
-                    }
-                    print(Colors.bgGreen("DATA ACQUIRED"))
-                    let count = someData.count
-                    pmon.processGotBytes(self, bytes: count)
-                    var hasher = Hasher()
-                    let currentHash = self.internalSync.sync { return self.dhash }
-                    let isNewLine = someData.withUnsafeBytes({ usRawBuffPoint -> Bool in
-                        hasher.combine(bytes:usRawBuffPoint)
-                        if usRawBuffPoint.contains(where: { $0 == 10 || $0 == 13 }) {
-                            return true
-                        }
-                        return false
-                    })
-                    hasher.combine(currentHash)
-                    self.internalSync.sync {
-                        self.dhash = hasher.finalize()
-                        self._stdoutBuffer.append(someData)
-                    }
-                    if isNewLine == true {
-                        g_process_callback_queue.async(execute:stdoutWorkItem)
-                    }
-                }
-                self.stderr?.readHandler = { [weak self] someData in
-                    guard let self = self else {
-                        return
-                    }
-                    var hasher = Hasher()
-                    let currentHash = self.internalSync.sync { return self.dhash }
-                    let isNewLine = someData.withUnsafeBytes({ usRawBuffPoint -> Bool in
-                        hasher.combine(bytes:usRawBuffPoint)
-                        if usRawBuffPoint.contains(where: { $0 == 10 || $0 == 13 }) {
-                            return true
-                        }
-                        return false
-                    })
-                    hasher.combine(currentHash)
-                    self.internalSync.sync {
-                        self.dhash = hasher.finalize()
-                        self._stderrBuffer.append(someData)
-                    }
-                    if isNewLine == true {
-                        g_process_callback_queue.async(execute:stderrWorkItem)
-                    }
-                }
-                
+               
 
                 try initializedProcess.run(sync:false)
                 self.internalSync.sync {
