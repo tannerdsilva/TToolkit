@@ -241,7 +241,6 @@ internal class ProcessPipes {
             }
         }
         for _ in 0..<nTimes {
-            print(">")
             _readQueue.async(execute:asyncCallbackHandler)
         }
     }

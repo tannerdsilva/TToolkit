@@ -292,7 +292,6 @@ public class InteractiveProcess:Hashable {
         let input = try ProcessPipes(read:inputSerial)
         let output = try ProcessPipes(read:inputSerial)
         let err = try ProcessPipes(read:inputSerial)
-        print("pipes made")
         externalProcess.terminationQueue = inputSerial
         externalProcess.terminationHandler = termHandle
         externalProcess.stdin = input
@@ -355,7 +354,6 @@ public class InteractiveProcess:Hashable {
            guard let self = self else {
                return
            }
-           print(Colors.bgGreen("DATA ACQUIRED"))
            let count = someData.count
            pmon.processGotBytes(self, bytes: count)
            var hasher = Hasher()
