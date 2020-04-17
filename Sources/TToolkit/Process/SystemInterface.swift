@@ -66,33 +66,11 @@ internal func tt_wait_sync(pid:pid_t) -> Int32 {
 //the primary means of I/O for the monitor process is the file descriptor passed to this function `notify`. This file descriptor acts as the activity log for the monitor process.
 //three types of monitor process events, launch event, exit event, and fatal event
 internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>, wd:UnsafePointer<Int8>, stdin:ExportedPipe?, stdout:ExportedPipe?, stderr:ExportedPipe?, notify:ExportedPipe) throws -> ProcessMonitor.ProcessKey {
-    
-    print(Colors.Green("is all good in the hood?"))
-    for i in 0..<5000 {
-        write(stdout!.writing, "this hood is good, buddy!\n\n", "this hood is good, buddy!\n\n".count)
-        print(Colors.bgWhite("Itterated into \(stdout!.writing)"))
-    }
-    print(Colors.Green("Confirmed. the hood is good"))
-
     let forkResult = fork()
     
 	func executeProcessWork() {
         _close(notify.writing)
         
-        if let hasStdout = stdout {
-            let dupVal = _dup2(hasStdout.writing, STDERR_FILENO)
-            guard dupVal >= 0 else {
-                let err = errno
-                print(Colors.Red("failed because got val \(dupVal) and errno \(err)"))
-                if err == EBUSY {
-                    print("it was busy")
-                } else if err == EBADF {
-                    print("it was a bad descriptor")
-                }
-                _exit(-1)
-            }
-            _close(hasStdout.writing)
-        }
         Glibc.execvp(path, args)
         _exit(0)
 	}
@@ -113,10 +91,30 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         print("forking process with in \(stdin), out \(stdout), stderr \(stderr)")
         _close(notify.reading)
         let notifyHandle = ProcessHandle(fd:notify.writing)
-        if let hasStdout = stdout {
-            _close(hasStdout.reading)
-            _close(STDERR_FILENO)
+        
+        print(Colors.dim("is all good in the hood?"))
+        for i in 0..<5000 {
+            write(stdout!.writing, "this hood is good, buddy!\n\n", "this hood is good, buddy!\n\n".count)
+            print(Colors.bgBlack("Itterated into \(stdout!.writing)"))
         }
+        print(Colors.Green("Confirmed. the hood is good"))
+
+        if let hasStdout = stdout {
+            let dupVal = _dup2(hasStdout.writing, STDOUT_FILENO)
+            guard dupVal >= 0 else {
+                _exit(-1)
+            }
+            _close(hasStdout.writing)
+        }
+        
+        if let hasStderr = stderr {
+            let dupVal = _dup2(hasStderr.writing, STDERR_FILENO)
+            guard dupVal >= 0 else {
+                _exit(-1)
+            }
+            _close(hasStderr.writing)
+        }
+        
         //access checks
     	guard tt_directory_check(ptr:wd) == true && tt_execute_check(ptr:path) == true else {
     		notifyAccess(notifyHandle)
