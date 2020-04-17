@@ -70,7 +70,6 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
     
 	func executeProcessWork() {
         _close(notify.writing)
-        
         Glibc.execvp(path, args)
         _exit(0)
 	}
@@ -88,14 +87,13 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 	}
 	
     func processMonitor() -> Never {
-        print("forking process with in \(stdin), out \(stdout), stderr \(stderr)")
         _close(notify.reading)
         let notifyHandle = ProcessHandle(fd:notify.writing)
         
         if let hasStdout = stdout {
             let dupVal = _dup2(hasStdout.writing, STDOUT_FILENO)
             guard dupVal >= 0 else {
-                _exit(-1)
+                notifyFatal(notifyHandle)
             }
             _close(hasStdout.writing)
         }
@@ -103,18 +101,18 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         if let hasStderr = stderr {
             let dupVal = _dup2(hasStderr.writing, STDERR_FILENO)
             guard dupVal >= 0 else {
-                _exit(-1)
+                notifyFatal(notifyHandle)
             }
             _close(hasStderr.writing)
         }
-        
-        print(Colors.dim("is all good in the hood?"))
-        for i in 0..<5000 {
-            write(STDOUT_FILENO, "this hood is good, buddy!\n\n", "this hood is good, buddy!\n\n".count)
-            print(Colors.bgBlack("Itterated into \(stdout!.writing)"))
-        }
-        print(Colors.Green("Confirmed. the hood is good"))
 
+        if let hasStdin = stdin {
+            let dupVal = _dup2(hasStdin.reading, STDIN_FILENO)
+            guard dupVal >= 0 else {
+                notifyFatal(notifyHandle)
+            }
+            _close(hasStdin.writing)
+        }
         
         //access checks
     	guard tt_directory_check(ptr:wd) == true && tt_execute_check(ptr:path) == true else {
@@ -170,9 +168,9 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
             processMonitor()
         default:
             //in parent, success
-//            _close(stdin!.reading)
-//            _close(stdout!.writing)
-//            _close(stderr!.writing)
+            _close(stdin!.reading)
+            _close(stdout!.writing)
+            _close(stderr!.writing)
             return forkResult
     }
 }
