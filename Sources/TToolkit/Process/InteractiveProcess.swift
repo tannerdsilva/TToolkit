@@ -262,8 +262,7 @@ public class InteractiveProcess:Hashable {
         externalProcess.stdout = output
         externalProcess.stderr = err
         externalProcess.terminationHandler = { [weak self] exitedProcess in
-        	print(Colors.Yellow("Exit handler scheduled"))
-			inputSerial.async { [weak self] in
+            inputSerial.async { [weak self] in
 				guard let self = self else {
 					return
 				}
@@ -277,7 +276,9 @@ public class InteractiveProcess:Hashable {
             guard let self = self else {
                 return
             }
-            print("\(String(data:someData, encoding:.utf8))")
+            self.internalSync.sync {
+                self.lines.append(someData)
+            }
             if let hasReadHandler = self.stdoutHandler {
                 hasReadHandler(someData)
             }
@@ -287,7 +288,9 @@ public class InteractiveProcess:Hashable {
            guard let self = self else {
                return
            }
-        print("\(String(data:someData, encoding:.utf8))")
+            self.internalSync.sync {
+                self.lines.append(someData)
+            }
            if let hasReadHandler = self.stderrHandler {
                hasReadHandler(someData)
            }

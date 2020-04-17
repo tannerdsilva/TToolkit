@@ -249,8 +249,6 @@ internal class ProcessPipes {
             let (newDataLine, handlerToCall) = self.popIntakeLineAndHandler()
             if let hasNewDataLine = newDataLine, let hasHandler = handlerToCall {
                 hasHandler(hasNewDataLine)
-            } else {
-                
             }
         }
         if let hasGroup = _readGroup {
