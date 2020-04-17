@@ -13,8 +13,8 @@ internal class DebugProcessMonitor {
 	var disengagements = Set<Int32>()
 	
     var processBytes = [InteractiveProcess:Int]()
-    
 	var processes = [InteractiveProcess:Date]()
+    
 	var sortedProcesses:[(key:InteractiveProcess, value:Date)] {
 		get {
 			return processes.sorted(by: { $0.value > $1.value })
@@ -60,30 +60,6 @@ internal class DebugProcessMonitor {
 		}
 		announceTimer.activate()
 	}
-	
-	func exiterEngaged(_ p:Int32) {
-		internalSync.sync {
-			engagements.update(with:p)
-		}
-	}
-	
-	func exiterDisengaged(_ p:Int32) {
-		internalSync.sync {
-			engagements.remove(p)
-			disengagements.update(with:p)
-		}
-	}
-	
-    func processGotBytes(_ p:InteractiveProcess, bytes:Int) {
-        internalSync.sync {
-            if let hasExistingBytes = processBytes[p] {
-                processBytes[p] = hasExistingBytes + bytes
-            } else {
-                processBytes[p] = bytes
-            }
-        }
-        
-    }
     
 	func processLaunched(_ p:InteractiveProcess) {
 		internalSync.sync {
@@ -100,7 +76,7 @@ internal class DebugProcessMonitor {
 	}
 }
 
-internal let pmon = DebugProcessMonitor()
+//internal let pmon = DebugProcessMonitor()
 
 public class InteractiveProcess:Hashable {
     private var _priority:Priority
@@ -287,7 +263,7 @@ public class InteractiveProcess:Hashable {
                     return (self.lines.count, self.stdin, self.stdout, self.stderr)
                 }
 				print(Colors.Red("Exit handler ran \(lineCount)"))
-				pmon.processEnded(self)
+//				pmon.processEnded(self)
 				self.runSemaphore.signal()
 			}
         }
@@ -327,7 +303,7 @@ public class InteractiveProcess:Hashable {
                 return
             }
             do {
-                pmon.processLaunched(self)
+//                pmon.processLaunched(self)
                 try self.proc!.run(sync:false)
                 self.internalSync.sync {
                     self._state = .running
