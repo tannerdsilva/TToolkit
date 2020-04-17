@@ -169,9 +169,6 @@ internal class ProcessPipes {
         set {
             return internalSync.sync {
                 _readQueue = newValue
-                if _readQueue != nil && _readLines.count > 0 {
-                    _scheduleReadCallback(_readLines.count)
-                }
             }
         }
     }
@@ -210,7 +207,7 @@ internal class ProcessPipes {
             }
             return false
         }
-        let linesToSchedule:Int = self.internalSync.sync {
+        self.internalSync.sync {
             _readBuffer.append(dataIn)
             if hasNewLine {
                 let sliceResult = _readBuffer.lineSlice(removeBOM:false, completeLinesOnly: true)
@@ -222,45 +219,41 @@ internal class ProcessPipes {
                         _readBuffer.append(hasRemainder)
                     }
                     if parsedLines.count > 0 {
+                        let existingCount = _readLines.count
                         self._readLines.append(contentsOf:parsedLines)
-                        _scheduleReadCallback(parsedLines.count)
-                        return parsedLines.count
+                        if (existingCount == 0) {
+                            _scheduleReadCallback()
+                        }
                     }
                 }
             }
-            return 0
         }
     }
     
-    private func popIntakeLineAndHandler() -> (Data?, ReadHandler?) {
-        return self.internalSync.sync {
+    private func popPendingCallbackLines() -> ([Data]?, ReadHandler?) {
+        return internalSync.sync {
             if self._readLines.count > 0 {
-                return (self._readLines.remove(at:0), _readHandler)
+                let readLinesCopy = self._readLines
+                self._readLines.removeAll(keepingCapacity: true)
+                return (readLinesCopy, _readHandler)
             }
-            return (nil, _readHandler)
+            return (nil, nil)
         }
     }
     
-    func _scheduleReadCallback(_ nTimes:Int) {
-        let asyncCallbackHandler = DispatchWorkItem() { [weak self] in
+    private func _scheduleReadCallback() {
+        _readQueue.async { [weak self] in
             guard let self = self else {
                 return
             }
-            let (newDataLine, handlerToCall) = self.popIntakeLineAndHandler()
-            if let hasNewDataLine = newDataLine, let hasHandler = handlerToCall {
-                hasHandler(hasNewDataLine)
+            let (newLines, handlerToCall) = self.popPendingCallbackLines()
+            if let hasNewLines = newLines, let hasHandler = handlerToCall {
+                for (_, curLine) in hasNewLines.enumerated() {
+                    hasHandler(curLine)
+                }
             }
         }
-        if let hasGroup = _readGroup {
-            for _ in 0..<nTimes {
-                _readQueue.async(group:hasGroup, execute:asyncCallbackHandler)
-            }
-        } else {
-            for _ in 0..<nTimes {
-                _readQueue.async(execute:asyncCallbackHandler)
-            }
-        }
-    }
+    }    
 	
     init(read:DispatchQueue) throws {
 		let readWrite = try Self.forReadingAndWriting()
