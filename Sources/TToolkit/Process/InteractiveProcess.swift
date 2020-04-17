@@ -339,6 +339,7 @@ public class InteractiveProcess:Hashable {
         }
         global_run_queue.async(execute:runItem)
         runWait.wait()
+        runWait.signal()
     }
     
     public func waitForExitCode() -> Int {
