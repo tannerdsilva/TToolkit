@@ -62,6 +62,7 @@ internal func tt_wait_sync(pid:pid_t) -> Int32 {
     return exitCode
 }
 
+
 //spawns two processes. first process is responsible for executing the actual command. second process is responsible for watching the executing process, and notifying the parent about the status of the executing process. This "monitor process" is also responsible for closing the standard inputs and outputs so that they do not get mixed in with the parents standard file descriptors
 //the primary means of I/O for the monitor process is the file descriptor passed to this function `notify`. This file descriptor acts as the activity log for the monitor process.
 //three types of monitor process events, launch event, exit event, and fatal event
@@ -76,13 +77,13 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 	
 	func notifyFatal(_ ph:ProcessHandle) -> Never {
 		try! ph.write("x\(getpid())\n\n")
-		ph.close()
+        _close(ph.fileDescriptor)
 		_exit(-1)
 	}
 	
 	func notifyAccess(_ ph:ProcessHandle) -> Never {
 		try! ph.write("a\(getpid())\n\n")
-		ph.close()
+		_close(ph.fileDescriptor)
 		_exit(-1)
 	}
 	
@@ -95,7 +96,8 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
             guard dupVal >= 0 else {
                 notifyFatal(notifyHandle)
             }
-            _close(hasStdout.writing)
+            _ = _close(hasStdout.writing)
+            _ = _close(hasStdout.reading)
         }
         
         if let hasStderr = stderr {
@@ -103,7 +105,8 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
             guard dupVal >= 0 else {
                 notifyFatal(notifyHandle)
             }
-            _close(hasStderr.writing)
+            _ = _close(hasStderr.writing)
+            _ = _close(hasStderr.reading)
         }
 
         if let hasStdin = stdin {
@@ -111,7 +114,8 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
             guard dupVal >= 0 else {
                 notifyFatal(notifyHandle)
             }
-            _close(hasStdin.writing)
+            _ = _close(hasStdin.writing)
+            _ = _close(hasStdin.reading)
         }
         
         //access checks

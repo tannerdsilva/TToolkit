@@ -284,12 +284,6 @@ internal class ProcessPipes {
             throw ExecutingProcess.ExecutingProcessError.unableToCreatePipes
         }
 	}
-		
-	func close() {
-		readHandler = nil
-		reading.close()
-		writing.close()
-	}
     
     func export() -> ExportedPipe {
         return ExportedPipe(reading: reading.fileDescriptor, writing: writing.fileDescriptor)
@@ -391,15 +385,15 @@ internal class ProcessHandle:Hashable {
 		}
 	}
 	
-	func close() {
-		internalSync.sync {
-			guard _isClosed != true, _close(_fd) >= 0 else {
-				return
-			}
-		
-			_isClosed = true
-		}
-	}
+//	func close() {
+//		internalSync.sync {
+//			guard _isClosed != true, _close(_fd) >= 0 else {
+//				return
+//			}
+//
+//			_isClosed = true
+//		}
+//	}
 	
 	func hash(into hasher:inout Hasher) {
 		hasher.combine(_fd)
