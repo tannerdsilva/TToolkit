@@ -181,13 +181,10 @@ internal class ExecutingProcess {
 	}
 	
     func run(sync:Bool) throws {
-        let waitSem = DispatchSemaphore(value:0)
-        var failed:Bool = false
         try self.internalSync.sync {
             guard self._isRunning == false && self._exitCode == nil else {
                 throw ExecutingProcessError.processAlreadyRunning
             }
-
             let launchPath = _executable.path
             
             var argBuild = [launchPath]
@@ -198,32 +195,24 @@ internal class ExecutingProcess {
             let stdinExport = self._stdin?.export()
             let stdoutExport = self._stdout?.export()
             let stderrExport = self._stderr?.export()
-            do {
-                let (launchedPid, launchedDate) = try launchPath.withCString({ cPath in
-                    try self._workingDirectory.path.withCString({ wdPath in
-                        try argBuild.with_spawn_ready_arguments { argC in
-                            return try globalProcessMonitor.launchProcessContainer({ notifyPipe in
-                                return try tt_spawn(path:cPath, args:argC, wd:wdPath, stdin:stdinExport, stdout:stdoutExport, stderr:stderrExport, notify:notifyPipe)
-                            }, onExit: { [weak self] exitCode in
-                                let exitTime = Date()
-                                guard let self = self else {
-                                    return
-                                }
-                                self.exitHandle(exitCode, time:exitTime)
-                                waitSem.signal()
-                            })
-                        }
-                    })
+            let (launchedPid, launchedDate) = try launchPath.withCString({ cPath in
+                try self._workingDirectory.path.withCString({ wdPath in
+                    try argBuild.with_spawn_ready_arguments { argC in
+                        return try globalProcessMonitor.launchProcessContainer({ notifyPipe in
+                            return try tt_spawn(path:cPath, args:argC, wd:wdPath, stdin:stdinExport, stdout:stdoutExport, stderr:stderrExport, notify:notifyPipe)
+                        }, onExit: { [weak self] exitCode in
+                            let exitTime = Date()
+                            guard let self = self else {
+                                return
+                            }
+                            self.exitHandle(exitCode, time:exitTime)
+                        })
+                    }
                 })
-                self._processId = launchedPid
-                self._launchTime = launchedDate
-                print(Colors.Green("Launched process \(launchedPid)"))
-            } catch _ {
-                failed = true
-            }
-        }
-        if failed == false {
-            waitSem.wait()
+            })
+            self._processId = launchedPid
+            self._launchTime = launchedDate
+            print(Colors.Green("Launched process \(launchedPid)"))
         }
     }
     

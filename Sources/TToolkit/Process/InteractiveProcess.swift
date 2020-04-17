@@ -265,6 +265,20 @@ public class InteractiveProcess:Hashable {
         externalProcess.stdout = output
         externalProcess.stderr = err
         externalProcess.terminationHandler = { [weak self] exitedProcess in
+            guard let self = self else {
+                return
+            }
+            
+            if let hasStdin = self.stdin {
+                close(hasStdin.writing.fileDescriptor)
+            }
+            if let hasStdout = self.stdout {
+                close(hasStdout.reading.fileDescriptor)
+            }
+            if let hasStderr = self.stderr {
+                close(hasStderr.reading.fileDescriptor)
+            }
+
             inputSerial.async { [weak self] in
 				guard let self = self else {
 					return
@@ -272,16 +286,6 @@ public class InteractiveProcess:Hashable {
                 let (lineCount, stdinPipe, stdoutPipe, stderrPipe) = self.internalSync.sync {
                     return (self.lines.count, self.stdin, self.stdout, self.stderr)
                 }
-                if let hasStdin = stdinPipe {
-                    close(hasStdin.writing.fileDescriptor)
-                }
-                if let hasStdout = stdoutPipe {
-                    close(hasStdout.reading.fileDescriptor)
-                }
-                if let hasStderr = stderrPipe {
-                    close(hasStderr.reading.fileDescriptor)
-                }
-
 				print(Colors.Red("Exit handler ran \(lineCount)"))
 				pmon.processEnded(self)
 				self.runSemaphore.signal()
@@ -349,7 +353,6 @@ public class InteractiveProcess:Hashable {
     }
     
     deinit {
-        let signalSafeCheck = self.internalSync.sync(execute: { return self.signalUp })
     	print(Colors.yellow("ip was deinit"))
     }
 }
