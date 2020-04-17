@@ -323,7 +323,6 @@ public class InteractiveProcess:Hashable {
             guard let self = self else {
                 return
             }
-            print("ASYNC RUN")
             do {
                 pmon.processLaunched(self)
                 try self.proc!.run(sync:false)
