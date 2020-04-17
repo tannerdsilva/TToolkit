@@ -244,34 +244,34 @@ public class InteractiveProcess:Hashable {
         
 		self.runSemaphore = rs
 		self._state = .initialized
-        
-        let termHandle = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
-            guard let self = self else {
-                return
-            }
-            print("done waiting for io to finish")
-        }
-        termHandle.notify(flags:[.inheritQoS, .barrier], queue: inputSerial, execute: { [weak self] in
-            guard let self = self else {
-                return
-            }
-            print("yaya")
-
-            pmon.processEnded(self)
-            self.runSemaphore.signal()
-        })
-        
+                
         let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, workingDirectory: workingDirectory)
 
         let input = try ProcessPipes(read:inputSerial)
         let output = try ProcessPipes(read:inputSerial)
         let err = try ProcessPipes(read:inputSerial)
         
-        externalProcess.terminationQueue = inputSerial
-        externalProcess.terminationHandler = termHandle
+		self.internalSync.sync {
+            self.proc = externalProcess
+            self.stdin = input
+            self.stdout = output
+            self.stderr = err
+        }
+
         externalProcess.stdin = input
         externalProcess.stdout = output
         externalProcess.stderr = err
+        externalProcess.terminationHandler = { [weak self] exitedProcess in
+        	print(Colors.Yellow("Exit handler scheduled"))
+			inputSerial.async { [weak self] in
+				guard let self = self else {
+					return
+				}
+				print(Colors.Red("Exit handler ran"))
+				pmon.processEnded(self)
+				self.runSemaphore.signal()
+			}
+        }
         
         output.readHandler = { [weak self] someData in
             guard let self = self else {
@@ -292,35 +292,7 @@ public class InteractiveProcess:Hashable {
                hasReadHandler(someData)
            }
        }
-                       
-        self.internalSync.sync {
-            self.proc = externalProcess
-            self.stdin = input
-            self.stdout = output
-            self.stderr = err
-        }
     }
-	
-	
-	fileprivate func _finishStdout() -> [Data]? {
-		if var parsedLines = _stdoutBuffer.lineSlice(removeBOM:false) {
-			self._stdoutBuffer.removeAll(keepingCapacity:false)
-			if parsedLines.count > 0 {
-				return parsedLines
-			}
-		}
-		return nil
-	}
-	
-	fileprivate func _finishStderr() -> [Data]? {
-		if var parsedLines = _stderrBuffer.lineSlice(removeBOM:false) {
-			self._stderrBuffer.removeAll(keepingCapacity:false)
-			if parsedLines.count > 0 { 
-				return parsedLines
-			}
-		}
-		return nil
-	}
     
     public func run() throws {
 //        print("trying to run")

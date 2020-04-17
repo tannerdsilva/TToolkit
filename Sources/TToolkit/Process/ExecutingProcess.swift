@@ -1,16 +1,15 @@
 import Foundation
 import CoreFoundation
-
 fileprivate func _WSTATUS(_ status:Int32) -> Int32 {
 	return status & 0x7f
 }
-
 fileprivate func WIFEXITED(_ status:Int32) -> Bool {
 	return _WSTATUS(status) == 0
 }
 fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 	return (_WSTATUS(status) != 0) && (_WSTATUS(status) != 0x7f)
 }
+
 /*
 	ExecutingProcess is my interpretation of the Process object from the Swift Standard Library.
 	This class looks to cut out most of legacy code from Process to create a much more streamlined data structure.
@@ -19,6 +18,7 @@ fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 	Furthermore, the standard 
 */
 internal class ExecutingProcess {
+	typealias TerminationHandler = (ExecutingProcess) -> Void
 	public enum ExecutingProcessError:Error {
 		case processAlreadyRunning
 		case unableToExecute
@@ -73,25 +73,6 @@ internal class ExecutingProcess {
         }
     }
 
-//	var environment:[String:String]? {
-//		get {
-//			return internalSync.sync {
-//				return _environment
-//			}
-//		}
-//		set {
-//			internalSync.sync {
-//				_environment = newValue
-//			}
-//		}
-//	}
-	
-	/*
-		These variables are related to the execution state of the process.
-		- Process Identifier
-		- Exit code
-		- Is running?
-	*/
 	private var _launchTime:Date? = nil
 	private var _exitTime:Date? = nil
 	private var _exitCode:Int32? = nil
@@ -132,8 +113,6 @@ internal class ExecutingProcess {
 	/*
 		These variables are related to the I/O of the process in question
 	*/
-	private var _stderr:ProcessPipes? = nil
-	private var _stdout:ProcessPipes? = nil
 	private var _stdin:ProcessPipes? = nil
 	var stdin:ProcessPipes? { 
 		get {
@@ -147,6 +126,8 @@ internal class ExecutingProcess {
 			}
 		}
 	}
+
+	private var _stdout:ProcessPipes? = nil
 	var stdout:ProcessPipes? { 
 		get {
 			return internalSync.sync {
@@ -159,6 +140,8 @@ internal class ExecutingProcess {
 			}
 		}
 	}
+	
+	private var _stderr:ProcessPipes? = nil
 	var stderr:ProcessPipes? { 
 		get {
 			return internalSync.sync {
@@ -171,23 +154,10 @@ internal class ExecutingProcess {
 			}
 		}
 	}
-	
-	private var _terminationQueue:DispatchQueue? = nil
-	var terminationQueue:DispatchQueue? {
-		get {
-			internalSync.sync {
-				return _terminationQueue
-			}
-		}
-		set {
-			internalSync.sync {
-				_terminationQueue = newValue
-			}
-		}
-	}
+		
 	//which queue will the termination handler be called?
-	private var _terminationHandler:DispatchWorkItem? = nil
-	var terminationHandler:DispatchWorkItem? {
+	private var _terminationHandler:TerminationHandler? = nil
+	var terminationHandler:TerminationHandler? {
 		get{
 			return internalSync.sync {
 				return _terminationHandler
@@ -253,8 +223,8 @@ internal class ExecutingProcess {
         internalSync.sync {
             _exitCode = exitCode
             _exitTime = time
-            if let hasHandler = _terminationHandler, let hasQueue = _terminationQueue {
-                hasQueue.async(execute:hasHandler)
+            if let hasHandler = _terminationHandler {
+                hasHandler(self)
             }
         }
     }
