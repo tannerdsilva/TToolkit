@@ -323,6 +323,7 @@ public class InteractiveProcess:Hashable {
             guard let self = self else {
                 return
             }
+            print("ASYNC RUN")
             do {
                 pmon.processLaunched(self)
                 try self.proc!.run(sync:false)
@@ -340,6 +341,7 @@ public class InteractiveProcess:Hashable {
         global_run_queue.async(execute:runItem)
         runWait.wait()
         runWait.signal()
+        print("-> WE OUT")
     }
     
     public func waitForExitCode() -> Int {
