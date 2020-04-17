@@ -277,7 +277,7 @@ public class InteractiveProcess:Hashable {
             guard let self = self else {
                 return
             }
-            print("calling callback out")
+            print("\(String(data:someData, encoding:.utf8))")
             if let hasReadHandler = self.stdoutHandler {
                 hasReadHandler(someData)
             }
@@ -287,7 +287,7 @@ public class InteractiveProcess:Hashable {
            guard let self = self else {
                return
            }
-        print("calling callback err")
+        print("\(String(data:someData, encoding:.utf8))")
            if let hasReadHandler = self.stderrHandler {
                hasReadHandler(someData)
            }
