@@ -66,8 +66,14 @@ internal func tt_wait_sync(pid:pid_t) -> Int32 {
 //the primary means of I/O for the monitor process is the file descriptor passed to this function `notify`. This file descriptor acts as the activity log for the monitor process.
 //three types of monitor process events, launch event, exit event, and fatal event
 internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>, wd:UnsafePointer<Int8>, stdin:ExportedPipe?, stdout:ExportedPipe?, stderr:ExportedPipe?, notify:ExportedPipe) throws -> ProcessMonitor.ProcessKey {
-    print("forking process with in \(stdin), out \(stdout), stderr \(stderr)")
     
+    print(Colors.Green("is all good in the hood?"))
+    for i in 0..<5000 {
+        write(stdout!.writing, "this hood is good, buddy!\n\n", "this hood is good, buddy!\n\n".count)
+        print(Colors.bgWhite("Itterated"))
+    }
+    print(Colors.Green("Confirmed. the hood is good"))
+
     let forkResult = fork()
     
 	func executeProcessWork() {
@@ -85,11 +91,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
                 }
                 _exit(-1)
             }
-            print(Colors.Green("is all good in the hood?"))
-            for i in 0..<5000 {
-                write(STDERR_FILENO, "this hood is good, buddy!\n\n", "this hood is good, buddy!\n\n".count)
-            }
-            print(Colors.Green("Confirmed. the hood is good"))
+            _close(hasStdout.writing)
         }
         Glibc.execvp(path, args)
         _exit(0)
@@ -131,7 +133,9 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 				executeProcessWork()
 				
 			default:
-
+                if let hasStdout = stdout {
+                    hasStdout.close()
+                }
 				//detach from the executing process's standard inputs and outputs
 				//notify the process monitor of the newly launched worker process
 				let processIDEventMapping = "\(getpid()) -> \(processForkResult)"
@@ -141,7 +145,7 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
 				} catch _ {
                     notifyFatal(notifyHandle)
 				}
-								
+                
 				//wait for the worker process to exit
                 let exitCode = tt_wait_sync(pid:processForkResult)
 				
