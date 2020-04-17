@@ -320,7 +320,7 @@ public class InteractiveProcess:Hashable {
                 self.runSemaphore.signal()
             }
         }
-        process_launch_async_fast.async(execute:runItem)
+        self._priority.globalConcurrentQueue.async(execute:runItem)
         runWait.wait()
     }
     
