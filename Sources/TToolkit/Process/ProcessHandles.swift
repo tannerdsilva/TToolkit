@@ -222,8 +222,8 @@ internal class ProcessPipes {
                         _readBuffer.append(hasRemainder)
                     }
                     if parsedLines.count > 0 {
-                        _scheduleReadCallback(parsedLines.count)
                         self._readLines.append(contentsOf:parsedLines)
+                        _scheduleReadCallback(parsedLines.count)
                         return parsedLines.count
                     }
                 }
