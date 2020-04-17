@@ -241,7 +241,7 @@ public class InteractiveProcess:Hashable {
         self._priority = priority
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
         let rs = DispatchSemaphore(value:0)
-        let inputSerial = DispatchQueue(label:"footest", qos:priority.process_async_priority)
+        let inputSerial = DispatchQueue(label:"footest", qos:priority.process_async_priority, target:process_master_queue)
         self.internalAsync = inputSerial
 
         self.runSemaphore = rs
@@ -268,7 +268,20 @@ public class InteractiveProcess:Hashable {
 				guard let self = self else {
 					return
 				}
-				print(Colors.Red("Exit handler ran"))
+                let (lineCount, stdinPipe, stdoutPipe, stderrPipe) = self.internalSync.sync {
+                    return (self.lines.count, self.stdin, self.stdout, self.stderr)
+                }
+                if let hasStdin = stdinPipe {
+                    close(hasStdin.writing.fileDescriptor)
+                }
+                if let hasStdout = stdoutPipe {
+                    close(hasStdout.reading.fileDescriptor)
+                }
+                if let hasStderr = stderrPipe {
+                    close(hasStderr.reading.fileDescriptor)
+                }
+
+				print(Colors.Red("Exit handler ran \(lineCount)"))
 				pmon.processEnded(self)
 				self.runSemaphore.signal()
 			}

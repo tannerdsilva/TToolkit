@@ -168,9 +168,9 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
             processMonitor()
         default:
             //in parent, success
-//            _close(stdin!.reading)
-//            _close(stdout!.writing)
-//            _close(stderr!.writing)
+            _close(stdin!.reading)
+            _close(stdout!.writing)
+            _close(stderr!.writing)
             return forkResult
     }
 }

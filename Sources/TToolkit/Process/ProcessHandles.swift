@@ -253,7 +253,7 @@ internal class ProcessPipes {
                 }
             }
         }
-    }    
+    }
 	
     init(read:DispatchQueue) throws {
 		let readWrite = try Self.forReadingAndWriting()
@@ -418,10 +418,9 @@ internal class ProcessHandle:Hashable {
 		return lhs._fd == rhs._fd
 	}
 	
-	deinit {
-		if isClosed == false {
-			close()
-		}
-	}
-
+//	deinit {
+//		if isClosed == false {
+//			close()
+//		}
+//	}
 }
