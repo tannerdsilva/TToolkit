@@ -281,15 +281,15 @@ public class InteractiveProcess:Hashable {
         }
     
        err.readHandler = { [weak self] someData in
-           guard let self = self else {
-               return
-           }
-            self.internalSync.sync {
-                self.lines.append(someData)
-            }
-           if let hasReadHandler = self.stderrHandler {
-               hasReadHandler(someData)
-           }
+			guard let self = self else {
+			   return
+			}
+			self.internalSync.sync {
+				self.lines.append(someData)
+			}
+			if let hasReadHandler = self.stderrHandler {
+			   hasReadHandler(someData)
+			}
        }
     }
     

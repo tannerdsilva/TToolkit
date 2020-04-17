@@ -145,20 +145,6 @@ internal class ProcessPipes {
         }
     }
     
-    private var _readQoS:DispatchQoS = Priority.highest.asDispatchQoS()
-    var readQoS:DispatchQoS {
-        get {
-            return internalSync.sync {
-                return _readQoS
-            }
-        }
-        set {
-            internalSync.sync {
-                _readQoS = newValue
-            }
-        }
-    }
-    
     private var _readQueue:DispatchQueue
     var readQueue:DispatchQueue {
         get {

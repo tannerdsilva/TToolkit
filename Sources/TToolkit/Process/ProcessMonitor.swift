@@ -5,70 +5,7 @@ internal enum ProcessLaunchedError:Error {
 	case internalError
 }
 
-//fileprivate let processMonitorAsyncPriority = Priority.highest.asDispatchQoS(relative:Int(Int32.max))
-//internal class ProcessMonitor {
-//    internal typealias ProcessKey = pid_t
-//    internal typealias ExitHandler = (Int32) -> Void
-//    
-//    //these is the pipe that is used to read data from the containing monitor process
-//    private var masterPipe:ProcessPipes?
-//    
-//    private let internalSync:DispatchQueue
-//    private let internalAsync:DispatchQueue
-//    
-//    //step 1: waiting for containers to launch their worker processes
-//    var monitorWorkLaunchWaiters:[ProcessKey:DispatchSemaphore]
-//    
-//    //step 1.5: processes that failed to launch their work
-//    var monitorWorkErrors:[ProcessKey:ProcessLaunchedError]
-//    
-//    //step 2: processes that are working
-//    var monitorWorkLaunchTimes:[ProcessKey:Date]
-//    var monitorWorkMapping:[ProcessKey:Int32]
-//    
-//    //step 3: exit handlers
-//    var monitorWorkHandlers:[ProcessKey:ExitHandler]
-//    
-//    //data buffers
-//    var dataIntake = Data()
-//    
-//    
-//    init() {
-//        self.masterPipe = nil
-//        self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.monitor.sync", target:global_lock_queue)
-//        self.internalAsync = DispatchQueue(label:"com.tannersilva.instance.process.monitor.async", qos:processMonitorAsyncPriority, target:process_master_queue)
-//        self.monitorWorkLaunchWaiters = [ProcessKey:DispatchSemaphore]()
-//        self.monitorWorkErrors = [ProcessKey:ProcessLaunchedError]()
-//        self.monitorWorkLaunchTimes = [ProcessKey:Date]()
-//        self.monitorWorkMapping = [ProcessKey:Int32]()
-//        self.monitorWorkHandlers = [ProcessKey:ExitHandler]()
-//    }
-//    
-//    func intakeData(_ inputData:Data) {
-//        let hasNewLine = inputData.withUnsafeBytes { unsafeBuffer -> Bool in
-//            if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
-//                return true
-//            }
-//            return false
-//        }
-//        internalSync.sync {
-//            dataIntake.append(inputData)
-//            if hasNewLine == true {
-//                if var parsedLines = dataIntake.lineSlice(removeBOM:false) {
-//                    let tailData = parsedLines.removeLast()
-//                    dataIntake.removeAll(keepingCapacity:true)
-//                    dataIntake.append(tailData)
-//                    if parsedLines.count > 0 {
-//                        return parsedLines
-//                    }
-//                }
-//            }
-//        }
-//    }
-//}
-
 internal var globalProcessMonitor:ProcessMonitor = ProcessMonitor()
-fileprivate let processMonitorPriority = Priority.highest.asDispatchQoS(relative:Int.max)
 internal class ProcessMonitor {
 	internal typealias ProcessKey = pid_t
 	internal typealias ExitHandler = (Int32) -> Void
@@ -90,7 +27,7 @@ internal class ProcessMonitor {
 	
 	init() {
         let isync = DispatchQueue(label:"com.tannersilva.com.instance.process.monitor.sync", target:global_lock_queue)
-        let dataIntake = DispatchQueue(label:"com.tannersilva.instance.process.monitor.events")
+        let dataIntake = DispatchQueue(label:"com.tannersilva.instance.process.monitor.events", target:global_pipe_read)
         self.dataProcess = dataIntake
         self.internalSync = isync
 		self.monitorWorkLaunchWaiters = [ProcessKey:DispatchSemaphore]()
@@ -108,7 +45,6 @@ internal class ProcessMonitor {
 			self.eventHandle(asString)
 		}
         mainPipe.readQueue = dataProcess
-        mainPipe.readQoS = processMonitorPriority
 		self.masterPipe = mainPipe
 	}
 	
@@ -220,7 +156,6 @@ internal class ProcessMonitor {
 		
 	func launchProcessContainer(_ workToRegister:@escaping(ExportedPipe) throws -> ProcessMonitor.ProcessKey, onExit:@escaping(ExitHandler)) throws -> (Int32, Date) {
         let newSem = DispatchSemaphore(value:0)
-        print("attempting to get write fd")
         let notifyPipe:ExportedPipe = try self.internalSync.sync {
 			if masterPipe == nil {
 				try loadPipes()
@@ -229,28 +164,27 @@ internal class ProcessMonitor {
                 return masterPipe!.export()
             }
 		}
-        print("asking for work register")
-        let launchedProcess = try workToRegister(notifyPipe)
-        internalSync.sync {
+
+        let launchProc:ProcessKey = try internalSync.sync {
+            let launchedProcess = try workToRegister(notifyPipe)
             monitorWorkLaunchWaiters[launchedProcess] = newSem
+            return launchedProcess
         }
-        print("waiting...")
 		newSem.wait()
-        print("yay done waiting")
         
         let launchVars:(Int32, Date) = try internalSync.sync {
 			//guard that there was a worker pid launched (guard that there was no error launching the worker process
-			guard let hasWorkIdentifier = monitorWorkMapping[launchedProcess], let launchTime = monitorWorkLaunchTimes[launchedProcess] else {
+			guard let hasWorkIdentifier = monitorWorkMapping[launchProc], let launchTime = monitorWorkLaunchTimes[launchProc] else {
 				//shoot, there was an error
-				if accessErrors.contains(launchedProcess) == true {
-					accessErrors.remove(launchedProcess)
+				if accessErrors.contains(launchProc) == true {
+					accessErrors.remove(launchProc)
 					throw ProcessLaunchedError.badAccess
 				} else {
                     print("throwing internal error")
 					throw ProcessLaunchedError.internalError
 				}
 			}
-			exitHandlers[hasWorkIdentifier] = onExit
+			exitHandlers[launchProc] = onExit
 			return (hasWorkIdentifier, launchTime)
 		}
         return launchVars
