@@ -241,6 +241,7 @@ public class InteractiveProcess:Hashable {
         self._priority = priority
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
         let rs = DispatchSemaphore(value:0)
+        
         let inputSerial = DispatchQueue(label:"footest", qos:priority.process_async_priority, target:process_master_queue)
         self.internalAsync = inputSerial
 
@@ -314,7 +315,7 @@ public class InteractiveProcess:Hashable {
     
     public func run() throws {
         let runWait = DispatchSemaphore(value:0)
-        let runItem = DispatchWorkItem(qos:_priority.process_launch_priority, flags:[.enforceQoS, .barrier]) { [weak self] in
+        let runItem = DispatchWorkItem(qos:_priority.process_launch_priority, flags:[.enforceQoS]) { [weak self] in
             defer {
                 runWait.signal()
             }
@@ -335,7 +336,7 @@ public class InteractiveProcess:Hashable {
                 self.runSemaphore.signal()
             }
         }
-        internalAsync.async(execute:runItem)
+        global_run_queue.async(execute:runItem)
         runWait.wait()
     }
     
