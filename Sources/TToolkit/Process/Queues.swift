@@ -18,7 +18,7 @@ internal let global_run_queue = DispatchQueue(label:"com.tannerdsilva.global.pro
 extension Priority {
 	internal var process_launch_priority:DispatchQoS {
 		get {
-            return self.asDispatchQoS(relative:-15)
+            return self.asDispatchQoS(relative:0)
 		}
 	}
 	
