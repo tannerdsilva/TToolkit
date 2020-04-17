@@ -295,19 +295,16 @@ public class InteractiveProcess:Hashable {
     }
     
     public func run() throws {
-//        print("trying to run")
-//        let runWait = DispatchSemaphore(value:0)
-//        let runItem = DispatchWorkItem(qos:_priority.process_launch_priority, flags:[.enforceQoS]) { [weak self] in
-//            defer {
-//                runWait.signal()
-//            }
-//            guard let self = self, let initializedProcess = self.proc else {
-//                return
-//            }
+        let runWait = DispatchSemaphore(value:0)
+        let runItem = DispatchWorkItem(qos:_priority.process_launch_priority, flags:[.enforceQoS]) { [weak self] in
+            defer {
+                runWait.signal()
+            }
+            guard let self = self else {
+                return
+            }
             do {
                 pmon.processLaunched(self)
-               
-
                 try self.proc!.run(sync:false)
                 self.internalSync.sync {
                     self._state = .running
@@ -319,9 +316,9 @@ public class InteractiveProcess:Hashable {
                 }
                 self.runSemaphore.signal()
             }
-//        }
-//        process_launch_async_fast.async(execute:runItem)
-//        runWait.wait()
+        }
+        process_launch_async_fast.async(execute:runItem)
+        runWait.wait()
     }
     
     public func waitForExitCode() -> Int {
