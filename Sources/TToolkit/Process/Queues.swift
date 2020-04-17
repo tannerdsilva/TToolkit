@@ -6,7 +6,7 @@ internal let global_lock_queue = DispatchQueue(label:"com.tannersilva.global.pro
 
 internal let global_pipe_read = DispatchQueue(label:"com.tannerdsilva.global.process.handle.read", attributes:[.concurrent])
 
-internal let global_run_queue = DispatchQueue(label:"com.tannerdsilva.global.process.launch", attributes:[.concurrent], target:process_master_queue)
+internal let global_run_queue = DispatchQueue(label:"com.tannerdsilva.global.process.launch", target:process_master_queue)
 
 //internal let process_handle_queue = DispatchQueue(label:"com.tannersilva.global.handle", qos:maximumPriority, target:Priority.highest.globalConcurrentQueue)
 //internal let process_handle_inbound = DispatchQueue(label:"com.tannersilva.global.handle.inbound", qos:Priority.highest.process_reading_fast_capture_priority, target:process_handle_queue)

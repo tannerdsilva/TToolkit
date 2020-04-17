@@ -318,8 +318,7 @@ public class InteractiveProcess:Hashable {
     }
     
     public func run() throws {
-        let runWait = DispatchSemaphore(value:1)
-        runWait.wait()
+        let runWait = DispatchSemaphore(value:0)
         let runItem = DispatchWorkItem(qos:_priority.process_launch_priority, flags:[.enforceQoS]) { [weak self] in
             defer {
                 runWait.signal()
@@ -343,7 +342,6 @@ public class InteractiveProcess:Hashable {
         }
         global_run_queue.async(execute:runItem)
         runWait.wait()
-        runWait.signal()
     }
     
     public func waitForExitCode() -> Int {
