@@ -92,13 +92,6 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
         _close(notify.reading)
         let notifyHandle = ProcessHandle(fd:notify.writing)
         
-        print(Colors.dim("is all good in the hood?"))
-        for i in 0..<5000 {
-            write(stdout!.writing, "this hood is good, buddy!\n\n", "this hood is good, buddy!\n\n".count)
-            print(Colors.bgBlack("Itterated into \(stdout!.writing)"))
-        }
-        print(Colors.Green("Confirmed. the hood is good"))
-
         if let hasStdout = stdout {
             let dupVal = _dup2(hasStdout.writing, STDOUT_FILENO)
             guard dupVal >= 0 else {
@@ -114,6 +107,14 @@ internal func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Unsaf
             }
             _close(hasStderr.writing)
         }
+        
+        print(Colors.dim("is all good in the hood?"))
+        for i in 0..<5000 {
+            write(STDOUT_FILENO, "this hood is good, buddy!\n\n", "this hood is good, buddy!\n\n".count)
+            print(Colors.bgBlack("Itterated into \(stdout!.writing)"))
+        }
+        print(Colors.Green("Confirmed. the hood is good"))
+
         
         //access checks
     	guard tt_directory_check(ptr:wd) == true && tt_execute_check(ptr:path) == true else {
