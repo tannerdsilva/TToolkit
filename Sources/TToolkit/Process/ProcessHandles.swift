@@ -31,11 +31,11 @@ internal let pp_make_destroy_queue = DispatchQueue(label:"com.tannersilva.global
 */
 internal class PipeReader {
 	let internalSync:DispatchQueue
-	var handleQueue:[ProcessHandle:DispatchSourceProtocol]
+//	var handleQueue:[ProcessHandle:DispatchSourceProtocol]
     
 	init() {
 		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.sync")
-		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
+//		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
 	}
     func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler), queue:DispatchQueue) {
         let inFD = handle.fileDescriptor
@@ -45,19 +45,19 @@ internal class PipeReader {
                 queue.async { work(newData) }
 			}
 		}
-		internalSync.sync {
-			handleQueue[handle] = newSource
-            newSource.activate()
-        }
-	}
-	func unschedule(_ handle:ProcessHandle) {
-		internalSync.sync {
-			if let hasExisting = handleQueue[handle] {
-				hasExisting.cancel()
-				handleQueue[handle] = nil
-			}
+		newSource.setCancelHandler {
+			print(Colors.bgBlue("AUTO CANCEL ENABLED"))
 		}
+		newSource.activate()
 	}
+//	func unschedule(_ handle:ProcessHandle) {
+//		internalSync.sync {
+//			if let hasExisting = handleQueue[handle] {
+////				hasExisting.cancel()
+//				handleQueue[handle] = nil
+//			}
+//		}
+//	}
 }
 internal let globalPR = PipeReader()
 
@@ -178,7 +178,7 @@ internal class ProcessPipes {
                     }, queue:_readQueue)
 				} else {
 					if _readHandler != nil {
-						globalPR.unschedule(reading)
+//						globalPR.unschedule(reading)
 					}
 					_readHandler = nil
 				}
@@ -196,12 +196,11 @@ internal class ProcessPipes {
         self.internalSync.sync {
             _readBuffer.append(dataIn)
             if hasNewLine {
-                let sliceResult = _readBuffer.lineSlice(removeBOM:false, completeLinesOnly: true)
-                if var parsedLines = sliceResult.lines {
-                    let foundLines = parsedLines.map { String(data:$0, encoding:.utf8) }
+                let sliceResult = _readBuffer.lineSlice(removeBOM:false, completeLinesOnly:true)
+                if let parsedLines = sliceResult.lines {
+//                    let foundLines = parsedLines.map { String(data:$0, encoding:.utf8) }
                     _readBuffer.removeAll(keepingCapacity:true)
                     if let hasRemainder = sliceResult.remain, hasRemainder.count > 0 {
-                        let remain = String(data:hasRemainder, encoding:.utf8)
                         _readBuffer.append(hasRemainder)
                     }
                     if parsedLines.count > 0 {
