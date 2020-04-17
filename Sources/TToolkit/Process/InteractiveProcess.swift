@@ -251,25 +251,12 @@ public class InteractiveProcess:Hashable {
             }
             print("done waiting for io to finish")
         }
-        termHandle.notify(qos:priority.process_launch_priority, flags:[.enforceQoS, .barrier], queue: inputSerial, execute: { [weak self] in
+        termHandle.notify(flags:[.inheritQoS, .barrier], queue: inputSerial, execute: { [weak self] in
             guard let self = self else {
                 return
             }
             print("yaya")
-            let errLines = self.internalSync.sync { return self._finishStderr() }
-            let outLines = self.internalSync.sync { return self._finishStdout() }
-            
-            if let hasErrLines = errLines, let hasCallback = self.stderrHandler {
-                for (_, curLine) in hasErrLines.enumerated() {
-                    hasCallback(curLine)
-                }
-            }
-            
-            if let hasOutLines = outLines, let hasCallback = self.stdoutHandler {
-                for (_, curLine) in hasOutLines.enumerated() {
-                    hasCallback(curLine)
-                }
-            }
+
             pmon.processEnded(self)
             self.runSemaphore.signal()
         })
@@ -290,6 +277,7 @@ public class InteractiveProcess:Hashable {
             guard let self = self else {
                 return
             }
+            print("calling callback out")
             if let hasReadHandler = self.stdoutHandler {
                 hasReadHandler(someData)
             }
@@ -299,6 +287,7 @@ public class InteractiveProcess:Hashable {
            guard let self = self else {
                return
            }
+        print("calling callback err")
            if let hasReadHandler = self.stderrHandler {
                hasReadHandler(someData)
            }
