@@ -31,11 +31,11 @@ internal let pp_make_destroy_queue = DispatchQueue(label:"com.tannersilva.global
 */
 internal class PipeReader {
 	let internalSync:DispatchQueue
-//	var handleQueue:[ProcessHandle:DispatchSourceProtocol]
+	var handleQueue:[ProcessHandle:DispatchSourceProtocol]
     
 	init() {
 		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.sync")
-//		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
+		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
 	}
     func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler), queue:DispatchQueue) {
         let inFD = handle.fileDescriptor
@@ -47,8 +47,14 @@ internal class PipeReader {
 		}
 		newSource.setCancelHandler {
 			print(Colors.bgBlue("AUTO CANCEL ENABLED"))
+            self.internalSync.sync {
+                self.handleQueue[handle] = nil
+            }
 		}
-		newSource.activate()
+		internalSync.sync {
+            handleQueue[handle] = newSource
+            newSource.activate()
+        }
 	}
 //	func unschedule(_ handle:ProcessHandle) {
 //		internalSync.sync {
