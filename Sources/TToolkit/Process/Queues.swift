@@ -14,7 +14,7 @@ internal let global_pipe_read = DispatchQueue(label:"com.tannerdsilva.global.pro
 extension Priority {
 	internal var process_launch_priority:DispatchQoS {
 		get {
-            return self.asDispatchQoS(relative:Int(Int32.min))
+            return self.asDispatchQoS(relative:-10)
 		}
 	}
 	

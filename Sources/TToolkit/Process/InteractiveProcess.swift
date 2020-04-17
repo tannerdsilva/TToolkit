@@ -241,7 +241,7 @@ public class InteractiveProcess:Hashable {
         self._priority = priority
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
         let rs = DispatchSemaphore(value:0)
-        let inputSerial = DispatchQueue(label:"footest", qos:priority.asDispatchQoS())
+        let inputSerial = DispatchQueue(label:"footest")
         self.internalAsync = inputSerial
 
         self.runSemaphore = rs
