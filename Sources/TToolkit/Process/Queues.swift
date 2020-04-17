@@ -18,9 +18,9 @@ extension Priority {
 		}
 	}
 	
-	internal var process_callback_priority:DispatchQoS {
+	internal var process_async_priority:DispatchQoS {
 		get {
-			return self.asDispatchQoS(relative:20)
+			return self.asDispatchQoS(relative:15)
 		}
 	}
 	
