@@ -90,7 +90,7 @@ internal class ProcessMonitor {
 	
 	init() {
         let isync = DispatchQueue(label:"com.tannersilva.com.instance.process.monitor.sync", target:global_lock_queue)
-        let dataIntake = DispatchQueue(label:"com.tannersilva.instance.process.monitor.events", target:process_master_queue)
+        let dataIntake = DispatchQueue(label:"com.tannersilva.instance.process.monitor.events")
         self.dataProcess = dataIntake
         self.internalSync = isync
 		self.monitorWorkLaunchWaiters = [ProcessKey:DispatchSemaphore]()

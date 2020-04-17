@@ -240,7 +240,8 @@ public class InteractiveProcess:Hashable {
         self._priority = priority
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
         let rs = DispatchSemaphore(value:0)
-
+         let inputSerial = DispatchQueue(label:"footest", qos:priority.asDispatchQoS(), target:process_master_queue)
+        
 		self.runSemaphore = rs
 		self._state = .initialized
         
@@ -248,14 +249,13 @@ public class InteractiveProcess:Hashable {
             guard let self = self else {
                 return
             }
-            self.ioGroup.wait()
             print("done waiting for io to finish")
         }
-        termHandle.notify(qos:priority.process_launch_priority, flags:[.enforceQoS, .barrier], queue: process_master_queue, execute: { [weak self] in
+        termHandle.notify(qos:priority.process_launch_priority, flags:[.enforceQoS, .barrier], queue: inputSerial, execute: { [weak self] in
             guard let self = self else {
                 return
             }
-            
+            print("yaya")
             let errLines = self.internalSync.sync { return self._finishStderr() }
             let outLines = self.internalSync.sync { return self._finishStdout() }
             
@@ -275,117 +275,32 @@ public class InteractiveProcess:Hashable {
         })
         
         let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, workingDirectory: workingDirectory)
-        let inputSerial = DispatchQueue(label:"footest", target:process_master_queue)
-       
+
         let input = try ProcessPipes(read:inputSerial)
-        input.readGroup = ioGroup
         let output = try ProcessPipes(read:inputSerial)
-        output.readGroup = ioGroup
         let err = try ProcessPipes(read:inputSerial)
-        err.readGroup = ioGroup
         
         externalProcess.terminationQueue = inputSerial
         externalProcess.terminationHandler = termHandle
         externalProcess.stdin = input
         externalProcess.stdout = output
         externalProcess.stderr = err
-        let stderrWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
-           guard let self = self else {
-               return
-           }
-           var newLines:[Data]? = self.internalSync.sync {
-               if var parsedLines = self._stderrBuffer.lineSlice(removeBOM:false) {
-                   let tailData = parsedLines.removeLast()
-                   self._stderrBuffer.removeAll(keepingCapacity:true)
-                   self._stderrBuffer.append(tailData)
-                   if parsedLines.count > 0 {
-                       self.lines.append(contentsOf:parsedLines)
-                       return parsedLines
-                   } else {
-                       return nil
-                   }
-               }
-               return nil
-           }
-           if let hasNewLines = newLines, let hasCallback = self.stderrHandler {
-               g_process_callback_queue.async {
-                   for (_, curLine) in hasNewLines.enumerated() {
-                       hasCallback(curLine)
-                   }
-               }
-           }
-       }
-       
-       let stdoutWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
-           guard let self = self else {
-               return
-           }
-           var newLines:[Data]? = self.internalSync.sync {
-               if var parsedLines = self._stdoutBuffer.lineSlice(removeBOM:false) {
-                   let tailData = parsedLines.removeLast()
-                   self._stdoutBuffer.removeAll(keepingCapacity:true)
-                   self._stdoutBuffer.append(tailData)
-                   if parsedLines.count > 0 {
-                       self.lines.append(contentsOf:parsedLines)
-                       return parsedLines
-                   } else {
-                       return nil
-                   }
-               }
-               return nil
-           }
-           if let hasNewLines = newLines, let hasCallback = self.stdoutHandler {
-               g_process_callback_queue.async {
-                   for (_, curLine) in hasNewLines.enumerated() {
-                       hasCallback(curLine)
-                   }
-               }
-           }
-       }
-       output.readHandler = { [weak self] someData in
-           guard let self = self else {
-               return
-           }
-           let count = someData.count
-           pmon.processGotBytes(self, bytes: count)
-           var hasher = Hasher()
-           let currentHash = self.internalSync.sync { return self.dhash }
-           let isNewLine = someData.withUnsafeBytes({ usRawBuffPoint -> Bool in
-               hasher.combine(bytes:usRawBuffPoint)
-               if usRawBuffPoint.contains(where: { $0 == 10 || $0 == 13 }) {
-                   return true
-               }
-               return false
-           })
-           hasher.combine(currentHash)
-           self.internalSync.sync {
-               self.dhash = hasher.finalize()
-               self._stdoutBuffer.append(someData)
-           }
-           if isNewLine == true {
-               g_process_callback_queue.async(execute:stdoutWorkItem)
-           }
-       }
+        
+        output.readHandler = { [weak self] someData in
+            guard let self = self else {
+                return
+            }
+            if let hasReadHandler = self.stdoutHandler {
+                hasReadHandler(someData)
+            }
+        }
+    
        err.readHandler = { [weak self] someData in
            guard let self = self else {
                return
            }
-           var hasher = Hasher()
-           let currentHash = self.internalSync.sync { return self.dhash }
-           let isNewLine = someData.withUnsafeBytes({ usRawBuffPoint -> Bool in
-               hasher.combine(bytes:usRawBuffPoint)
-               if usRawBuffPoint.contains(where: { $0 == 10 || $0 == 13 }) {
-                   return true
-               }
-               return false
-           })
-           hasher.combine(currentHash)
-           self.internalSync.sync {
-               self.dhash = hasher.finalize()
-               self._stderrBuffer.append(someData)
-           }
-           if isNewLine == true {
-               g_process_callback_queue.async(execute:stderrWorkItem)
+           if let hasReadHandler = self.stderrHandler {
+               hasReadHandler(someData)
            }
        }
                        
@@ -395,7 +310,6 @@ public class InteractiveProcess:Hashable {
             self.stdout = output
             self.stderr = err
         }
-        
     }
 	
 	
