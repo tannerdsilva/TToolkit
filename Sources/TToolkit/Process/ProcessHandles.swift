@@ -39,7 +39,7 @@ internal class PipeReader {
 	}
     func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler), queue:DispatchQueue) {
         let inFD = handle.fileDescriptor
-        let newSource = DispatchSource.makeReadSource(fileDescriptor:inFD, queue:global_pipe_read)
+        let newSource = DispatchSource.makeReadSource(fileDescriptor:inFD, queue:Priority.highest.globalConcurrentQueue)
 		newSource.setEventHandler {
 			if let newData = handle.availableData() {
                 queue.async { work(newData) }

@@ -164,27 +164,26 @@ internal class ProcessMonitor {
                 return masterPipe!.export()
             }
 		}
-
-        let launchProc:ProcessKey = try internalSync.sync {
-            let launchedProcess = try workToRegister(notifyPipe)
+        print("asking for work register")
+        let launchedProcess = try workToRegister(notifyPipe)
+        internalSync.sync {
             monitorWorkLaunchWaiters[launchedProcess] = newSem
-            return launchedProcess
         }
 		newSem.wait()
         
         let launchVars:(Int32, Date) = try internalSync.sync {
 			//guard that there was a worker pid launched (guard that there was no error launching the worker process
-			guard let hasWorkIdentifier = monitorWorkMapping[launchProc], let launchTime = monitorWorkLaunchTimes[launchProc] else {
+			guard let hasWorkIdentifier = monitorWorkMapping[launchedProcess], let launchTime = monitorWorkLaunchTimes[launchedProcess] else {
 				//shoot, there was an error
-				if accessErrors.contains(launchProc) == true {
-					accessErrors.remove(launchProc)
+				if accessErrors.contains(launchedProcess) == true {
+					accessErrors.remove(launchedProcess)
 					throw ProcessLaunchedError.badAccess
 				} else {
                     print("throwing internal error")
 					throw ProcessLaunchedError.internalError
 				}
 			}
-			exitHandlers[launchProc] = onExit
+			exitHandlers[hasWorkIdentifier] = onExit
 			return (hasWorkIdentifier, launchTime)
 		}
         return launchVars
