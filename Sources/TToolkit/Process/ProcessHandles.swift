@@ -48,7 +48,6 @@ internal class PipeReader {
 		internalSync.sync {
 			handleQueue[handle] = newSource
             newSource.activate()
-            print(Colors.BgCyan("SCHEDULED \(handle._fd)"))
         }
 	}
 	func unschedule(_ handle:ProcessHandle) {
@@ -198,18 +197,14 @@ internal class ProcessPipes {
             return false
         }
         let linesToSchedule:Int = self.internalSync.sync {
-            print("data intake syncronized with buffer size of \(_readBuffer.count) bytes")
             _readBuffer.append(dataIn)
             if hasNewLine {
-                print("has line")
                 let sliceResult = _readBuffer.lineSlice(removeBOM:false, completeLinesOnly: true)
                 if var parsedLines = sliceResult.lines {
                     let foundLines = parsedLines.map { String(data:$0, encoding:.utf8) }
-                    print("FOUND \(foundLines)")
                     _readBuffer.removeAll(keepingCapacity:true)
                     if let hasRemainder = sliceResult.remain, hasRemainder.count > 0 {
                         let remain = String(data:hasRemainder, encoding:.utf8)
-                        print("REMAIN \(remain?.count)")
                         _readBuffer.append(hasRemainder)
                     }
                     if parsedLines.count > 0 {
@@ -217,16 +212,10 @@ internal class ProcessPipes {
                         self._readLines.append(contentsOf:parsedLines)
                         return parsedLines.count
                     }
-                } else {
-                    print("nope")
                 }
             }
             return 0
         }
-        print("returned")
-//        if linesToSchedule != 0 {
-//            _scheduleReadCallback(linesToSchedule)
-//        }
     }
     
     private func popIntakeLineAndHandler() -> (Data?, ReadHandler?) {
@@ -239,25 +228,18 @@ internal class ProcessPipes {
     }
     
     func _scheduleReadCallback(_ nTimes:Int) {
-        print("calling back \(nTimes) lines")
         let useQos = _readQoS ?? DispatchQoS.unspecified
-        print("qos picked")
         let asyncCallbackHandler = DispatchWorkItem() { [weak self] in
             guard let self = self else {
                 return
             }
-            print("attempting to pop")
             let (newDataLine, handlerToCall) = self.popIntakeLineAndHandler()
-            print("callback popped")
             if let hasNewDataLine = newDataLine, let hasHandler = handlerToCall {
-                print(Colors.BgBlue("CALLING CALLBAK"))
                 hasHandler(hasNewDataLine)
             } else {
                 
             }
         }
-    
-        print("not sure why this line is interesting but whatever")
         for _ in 0..<nTimes {
             print(">")
             _readQueue.async(execute:asyncCallbackHandler)
