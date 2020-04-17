@@ -136,6 +136,7 @@ public class InteractiveProcess:Hashable {
 	I/O events for the interactive process are handled in an asyncronous queue that calls into two secondary syncronous queues (one for internal handling, the other for callback handling
 	*/
     private let internalSync:DispatchQueue
+    private let internalAsync:DispatchQueue
     
     private let runSemaphore:DispatchSemaphore
     private var signalUp:Bool = false
@@ -241,8 +242,9 @@ public class InteractiveProcess:Hashable {
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
         let rs = DispatchSemaphore(value:0)
         let inputSerial = DispatchQueue(label:"footest", qos:priority.asDispatchQoS())
-        
-		self.runSemaphore = rs
+        self.internalAsync = inputSerial
+
+        self.runSemaphore = rs
 		self._state = .initialized
                 
         let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, workingDirectory: workingDirectory)
@@ -320,7 +322,7 @@ public class InteractiveProcess:Hashable {
                 self.runSemaphore.signal()
             }
         }
-        self._priority.globalConcurrentQueue.async(execute:runItem)
+        internalAsync.async(execute:runItem)
         runWait.wait()
     }
     
