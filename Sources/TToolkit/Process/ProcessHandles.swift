@@ -49,25 +49,19 @@ internal class PipeReader {
                 }
             }
         }
-		newSource.setCancelHandler {
-			print(Colors.bgBlue("AUTO CANCEL ENABLED"))
-            self.internalSync.sync {
-                self.handleQueue[handle] = nil
-            }
-		}
 		internalSync.sync {
             handleQueue[handle] = newSource
             newSource.activate()
         }
 	}
-//	func unschedule(_ handle:ProcessHandle) {
-//		internalSync.sync {
-//			if let hasExisting = handleQueue[handle] {
-////				hasExisting.cancel()
-//				handleQueue[handle] = nil
-//			}
-//		}
-//	}
+	func unschedule(_ handle:ProcessHandle) {
+		internalSync.sync {
+			if let hasExisting = handleQueue[handle] {
+				hasExisting.cancel()
+				handleQueue[handle] = nil
+			}
+		}
+	}
 }
 internal let globalPR = PipeReader()
 
@@ -235,7 +229,7 @@ internal class ProcessPipes {
                     }, queue:_readQueue)
 				} else {
 					if _readHandler != nil {
-//						globalPR.unschedule(reading)
+						globalPR.unschedule(reading)
 					}
 					_readHandler = nil
 				}
@@ -244,6 +238,10 @@ internal class ProcessPipes {
 	}
     
     func intake(_ dataIn:Data) {
+    	_readGroup?.enter()
+    	defer {
+    		_readGroup?.leave()
+    	}
         let hasNewLine = dataIn.withUnsafeBytes { unsafeBuffer -> Bool in
             if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
                 return true
@@ -276,9 +274,11 @@ internal class ProcessPipes {
             }
             _pendingReadFlush = false
         }
+		_readGroup?.leave()
     }
     
     private func _scheduleReadFlush() {
+		_readGroup?.enter()
         _pendingReadFlush = true
         let asyncFlushItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
             guard let self = self else {
