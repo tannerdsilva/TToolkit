@@ -78,6 +78,7 @@ internal struct tt_proc_signature:Hashable {
     var stderr:ExportedPipe? = nil
     
     var worker:pid_t
+    var container:pid_t
     
     init(_ pid:pid_t) {
         worker = pid
@@ -277,6 +278,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
                             sigToReturn.stdin = stdin_export
                             sigToReturn.stdout = stdout_export
                             sigToReturn.stderr = stderr_export
+                            sigToReturn.container = getpid()
                             return sigToReturn
                         }
                     }

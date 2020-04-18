@@ -272,7 +272,8 @@ public class InteractiveProcess:Hashable {
     
     public func waitForExitCode() -> Int {
         runSemaphore.wait()
-        let ec = tt_wait_sync(pid: sig!.worker)
+        let ec = tt_wait_sync(pid: sig!.container)
+        
         defer { print(Colors.red("exit \(sig!.worker)")) }
 //        internalAsync.setTarget(queue: nil)
         return internalAsync.sync { Int(ec) }
