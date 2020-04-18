@@ -269,6 +269,7 @@ public class InteractiveProcess:Hashable {
     
     public func waitForExitCode() -> Int {
         let ec = tt_wait_sync(pid: sig!.worker)
+        print(Colors.red("exit \(sig!.worker)"))
 //        internalAsync.setTarget(queue: nil)
         return internalAsync.sync { Int(ec) }
     }
