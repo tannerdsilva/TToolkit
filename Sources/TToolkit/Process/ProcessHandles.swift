@@ -39,6 +39,7 @@ internal class PipeReader {
         if let hasQueue = queue {
             newSource.setEventHandler {
                 if let newData = handle.availableData() {
+                    print(Colors.bgGreen("\(newData.count))")
                     hasQueue.async { work(newData) }
                 }
             }
