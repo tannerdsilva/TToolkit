@@ -174,7 +174,7 @@ internal struct ExportedPipe:Hashable {
 
 internal class ProcessPipes {
 	private let internalSync:DispatchQueue
-
+    
 	let reading:ProcessHandle
 	let writing:ProcessHandle
     
@@ -257,6 +257,9 @@ internal class ProcessPipes {
     }
     
     private func flushRead() {
+        defer {
+            _readGroup?.leave()
+        }
         self.internalSync.sync {
             let sliceResult = _readBuffer.lineSlice(removeBOM:false, completeLinesOnly:true)
             if let parsedLines = sliceResult.lines {
@@ -274,7 +277,6 @@ internal class ProcessPipes {
             }
             _pendingReadFlush = false
         }
-		_readGroup?.leave()
     }
     
     private func _scheduleReadFlush() {
@@ -320,6 +322,10 @@ internal class ProcessPipes {
 	
     func export() -> ExportedPipe {
         return ExportedPipe(reading: reading.fileDescriptor, writing: writing.fileDescriptor)
+    }
+    
+    deinit {
+        _readGroup?.wait()
     }
 }
 
