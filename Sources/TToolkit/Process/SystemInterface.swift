@@ -124,10 +124,15 @@ internal enum tt_spawn_error:Error {
     case systemForkErrorno(Int32)
 }
 
+fileprivate let tt_spawn_sem = DispatchSemaphore(value:1)
 //spawns two processes. first process is responsible for executing the actual command. second process is responsible for watching the executing process, and notifying the parent about the status of the executing process. This "monitor process" is also responsible for closing the standard inputs and outputs so that they do not get mixed in with the parents standard file descriptors
 //the primary means of I/O for the monitor process is the file descriptor passed to this function `notify`. This file descriptor acts as the activity log for the monitor process.
 //three types of monitor process events, launch event, exit event, and fatal event
 fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>, wd:UnsafePointer<Int8>, env:[String:String], stdin:Bool, stdout:Bool, stderr:Bool) throws -> tt_proc_signature {
+    tt_spawn_sem.wait()
+    defer {
+        tt_spawn_sem.signal()
+    }
     
     let internalNotify = try ExportedPipe.rw()
 
