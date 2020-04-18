@@ -269,7 +269,7 @@ public class InteractiveProcess:Hashable {
     
     public func waitForExitCode() -> Int {
         let ec = tt_wait_sync(pid: sig!.worker)
-        internalAsync.setTarget(queue: nil)
+//        internalAsync.setTarget(queue: nil)
         return internalAsync.sync { Int(ec) }
     }
     
