@@ -231,17 +231,10 @@ public class InteractiveProcess:Hashable {
     }
     
     public func run() throws {
-//        let asyncRunItem = DispatchWorkItem(qos:_priority.process_launch_priority, flags:[.enforceQoS]) { [weak self] in
-//            defer {
-//                tt_spawn_sem.signal()
-//            }
-//            guard let self = self else {
-//                return
-//            }
             try? self.internalSync.sync {
                 let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdin: true, stdout:true, stderr: true)
                 if let hasOut = launchedProcess.stdout {
-                    self.stdout = ProcessPipes(hasOut, readQueue: nil)
+                    self.stdout = ProcessPipes(hasOut, readQueue: internalAsync)
                     self.stdout!.readGroup = self.ioGroup
                     self.stdout!.readHandler = { [weak self] someData in
                         guard let self = self else {
@@ -256,7 +249,7 @@ public class InteractiveProcess:Hashable {
                     }
                 }
                 if let hasErr = launchedProcess.stderr {
-                    self.stderr = ProcessPipes(hasErr, readQueue: nil)
+                    self.stderr = ProcessPipes(hasErr, readQueue: internalAsync)
                     self.stderr!.readGroup = self.ioGroup
                     self.stderr!.readHandler = { [weak self] someData in
                         guard let self = self else {
@@ -279,15 +272,24 @@ public class InteractiveProcess:Hashable {
                 waitpid(launchedProcess.container, &status, 0)
                 runSemaphore.signal()
             }
-//        }
-//        tt_spawn_sem.wait()
-//        self.internalAsync.async(execute:asyncRunItem)
     }
     
     public func waitForExitCode() -> Int {
         runSemaphore.wait()
         let ec = tt_wait_sync(pid: sig!.container)
         ioGroup.wait()
+        if let hasOut = stdout {
+            close(hasOut.reading.fileDescriptor)
+        }
+        if let hasErr = stderr {
+            close(hasErr.reading.fileDescriptor)
+        }
+        if let hasIn = stdin {
+            close(hasIn.writing.fileDescriptor)
+        }
+
+
+        
         defer { print(Colors.red("exit \(sig!.worker)")) }
 //        internalAsync.setTarget(queue: nil)
         return internalAsync.sync { Int(ec) }
