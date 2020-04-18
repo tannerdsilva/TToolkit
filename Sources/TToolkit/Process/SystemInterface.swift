@@ -166,10 +166,6 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
         let launchWriter = ProcessHandle(fd:internalNotify.writing)
         internalNotify.closeReading()
         
-        stdin_export?.closeWriting()
-        stdout_export?.closeReading()
-        stderr_export?.closeReading()
-        
         if let hasStdout = stdout_export {
             let dupVal = _dup2(hasStdout.writing, STDOUT_FILENO)
             guard dupVal >= 0 else {
@@ -272,6 +268,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
                     case "a":
                         throw tt_spawn_error.badAccess
                     case "x":
+                        print("FATAL")
                         throw tt_spawn_error.internalError
                     default:
                         if let messagePid = pid_t(message) {
