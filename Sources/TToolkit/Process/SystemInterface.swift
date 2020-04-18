@@ -80,8 +80,9 @@ internal struct tt_proc_signature:Hashable {
     var worker:pid_t
     var container:pid_t
     
-    init(_ pid:pid_t) {
-        worker = pid
+    init(container:pid_t, work:pid_t) {
+        worker = work
+        self.container = container
     }
     
     static func == (lhs:tt_proc_signature, rhs:tt_proc_signature) -> Bool {
@@ -274,7 +275,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
                         throw tt_spawn_error.internalError
                     default:
                         if let messagePid = pid_t(message) {
-                            var sigToReturn = tt_proc_signature(messagePid)
+                            var sigToReturn = tt_proc_signature(container:getpid(), work:messagePid)
                             sigToReturn.stdin = stdin_export
                             sigToReturn.stdout = stdout_export
                             sigToReturn.stderr = stderr_export
