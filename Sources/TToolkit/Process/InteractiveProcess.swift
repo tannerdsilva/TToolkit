@@ -229,47 +229,49 @@ public class InteractiveProcess:Hashable {
     }
     
     public func run() throws {
-        try self.internalSync.sync {
-            let launchedProcess = try tt_spawn(path:commandToRun.executable, args: commandToRun.arguments, wd:wd, env: commandToRun.environment, stdin: true, stdout:true, stderr: true)
-            if let hasOut = launchedProcess.stdout {
-                self.stdout = ProcessPipes(hasOut, readQueue: internalAsync)
-                self.stdout!.readHandler = { [weak self] someData in
-                    guard let self = self else {
-                        return
-                    }
-                    self.internalSync.sync {
-                        self.lines.append(someData)
-                    }
-                    if let hasReadHandler = self.stdoutHandler {
-                        hasReadHandler(someData)
-                    }
-                }
-            }
-            if let hasErr = launchedProcess.stderr {
-                self.stderr = ProcessPipes(hasErr, readQueue: internalAsync)
-                self.stderr!.readHandler = { [weak self] someData in
-                    guard let self = self else {
-                        return
-                    }
-                    self.internalSync.sync {
-                        self.lines.append(someData)
-                    }
-                    if let hasReadHandler = self.stderrHandler {
-                        hasReadHandler(someData)
+        internalAsync.async {
+            try? self.internalSync.sync {
+                let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdin: true, stdout:true, stderr: true)
+                if let hasOut = launchedProcess.stdout {
+                    self.stdout = ProcessPipes(hasOut, readQueue: self.internalAsync)
+                    self.stdout!.readHandler = { [weak self] someData in
+                        guard let self = self else {
+                            return
+                        }
+                        self.internalSync.sync {
+                            self.lines.append(someData)
+                        }
+                        if let hasReadHandler = self.stdoutHandler {
+                            hasReadHandler(someData)
+                        }
                     }
                 }
+                if let hasErr = launchedProcess.stderr {
+                    self.stderr = ProcessPipes(hasErr, readQueue: self.internalAsync)
+                    self.stderr!.readHandler = { [weak self] someData in
+                        guard let self = self else {
+                            return
+                        }
+                        self.internalSync.sync {
+                            self.lines.append(someData)
+                        }
+                        if let hasReadHandler = self.stderrHandler {
+                            hasReadHandler(someData)
+                        }
+                    }
+                }
+                if let hasIn = launchedProcess.stdin {
+                    self.stdin = ProcessPipes(hasIn, readQueue: self.internalAsync)
+                }
+                print(Colors.Green("launched \(launchedProcess.worker)"))
+                self.sig = launchedProcess
             }
-            if let hasIn = launchedProcess.stdin {
-                self.stdin = ProcessPipes(hasIn, readQueue: internalAsync)
-            }
-            print(Colors.Green("launched \(launchedProcess.worker)"))
-            sig = launchedProcess
         }
     }
     
     public func waitForExitCode() -> Int {
         let ec = tt_wait_sync(pid: sig!.worker)
-        print(Colors.red("exit \(sig!.worker)"))
+        defer { print(Colors.red("exit \(sig!.worker)")) }
 //        internalAsync.setTarget(queue: nil)
         return internalAsync.sync { Int(ec) }
     }
