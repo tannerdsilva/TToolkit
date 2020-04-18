@@ -39,7 +39,7 @@ internal class PipeReader {
         if let hasQueue = queue {
             newSource.setEventHandler {
                 if let newData = handle.availableData() {
-                    hasQueue.async { work(newData) }
+                    hasQueue.sync { work(newData) }
                 }
             }
         } else {
@@ -185,6 +185,7 @@ internal class ProcessPipes {
 	let writing:ProcessHandle
     
     //related to data intake
+    private var _pendingReadFlush:Bool = false
     private var _readBuffer = Data()
     private var _readLines = [Data]()
     private var _readGroup:DispatchGroup? = nil
@@ -243,10 +244,6 @@ internal class ProcessPipes {
 	}
     
     func intake(_ dataIn:Data) {
-        readGroup?.enter()
-        defer {
-            readGroup?.leave()
-        }
         let hasNewLine = dataIn.withUnsafeBytes { unsafeBuffer -> Bool in
             if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
                 return true
@@ -255,49 +252,59 @@ internal class ProcessPipes {
         }
         self.internalSync.sync {
             _readBuffer.append(dataIn)
-            if hasNewLine {
-                let sliceResult = _readBuffer.lineSlice(removeBOM:false, completeLinesOnly:true)
-                if let parsedLines = sliceResult.lines {
-                    _readBuffer.removeAll(keepingCapacity:true)
-                    if let hasRemainder = sliceResult.remain, hasRemainder.count > 0 {
-                        _readBuffer.append(hasRemainder)
-                    }
-                    if parsedLines.count > 0 {
-                        let existingCount = _readLines.count
-                        self._readLines.append(contentsOf:parsedLines)
-                        if (existingCount == 0) {
-                            _scheduleReadCallback()
-                        }
+            if hasNewLine == true && _pendingReadFlush == false {
+                _scheduleReadFlush()
+            }
+        }
+    }
+    
+    private func flushRead() {
+        self.internalSync.sync {
+            let sliceResult = _readBuffer.lineSlice(removeBOM:false, completeLinesOnly:true)
+            if let parsedLines = sliceResult.lines {
+                _readBuffer.removeAll(keepingCapacity:true)
+                if let hasRemainder = sliceResult.remain, hasRemainder.count > 0 {
+                    _readBuffer.append(hasRemainder)
+                }
+                if parsedLines.count > 0 {
+                    let existingCount = _readLines.count
+                    self._readLines.append(contentsOf:parsedLines)
+                    if (existingCount == 0) {
+                        _fireReadingCallback()
                     }
                 }
             }
+            _pendingReadFlush = false
         }
     }
     
-    private func popPendingCallbackLines() -> ([Data]?, ReadHandler?) {
-        return internalSync.sync {
-            if self._readLines.count > 0 {
-                let readLinesCopy = self._readLines
-                self._readLines.removeAll(keepingCapacity: true)
-                return (readLinesCopy, _readHandler)
-            }
-            return (nil, nil)
-        }
-    }
-    
-    private func _scheduleReadCallback() {
-        let asyncWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
+    private func _scheduleReadFlush() {
+        _pendingReadFlush = true
+        let asyncFlushItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
             guard let self = self else {
                 return
             }
-            let (newLines, handlerToCall) = self.popPendingCallbackLines()
-            if let hasNewLines = newLines, let hasHandler = handlerToCall {
-                for (_, curLine) in hasNewLines.enumerated() {
-                    hasHandler(curLine)
-                }
+            self.flushRead()
+        }
+        _readQueue?.async(execute:asyncFlushItem)
+    }
+    
+    private func _popPendingCallbackLines() -> ([Data]?, ReadHandler?) {
+        if self._readLines.count > 0 {
+            let readLinesCopy = self._readLines
+            self._readLines.removeAll(keepingCapacity: true)
+            return (readLinesCopy, _readHandler)
+        }
+        return (nil, nil)
+    }
+    
+    private func _fireReadingCallback() {
+        let (newLines, handlerToCall) = self._popPendingCallbackLines()
+        if let hasNewLines = newLines, let hasHandler = handlerToCall {
+            for (_, curLine) in hasNewLines.enumerated() {
+                hasHandler(curLine)
             }
         }
-        self._readQueue?.async(execute: asyncWorkItem)
     }
 	
     convenience init(read:DispatchQueue?) throws {
