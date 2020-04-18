@@ -1,369 +1,299 @@
 import Foundation
 
-fileprivate let ioQueue:DispatchQueue = DispatchQueue(label:"com.tannersilva.global.process-interactive.pipe-io-proc", qos:Priority.highest.asDispatchQoS(), attributes:[.concurrent])
+fileprivate let tt_spawn_sem = DispatchSemaphore(value:1)
 
-public class InteractiveProcess {
-    public typealias OutputHandler = (Data) -> Void
-    public typealias InputHandler = (InteractiveProcess) -> Void
+internal class DebugProcessMonitor {
+	
+//    let eventPipe:ProcessPipes
     
-    private let masterQueue:DispatchQueue
+	let internalSync = DispatchQueue(label:"com.tannersilva.process.monitor.sync")
+	
+	var announceTimer:TTimer
+	var processHashes = [InteractiveProcess:Int]()
+	
+	var engagements = Set<Int32>()
+	var disengagements = Set<Int32>()
+	
+    var processBytes = [InteractiveProcess:Int]()
+	var processes = [InteractiveProcess:Date]()
     
-    public let priority:Priority				//what is the priority of this interactive process. most (if not all) of the asyncronous work for this process and others will be based on this Priority
-    private let internalSync:DispatchQueue		//what serial thread is going to be used to process the data for each class instance?
-    private let internalCallback:DispatchQueue	//this is the queue that calls the handlers that the user assigned
-    
-    private let runGroup:DispatchGroup
-    private let exitGroup:DispatchGroup
-    
-	public enum State:UInt8 {
-		case initialized = 0
-		case running = 1
-		case suspended = 2
-		case exited = 4
-		case failed = 5
+	var sortedProcesses:[(key:InteractiveProcess, value:Date)] {
+		get {
+			return processes.sorted(by: { $0.value > $1.value })
+		}
 	}
 	
-	internal var stdin:ProcessPipes
-	internal var stdout:ProcessPipes
-	internal var stderr:ProcessPipes
+	init() {
+		announceTimer = TTimer()
+		announceTimer.duration = 5
+		announceTimer.handler = { [weak self] _ in
+			guard let self = self else {
+				return
+			}
+			self.internalSync.sync {
+				let sortedProcs = self.sortedProcesses
+				for (_, curProcess) in sortedProcs.enumerated() {
+					print(Colors.Cyan("\(curProcess.key._uniqueID)\t\t"), terminator:"")
+					print(Colors.blue("\(curProcess.key.processIdentifier)\t\t"), terminator:"")
+					print(Colors.yellow("\(curProcess.value.timeIntervalSinceNow)\t"), terminator:"")
+					let hash = curProcess.key.dhash
+					if let hasHash = self.processHashes[curProcess.key] {
+						if hasHash != hash {
+							print(Colors.green("\(curProcess.key.dhash)\t"), terminator:"")
+						} else {
+							print(Colors.dim("\(curProcess.key.dhash)\t"), terminator:"")
+						}
+						self.processHashes[curProcess.key] = hash
+					} else {
+						print(Colors.red("\(curProcess.key.dhash)\t"), terminator:"")
+						self.processHashes[curProcess.key] = hash					
+					}
+					let pid = curProcess.key.processIdentifier
+					if (self.engagements.contains(pid)) {
+						print(Colors.Magenta("E\t"), terminator:"")
+					} else if self.disengagements.contains(pid) {
+						print(Colors.Red("D!\t"), terminator:"")
+					}
+                    print(Colors.green("\(curProcess.key.lines.count)\t"), terminator:"")
+                    print(Colors.yellow("\(self.processBytes[curProcess.key])\t"), terminator:"\n")
+				}
+				print(Colors.Blue("There are \(self.processes.count) processes in flight"))
+			}
+		}
+		announceTimer.activate()
+	}
+    
+	func processLaunched(_ p:InteractiveProcess) {
+		internalSync.sync {
+			processes[p] = Date()
+            processBytes[p] = 0
+		}
+	}
 	
-	internal var stdoutBuff = Data()
-	internal var stderrBuff = Data()
+	func processEnded(_ p:InteractiveProcess) {
+		internalSync.sync {
+			processes[p] = nil
+            processBytes[p] = nil
+		}
+	}
+}
 
-	internal let proc:ExecutingProcess
-	public var state:State = .initialized
+//internal let pmon = DebugProcessMonitor()
+
+public class InteractiveProcess:Hashable {
+    private var _priority:Priority
     
-    private var _callbackQueue:DispatchQueue
-    public var callbackQueue:DispatchQueue {
-    	get {
-    		return internalSync.sync {
-    			return _callbackQueue
-    		}
-    	}
-    	set {
-    		internalSync.sync {
-    			_callbackQueue = newValue
-    			internalCallback.setTarget(queue:_callbackQueue)
-    		}
-    	}
-    }
+	private var _id = UUID()
+	internal var _uniqueID:String {
+		get {
+			return _id.uuidString
+		}
+	}
+	internal var processIdentifier:Int32 {
+		get {
+			return internalSync.sync {
+				return sig!.worker
+			}
+		}
+	}
+	
+	internal var dhash:Int = 0
+	
+	public func hash(into hasher:inout Hasher) {
+		hasher.combine(_uniqueID)
+	}
+	
+	public static func == (lhs:InteractiveProcess, rhs:InteractiveProcess) -> Bool {
+		return lhs._id == rhs._id
+	}
+	
+    public typealias OutputHandler = (Data) -> Void
+    public typealias InputHandler = () -> Void
+
+	/*
+	I/O events for the interactive process are handled in an asyncronous queue that calls into two secondary syncronous queues (one for internal handling, the other for callback handling
+	*/
+    private let internalSync:DispatchQueue
+    private let internalAsync:DispatchQueue
     
-    /*
-    	The stdout handler is called every time a new line is detected 
-    */
-    private var _stdoutHandler:OutputHandler? = nil
-    public var stdoutHandler:OutputHandler? {
-        get {
-        	return internalSync.sync {
-        		return _stdoutHandler
-        	}
-        }
+    private let runSemaphore:DispatchSemaphore
+    private var signalUp:Bool = false
+    
+	public enum InteractiveProcessState:UInt8 {
+		case initialized
+		case running
+		case suspended
+		case exited
+		case failed
+	}
+    
+	private var _state:InteractiveProcessState
+	public var state:InteractiveProcessState {
+		get {
+			return internalSync.sync {
+				return _state
+			}
+		}
+	}
+	
+	private var _status:String = ""
+	internal var status:String {
+		get {
+			return internalSync.sync {
+				return _status
+			}
+		}
+	}
+	
+    internal var ioGroup:DispatchGroup = DispatchGroup()
+    
+	internal var stdin:ProcessPipes? = nil
+	internal var stdout:ProcessPipes? = nil
+	internal var stderr:ProcessPipes? = nil
+	
+	internal var _stdoutBuffer = Data()
+	public var stdoutBuffer:Data {
+		get {
+			return internalSync.sync {
+				return _stdoutBuffer
+			}
+		}
+	}
+	
+	internal var _stderrBuffer = Data()
+	public var stderrBuffer:Data {
+		get {
+			return internalSync.sync {
+				return _stderrBuffer
+			}
+		}
+	}
+	
+	private var _stdoutHandler:OutputHandler? = nil
+	public var stdoutHandler:OutputHandler? {
+		get {
+			return internalSync.sync {
+				return _stdoutHandler
+			}
+		}
         set {
             internalSync.sync {
                 _stdoutHandler = newValue
             }
         }
-    }
-    
-    private var _stderrHandler:OutputHandler? = nil
-    public var stderrHandler:OutputHandler? {
-        get {
-        	return internalSync.sync {
+	}
+	
+	private var _stderrHandler:OutputHandler? = nil
+	public var stderrHandler:OutputHandler? {
+		get {
+			return internalSync.sync {
 				return _stderrHandler
-        	}   
-        }
-        set {
-            internalSync.sync {
-                _stderrHandler = newValue
-            }
-        }
-    }
+			}
+		}
+		set {
+			internalSync.sync {
+				_stderrHandler = newValue
+			}
+		}
+	}
+	
+	private var _stdinHandler:InputHandler? = nil
+	public var stdinHandler:InputHandler? {
+		get {
+			return internalSync.sync {
+				return _stdinHandler
+			}
+		}
+		set {
+			internalSync.sync {
+				_stdinHandler = newValue
+			}
+		}
+	}
     
-    private var _stdinHandler:InputHandler? = nil
-    public var stdinHandler:InputHandler? {
-    	get {
-    		return internalSync.sync {
-    			return _stdinHandler
-    		}
-    	}
-    	set {
-    		return internalSync.sync {
-    			_stdinHandler = newValue
-    		}
-    	}
-    }
+    internal var commandToRun:Command
+    internal var wd:URL
+    internal var sig:tt_proc_signature? = nil
+    
+    var lines = [Data]() 
+	
+    public init<C>(command:C, priority:Priority, run:Bool, workingDirectory:URL) throws where C:Command {
+        self._priority = priority
+        self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
+        let rs = DispatchSemaphore(value:0)
+        commandToRun = command
+        wd = workingDirectory
+        let inputSerial = DispatchQueue(label:"footest", qos:priority.process_async_priority, target:process_master_queue)
+        self.internalAsync = inputSerial
 
-    public init<C>(command:C, priority:Priority = .`default`) throws where C:Command {
-    	self.priority = priority
-    	let master = DispatchQueue(label:"com.tannersilva.instance.process-interactive.master", qos:priority.asDispatchQoS(), attributes:[.concurrent])
-    	self.masterQueue = master
-    	
-    	let syncQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.sync", qos:priority.asDispatchQoS(), target:master)
-    	let callbackQueue = DispatchQueue(label:"com.tannersilva.instance.process-interactive.callback", qos:priority.asDispatchQoS(), target:master)
-    	let ioInternal = DispatchQueue(label:"com.tannersilva.instance.process-interactive.io", target:ioQueue)
-    	let rg = DispatchGroup()
-    	let eg = DispatchGroup()
-    	
-		self.internalSync = syncQueue
-		self.internalCallback = callbackQueue
-		self._callbackQueue = callbackQueue
-		
-		self.runGroup = rg
-		self.exitGroup = eg
-		
-		//create the ProcessHandles that we need to read the data from this process as it runs
-		let standardIn = try ProcessPipes(queue:ioInternal)
-		let standardOut = try ProcessPipes(queue:ioInternal)
-		let standardErr = try ProcessPipes(queue:ioInternal)
-		stdin = standardIn
-		stdout = standardOut
-		stderr = standardErr
-		
-		//create the ExecutingProcess
-		proc = ExecutingProcess(priority:priority, master:master, execute:command.executable, arguments:command.arguments, environment:command.environment)
-		
-		proc.stdin = standardIn
-		proc.stdout = standardOut
-		proc.stderr = standardErr
-		
-		proc.terminationHandler = { [weak self] _ in
-			rg.leave()
-			rg.wait()
-			syncQueue.sync {
-				guard let self = self else {
-					return
-				}
-				//close file handles if they exist
-				self.stdin.close()
-				self.stdout.close()
-				self.stderr.close()
-				
-				self._finishStdoutLines()
-				self._finishStderrLines()
-				self.state = .exited
-				
-				rg.wait()
-	
-				eg.leave()
-			}
-		}
-        
-		stdout.readHandler = { [weak self] handleToRead in
-			rg.enter()
-			defer {
-				rg.leave()
-			}
-			//try to read the data. do we get something?
-			if let newData = handleToRead.availableData() {
-				let bytesCount = newData.count
-				
-				//do we have bytes to take action on?
-				if bytesCount > 0 {				
-					//parse the buffer of unsafe bytes for an endline
-					var shouldLineSlice = false
-					newData.withUnsafeBytes({ byteBuff -> Void in
-						if let hasBaseAddress = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
-							for i in 0..<bytesCount {
-								switch hasBaseAddress.advanced(by:i).pointee {
-									case 10, 13:
-										shouldLineSlice = true
-									default:
-									break;
-								}
-							}
-						}
-					})
-					rg.enter()
-					syncQueue.async { [weak self] in
-						defer {
-							rg.leave()
-						}
-						guard let self = self else {
-							return
-						}
-						self._buildStdout(data:newData, lineSlice:shouldLineSlice)
-					}
-				}
-			}
-		}
-	
-		stderr.readHandler = { [weak self] handleToRead in
-			rg.enter()
-			defer {
-				rg.leave()
-			}
-			//try to read the data. do we get something?
-			if let newData = handleToRead.availableData() {
-				let bytesCount = newData.count
-				
-				//does this data have bytes that we can take action on?
-				if bytesCount > 0 {
-					//parse the buffer of unsafe bytes for an endline
-					var shouldLineSlice = false
-					newData.withUnsafeBytes({ byteBuff -> Void in
-						if let hasBaseAddress = byteBuff.baseAddress?.assumingMemoryBound(to:UInt8.self) {
-							for i in 0..<bytesCount {
-								switch hasBaseAddress.advanced(by:i).pointee {
-									case 10, 13:
-										shouldLineSlice = true
-									default:
-									break;
-								}
-							}
-						}
-					})
-					rg.enter()
-					syncQueue.async { [weak self] in
-						defer {
-							rg.leave()
-						}
-						guard let self = self else {
-							return
-						}
-						self._buildStderr(data:newData, lineSlice:shouldLineSlice)
-					}
-				}
-			}
-		}
+        self.runSemaphore = rs
+		self._state = .initialized
     }
     
     public func run() throws {
-    	try internalSync.sync {
-			do {
-				runGroup.enter()
-				exitGroup.enter()
-				try proc._run()
-				state = .running
-			} catch let error {
-				runGroup.leave()
-				exitGroup.leave()
-				state = .failed
-				throw error
-			}
-		}
-    }
-	
-	public func suspend() -> Bool? {
-        return internalSync.sync {
-            if state == .running {
-                if proc._suspend() == true {
-                    state = .suspended
-                    return true
-                } else {
-                    state = .running
-                    return false
+        try self.internalSync.sync {
+            let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdin: true, stdout:true, stderr: true)
+            if let hasOut = launchedProcess.stdout {
+                self.stdout = ProcessPipes(hasOut, readQueue: internalAsync)
+                self.stdout!.readGroup = self.ioGroup
+                self.stdout!.readHandler = { [weak self] someData in
+                    guard let self = self else {
+                        return
+                    }
+                    self.internalSync.sync {
+                        self.lines.append(someData)
+                    }
+                    if let hasReadHandler = self.stdoutHandler {
+                        hasReadHandler(someData)
+                    }
                 }
-            } else {
-                return nil
             }
+            if let hasErr = launchedProcess.stderr {
+                self.stderr = ProcessPipes(hasErr, readQueue: internalAsync)
+                self.stderr!.readGroup = self.ioGroup
+                self.stderr!.readHandler = { [weak self] someData in
+                    guard let self = self else {
+                        return
+                    }
+                    self.internalSync.sync {
+                        self.lines.append(someData)
+                    }
+                    if let hasReadHandler = self.stderrHandler {
+                        hasReadHandler(someData)
+                    }
+                }
+            }
+            if let hasIn = launchedProcess.stdin {
+                self.stdin = ProcessPipes(hasIn, readQueue: nil)
+            }
+            print(Colors.Green("launched \(launchedProcess.worker)"))
+            self.sig = launchedProcess
+            runSemaphore.signal()
         }
     }
-	
-	public func resume() -> Bool? {
-        return internalSync.sync {
-            if state == .suspended {
-                if proc._resume() == true {
-                    state = .running
-                    return true
-                } else {
-                    state = .suspended
-                    return false
-                }
-            } else {
-                return nil
-            }
-        }
-	}
-	
-	private func callbackStdout(lines:[Data]) {
-		let rg = runGroup
-		rg.enter()
-		internalCallback.async { [weak self] in
-			defer {
-				rg.leave()
-			}
-			guard let self = self, let outHandler = self.stdoutHandler else {
-				return
-			}
-			for (_, curLine) in lines.enumerated() {
-				outHandler(curLine)
-			}
-		}
-	}
-	
-	private func callbackStderr(lines:[Data]) {
-		let rg = runGroup
-		rg.enter()
-		internalCallback.async { [weak self] in
-			defer {
-			    rg.leave()
-			}
-			guard let self = self, let errHandler = self.stderrHandler else {
-				return
-			}
-			for (_, curLine) in lines.enumerated() {
-				errHandler(curLine)
-			}
-		}
-	}
-	
-	private func _buildStdout(data:Data, lineSlice:Bool) {
-		stdoutBuff.append(data)
-		if lineSlice == true, var slicedLines = stdoutBuff.lineSlice(removeBOM:false) {
-			let lastDataLine = slicedLines.removeLast()
-			stdoutBuff.removeAll(keepingCapacity:true)
-			stdoutBuff.append(lastDataLine)
-			callbackStdout(lines:slicedLines)
-		}
-	}
-	
-	private func _buildStderr(data:Data, lineSlice:Bool) {
-		stderrBuff.append(data)
-		if lineSlice == true, var slicedLines = stderrBuff.lineSlice(removeBOM:false) {
-			let lastDataLine = slicedLines.removeLast()
-			stderrBuff.removeAll(keepingCapacity:true)
-			stderrBuff.append(lastDataLine)
-			callbackStderr(lines:slicedLines)
-		}
-	}
-	
-	private func _finishStdoutLines() {
-		if var slicedLines = stdoutBuff.lineSlice(removeBOM:false), let outHandler = _stdoutHandler {
-			callbackStdout(lines:slicedLines)
-			stdoutBuff.removeAll(keepingCapacity:false)
-			let rg = runGroup
-			rg.enter()
-			internalCallback.async {
-				defer {
-					rg.leave()
-				}
-				for (_, curLine) in slicedLines.enumerated() {
-					outHandler(curLine)
-				}
-			}
-		}
-	}
-	
-	private func _finishStderrLines() {
-		if var slicedLines = stderrBuff.lineSlice(removeBOM:false), let errHandler = _stderrHandler {
-			callbackStderr(lines:slicedLines)
-			stderrBuff.removeAll(keepingCapacity:false)
-			let rg = runGroup
-			rg.enter()
-			internalCallback.async {
-				defer {
-					rg.leave()
-				}
-				for (_, curLine) in slicedLines.enumerated() {
-					errHandler(curLine)
-				}
-			}
-		}
-	}
-		
+    
     public func waitForExitCode() -> Int {
-		exitGroup.wait()
-        let returnCode = proc.exitCode!
-        return Int(returnCode)
+        runSemaphore.wait()
+        let ec = tt_wait_sync(pid: sig!.container)
+		if let hasOut = stdout {
+            close(hasOut.reading.fileDescriptor)
+            hasOut.readHandler = nil
+        }
+        if let hasErr = stderr {
+            close(hasErr.reading.fileDescriptor)
+            hasErr.readHandler = nil
+        }
+        if let hasIn = stdin {
+            close(hasIn.writing.fileDescriptor)
+            hasIn.readHandler = nil
+        }
+
+        ioGroup.wait()
+        defer { print(Colors.red("exit \(sig!.worker)")) }
+        return internalAsync.sync { Int(ec) }
+    }
+    
+    deinit {
+    	print(Colors.yellow("ip was deinit"))
     }
 }
