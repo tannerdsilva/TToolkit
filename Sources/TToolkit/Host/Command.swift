@@ -89,7 +89,7 @@ extension Context {
         var outputLines = [Data]()
         var errorLines = [Data]()
         
-        let process = try InteractiveProcess(command:commandToRun, priority: Priority.high, run:false, workingDirectory: self.workingDirectory)
+        let process = try InteractiveProcess(command:commandToRun, priority: Priority.default, workingDirectory: self.workingDirectory)
 //        process.workingDirectory = self.workingDirectory
         try process.run()
         process.stdoutHandler = { someData in
@@ -103,12 +103,12 @@ extension Context {
    		return result
     }
     
-    public func prepareAsync(priority:Priority = Priority.`default`, _ thisCommand:String) throws -> InteractiveProcess {
-    	let commandToRun = build(thisCommand)
-    	let processToReturn = try InteractiveProcess(command:commandToRun, priority:priority)
-    	processToReturn.proc.environment = environment
-    	return processToReturn
-    }
+//    public func prepareAsync(priority:Priority = Priority.`default`, _ thisCommand:String) throws -> InteractiveProcess {
+//    	let commandToRun = build(thisCommand)
+//    	let processToReturn = try InteractiveProcess(command:commandToRun, priority:priority)
+//    	processToReturn.proc.environment = environment
+//    	return processToReturn
+//    }
 	    
     public func build(_ commandString: String) -> BasicCommand {
         let shellBuild = ShellType.executableAndArguments(commandString)

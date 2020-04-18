@@ -217,7 +217,7 @@ public class InteractiveProcess:Hashable {
     
     var lines = [Data]() 
 	
-    public init<C>(command:C, priority:Priority, run:Bool, workingDirectory:URL) throws where C:Command {
+    public init<C>(command:C, priority:Priority, workingDirectory:URL) throws where C:Command {
         self._priority = priority
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
         let rs = DispatchSemaphore(value:0)

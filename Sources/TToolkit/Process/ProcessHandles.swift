@@ -239,11 +239,6 @@ internal class ProcessPipes {
 					}
 					_readHandler = nil
 				}
-				readSource = newSource
-				newSource.activate()
-			} else {
-				_readHandler = nil
-				readSource = nil
 			}
 		}
 	}
