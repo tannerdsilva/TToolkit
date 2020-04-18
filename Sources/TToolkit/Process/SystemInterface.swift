@@ -262,6 +262,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
             while incomingData == nil || incomingData!.count == 0 {
                 incomingData = launchReader.availableData()
             }
+            
             _ = _close(internalNotify.reading)
             if let message = String(data:incomingData!.lineSlice(removeBOM: false).first!, encoding:.utf8) {
                 if let firstChar = message.first {
@@ -271,8 +272,8 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
                     case "x":
                         throw tt_spawn_error.internalError
                     default:
-                        if let messagePid = UInt32(message) {
-                            var sigToReturn = tt_proc_signature(pid_t(bitPattern: messagePid))
+                        if let messagePid = pid_t(message) {
+                            var sigToReturn = tt_proc_signature(messagePid)
                             sigToReturn.stdin = stdin_export
                             sigToReturn.stdout = stdout_export
                             sigToReturn.stderr = stderr_export
