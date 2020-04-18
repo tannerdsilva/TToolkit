@@ -231,47 +231,47 @@ public class InteractiveProcess:Hashable {
     }
     
     public func run() throws {
-            try? self.internalSync.sync {
-                let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdin: true, stdout:true, stderr: true)
-                if let hasOut = launchedProcess.stdout {
-                    self.stdout = ProcessPipes(hasOut, readQueue: internalAsync)
-                    self.stdout!.readGroup = self.ioGroup
-                    self.stdout!.readHandler = { [weak self] someData in
-                        guard let self = self else {
-                            return
-                        }
-                        self.internalSync.sync {
-                            self.lines.append(someData)
-                        }
-                        if let hasReadHandler = self.stdoutHandler {
-                            hasReadHandler(someData)
-                        }
+        try? self.internalSync.sync {
+            let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdin: true, stdout:true, stderr: true)
+            if let hasOut = launchedProcess.stdout {
+                self.stdout = ProcessPipes(hasOut, readQueue: internalAsync)
+                self.stdout!.readGroup = self.ioGroup
+                self.stdout!.readHandler = { [weak self] someData in
+                    guard let self = self else {
+                        return
+                    }
+                    self.internalSync.sync {
+                        self.lines.append(someData)
+                    }
+                    if let hasReadHandler = self.stdoutHandler {
+                        hasReadHandler(someData)
                     }
                 }
-                if let hasErr = launchedProcess.stderr {
-                    self.stderr = ProcessPipes(hasErr, readQueue: internalAsync)
-                    self.stderr!.readGroup = self.ioGroup
-                    self.stderr!.readHandler = { [weak self] someData in
-                        guard let self = self else {
-                            return
-                        }
-                        self.internalSync.sync {
-                            self.lines.append(someData)
-                        }
-                        if let hasReadHandler = self.stderrHandler {
-                            hasReadHandler(someData)
-                        }
-                    }
-                }
-                if let hasIn = launchedProcess.stdin {
-                    self.stdin = ProcessPipes(hasIn, readQueue: nil)
-                }
-                print(Colors.Green("launched \(launchedProcess.worker)"))
-                self.sig = launchedProcess
-                var status:Int32 = 0
-                waitpid(launchedProcess.container, &status, 0)
-                runSemaphore.signal()
             }
+            if let hasErr = launchedProcess.stderr {
+                self.stderr = ProcessPipes(hasErr, readQueue: internalAsync)
+                self.stderr!.readGroup = self.ioGroup
+                self.stderr!.readHandler = { [weak self] someData in
+                    guard let self = self else {
+                        return
+                    }
+                    self.internalSync.sync {
+                        self.lines.append(someData)
+                    }
+                    if let hasReadHandler = self.stderrHandler {
+                        hasReadHandler(someData)
+                    }
+                }
+            }
+            if let hasIn = launchedProcess.stdin {
+                self.stdin = ProcessPipes(hasIn, readQueue: nil)
+            }
+            print(Colors.Green("launched \(launchedProcess.worker)"))
+            self.sig = launchedProcess
+            var status:Int32 = 0
+            waitpid(launchedProcess.container, &status, 0)
+            runSemaphore.signal()
+        }
     }
     
     public func waitForExitCode() -> Int {
@@ -280,12 +280,15 @@ public class InteractiveProcess:Hashable {
         ioGroup.wait()
         if let hasOut = stdout {
             close(hasOut.reading.fileDescriptor)
+            hasOut.readHandler = nil
         }
         if let hasErr = stderr {
             close(hasErr.reading.fileDescriptor)
+            hasErr.readHandler = nil
         }
         if let hasIn = stdin {
             close(hasIn.writing.fileDescriptor)
+            hasIn.readHandler = nil
         }
 
 
