@@ -39,7 +39,6 @@ internal class PipeReader {
         if let hasQueue = queue {
             newSource.setEventHandler {
                 if let newData = handle.availableData() {
-                    print(Colors.bgGreen("\(newData.count))"))
                     hasQueue.async { work(newData) }
                 }
             }
@@ -295,11 +294,11 @@ internal class ProcessPipes {
         }
     }
 	
-    convenience init(read:DispatchQueue) throws {
+    convenience init(read:DispatchQueue?) throws {
         self.init(try ExportedPipe.rw(), readQueue:read)
 	}
 	
-    init(_ export:ExportedPipe, readQueue:DispatchQueue) {
+    init(_ export:ExportedPipe, readQueue:DispatchQueue?) {
 		self.reading = ProcessHandle(fd:export.reading)
 		self.writing = ProcessHandle(fd:export.writing)
 		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", target:global_lock_queue)
