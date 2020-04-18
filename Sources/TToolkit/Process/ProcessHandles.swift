@@ -243,6 +243,10 @@ internal class ProcessPipes {
 	}
     
     func intake(_ dataIn:Data) {
+        readGroup?.enter()
+        defer {
+            readGroup?.leave()
+        }
         let hasNewLine = dataIn.withUnsafeBytes { unsafeBuffer -> Bool in
             if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
                 return true
@@ -254,7 +258,6 @@ internal class ProcessPipes {
             if hasNewLine {
                 let sliceResult = _readBuffer.lineSlice(removeBOM:false, completeLinesOnly:true)
                 if let parsedLines = sliceResult.lines {
-//                    let foundLines = parsedLines.map { String(data:$0, encoding:.utf8) }
                     _readBuffer.removeAll(keepingCapacity:true)
                     if let hasRemainder = sliceResult.remain, hasRemainder.count > 0 {
                         _readBuffer.append(hasRemainder)
@@ -284,9 +287,13 @@ internal class ProcessPipes {
     
     private func _scheduleReadCallback() {
         if let hasQueue = _readQueue {
+            _readGroup?.enter()
             hasQueue.async { [weak self] in
                 guard let self = self else {
                     return
+                }
+                defer {
+                    self.readGroup?.leave()
                 }
                 let (newLines, handlerToCall) = self.popPendingCallbackLines()
                 if let hasNewLines = newLines, let hasHandler = handlerToCall {

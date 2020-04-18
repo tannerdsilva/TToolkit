@@ -229,11 +229,16 @@ public class InteractiveProcess:Hashable {
     }
     
     public func run() throws {
-        internalAsync.async {
+        let asyncRunItem = DispatchWorkItem(qos:_priority.process_launch_priority, flags:[.enforceQoS]) { [weak self] in
+            guard let self = self else {
+                return
+            }
+            
             try? self.internalSync.sync {
                 let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdin: true, stdout:true, stderr: true)
                 if let hasOut = launchedProcess.stdout {
                     self.stdout = ProcessPipes(hasOut, readQueue: self.internalAsync)
+                    self.stdout!.readGroup = self.ioGroup
                     self.stdout!.readHandler = { [weak self] someData in
                         guard let self = self else {
                             return
@@ -248,6 +253,7 @@ public class InteractiveProcess:Hashable {
                 }
                 if let hasErr = launchedProcess.stderr {
                     self.stderr = ProcessPipes(hasErr, readQueue: self.internalAsync)
+                    self.stderr!.readGroup = self.ioGroup
                     self.stderr!.readHandler = { [weak self] someData in
                         guard let self = self else {
                             return
@@ -268,12 +274,13 @@ public class InteractiveProcess:Hashable {
                 self.runSemaphore.signal()
             }
         }
+        self.internalAsync.async(execute:asyncRunItem)
     }
     
     public func waitForExitCode() -> Int {
         runSemaphore.wait()
         let ec = tt_wait_sync(pid: sig!.container)
-        
+        ioGroup.wait()
         defer { print(Colors.red("exit \(sig!.worker)")) }
 //        internalAsync.setTarget(queue: nil)
         return internalAsync.sync { Int(ec) }
