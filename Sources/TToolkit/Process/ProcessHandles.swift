@@ -20,10 +20,6 @@ import Foundation
 internal typealias ReadHandler = (Data) -> Void
 internal typealias WriteHandler = () -> Void
 
-fileprivate let ioThreads = DispatchQueue(label:"com.tannersilva.global.process-handle.io", attributes:[.concurrent])
-fileprivate let ppLocks = DispatchQueue(label:"com.tannersilva.global.process-pipe.sync", attributes:[.concurrent])
-internal let pp_make_destroy_queue = DispatchQueue(label:"com.tannersilva.global.process-pipe.init-serial")
-
 /*
 	When external processes are launched, there is no way of influencing the rate of which that processess will output data.
 	The PipeReader class is used to immediately read data from available file descriptors. after a Data object is captured, Pipereader will call the completion handler at a specified dispatch queue while respecting that queues QoS
@@ -37,14 +33,22 @@ internal class PipeReader {
 		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.sync")
 		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
 	}
-    func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler), queue:DispatchQueue) {
+    func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler), queue:DispatchQueue?) {
         let inFD = handle.fileDescriptor
         let newSource = DispatchSource.makeReadSource(fileDescriptor:inFD, queue:Priority.highest.globalConcurrentQueue)
-		newSource.setEventHandler {
-			if let newData = handle.availableData() {
-                queue.async { work(newData) }
-			}
-		}
+        if let hasQueue = queue {
+            newSource.setEventHandler {
+                if let newData = handle.availableData() {
+                    hasQueue.async { work(newData) }
+                }
+            }
+        } else {
+            newSource.setEventHandler {
+                if let newData = handle.availableData() {
+                    work(newData)
+                }
+            }
+        }
 		newSource.setCancelHandler {
 			print(Colors.bgBlue("AUTO CANCEL ENABLED"))
             self.internalSync.sync {
@@ -112,19 +116,65 @@ internal let globalPR = PipeReader()
 //internal let globalWH = WriteWatcher()
 
 //the exported pipe is passed to forked child processes. would rather pass structured data to forking
-internal struct ExportedPipe {
+internal enum pipe_errors:Error {
+    case unableToCreatePipes
+}
+internal struct ExportedPipe:Hashable {
     let reading:Int32
     let writing:Int32
     
-    func configureOutbound() {
-        _close(reading)
+    internal static func rw() throws -> ExportedPipe {
+        let fds = UnsafeMutablePointer<Int32>.allocate(capacity:2)
+        defer {
+            fds.deallocate()
+        }
+        
+        let rwfds = global_pipe_lock.sync {
+            return _pipe(fds)
+        }
+        
+        switch rwfds {
+            case 0:
+                let readFD = fds.pointee
+                let writeFD = fds.successor().pointee
+                print(Colors.magenta("created for reading: \(readFD)"))
+                print(Colors.Magenta("created for writing: \(writeFD)"))
+                return ExportedPipe(r:readFD, w:writeFD)
+            default:
+                throw pipe_errors.unableToCreatePipes
+        }
     }
-    func configureInbound() {
-        _close(writing)
+
+    init(reading:Int32, writing:Int32) {
+        self.reading = reading
+        self.writing = writing
     }
+    
+    init(r:Int32, w:Int32) {
+        self.writing = w
+        self.reading = r
+    }
+    
+    func closeReading() {
+        _ = _close(reading)
+    }
+    
+    func closeWriting() {
+        _ = _close(writing)
+    }
+
     func close() {
         _ = _close(writing)
         _ = _close(reading)
+    }
+    
+    func hash(into hasher:inout Hasher) {
+        hasher.combine(reading)
+        hasher.combine(writing)
+    }
+    
+    static func == (lhs:ExportedPipe, rhs:ExportedPipe) -> Bool {
+        return lhs.reading == rhs.reading && lhs.writing == rhs.writing
     }
 }
 
@@ -151,8 +201,8 @@ internal class ProcessPipes {
         }
     }
     
-    private var _readQueue:DispatchQueue
-    var readQueue:DispatchQueue {
+    private var _readQueue:DispatchQueue?
+    var readQueue:DispatchQueue? {
         get {
             return internalSync.sync {
                 return _readQueue
@@ -233,27 +283,28 @@ internal class ProcessPipes {
     }
     
     private func _scheduleReadCallback() {
-        _readQueue.async { [weak self] in
-            guard let self = self else {
-                return
-            }
-            let (newLines, handlerToCall) = self.popPendingCallbackLines()
-            if let hasNewLines = newLines, let hasHandler = handlerToCall {
-                for (_, curLine) in hasNewLines.enumerated() {
-                    hasHandler(curLine)
+        if let hasQueue = _readQueue {
+            hasQueue.async { [weak self] in
+                guard let self = self else {
+                    return
+                }
+                let (newLines, handlerToCall) = self.popPendingCallbackLines()
+                if let hasNewLines = newLines, let hasHandler = handlerToCall {
+                    for (_, curLine) in hasNewLines.enumerated() {
+                        hasHandler(curLine)
+                    }
                 }
             }
+        } else if let hasHandler = _readHandler {
+            for (_, curLine) in self._readLines.enumerated() {
+                hasHandler(curLine)
+            }
+            self._readLines.removeAll(keepingCapacity: true)
         }
     }
 	
-    init(read:DispatchQueue) throws {
-		let readWrite = try Self.forReadingAndWriting()
-		self.reading = readWrite.r
-		self.writing = readWrite.w
-		
-		let ints = DispatchQueue(label:"com.tannersilva.instance.process-pipe.sync", target:global_lock_queue)
-		self.internalSync = ints
-        self._readQueue = read
+    convenience init(read:DispatchQueue) throws {
+        self.init(try ExportedPipe.rw(), readQueue:read)
 	}
 	
     init(_ export:ExportedPipe, readQueue:DispatchQueue) {
@@ -263,28 +314,6 @@ internal class ProcessPipes {
         self._readQueue = readQueue
 	}
 	
-	fileprivate static func forReadingAndWriting() throws -> (r:ProcessHandle, w:ProcessHandle) {
-        let fds = UnsafeMutablePointer<Int32>.allocate(capacity:2)
-		defer {
-			fds.deallocate()
-		}
-		
-        let rwfds = global_pipe_lock.sync {
-            return _pipe(fds)
-		}
-		
-        switch rwfds {
-            case 0:
-                let readFD = fds.pointee
-                let writeFD = fds.successor().pointee
-                print(Colors.magenta("created for reading: \(readFD)"))
-                print(Colors.Magenta("created for writing: \(writeFD)"))
-                return (r:ProcessHandle(fd:readFD), w:ProcessHandle(fd:writeFD))
-            default:
-            throw ExecutingProcess.ExecutingProcessError.unableToCreatePipes
-        }
-	}
-    
     func export() -> ExportedPipe {
         return ExportedPipe(reading: reading.fileDescriptor, writing: writing.fileDescriptor)
     }

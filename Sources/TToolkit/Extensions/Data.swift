@@ -412,7 +412,7 @@ extension Data {
                         }
                         return false
                     case .crlf:
-                        guard bytesCount > 2 else {
+                        guard bytesCount > 1 else {
                             return false
                         }
                         let lastIndex = endIndex.advanced(by: -1)

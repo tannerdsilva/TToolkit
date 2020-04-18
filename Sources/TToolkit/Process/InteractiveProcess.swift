@@ -90,7 +90,7 @@ public class InteractiveProcess:Hashable {
 	internal var processIdentifier:Int32 {
 		get {
 			return internalSync.sync {
-				return proc?.processIdentifier ?? -1
+				return sig!.worker
 			}
 		}
 	}
@@ -167,8 +167,6 @@ public class InteractiveProcess:Hashable {
 		}
 	}
 	
-	internal var proc:ExecutingProcess? = nil
-	
 	private var _stdoutHandler:OutputHandler? = nil
 	public var stdoutHandler:OutputHandler? {
 		get {
@@ -211,119 +209,66 @@ public class InteractiveProcess:Hashable {
 		}
 	}
     
+    internal var commandToRun:Command
+    internal var wd:URL
+    internal var sig:tt_proc_signature? = nil
+    
     var lines = [Data]() 
 	
     public init<C>(command:C, priority:Priority, run:Bool, workingDirectory:URL) throws where C:Command {
         self._priority = priority
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
         let rs = DispatchSemaphore(value:0)
-        
+        commandToRun = command
+        wd = workingDirectory
         let inputSerial = DispatchQueue(label:"footest", qos:priority.process_async_priority, target:process_master_queue)
         self.internalAsync = inputSerial
 
         self.runSemaphore = rs
 		self._state = .initialized
-                
-        let externalProcess = try ExecutingProcess(execute:command.executable, arguments:command.arguments, workingDirectory: workingDirectory)
-
-        let input = try ProcessPipes(read:inputSerial)
-        let output = try ProcessPipes(read:inputSerial)
-        let err = try ProcessPipes(read:inputSerial)
-        
-		self.internalSync.sync {
-            self.proc = externalProcess
-            self.stdin = input
-            self.stdout = output
-            self.stderr = err
-        }
-
-        externalProcess.stdin = input
-        externalProcess.stdout = output
-        externalProcess.stderr = err
-        externalProcess.terminationHandler = { [weak self] exitedProcess in
-            guard let self = self else {
-                return
-            }
-            
-            if let hasStdin = self.stdin {
-                close(hasStdin.writing.fileDescriptor)
-            }
-            if let hasStdout = self.stdout {
-                close(hasStdout.reading.fileDescriptor)
-            }
-            if let hasStderr = self.stderr {
-                close(hasStderr.reading.fileDescriptor)
-            }
-
-            inputSerial.async { [weak self] in
-				guard let self = self else {
-					return
-				}
-                let (lineCount, stdinPipe, stdoutPipe, stderrPipe) = self.internalSync.sync {
-                    return (self.lines.count, self.stdin, self.stdout, self.stderr)
-                }
-				print(Colors.Red("Exit handler ran \(lineCount)"))
-//				pmon.processEnded(self)
-				self.runSemaphore.signal()
-			}
-        }
-        
-        output.readHandler = { [weak self] someData in
-            guard let self = self else {
-                return
-            }
-            self.internalSync.sync {
-                self.lines.append(someData)
-            }
-            if let hasReadHandler = self.stdoutHandler {
-                hasReadHandler(someData)
-            }
-        }
-    
-       err.readHandler = { [weak self] someData in
-			guard let self = self else {
-			   return
-			}
-			self.internalSync.sync {
-				self.lines.append(someData)
-			}
-			if let hasReadHandler = self.stderrHandler {
-			   hasReadHandler(someData)
-			}
-       }
     }
     
     public func run() throws {
-        let runWait = DispatchSemaphore(value:0)
-        let runItem = DispatchWorkItem(qos:_priority.process_launch_priority, flags:[.enforceQoS]) { [weak self] in
-            defer {
-                runWait.signal()
-            }
-            guard let self = self else {
-                return
-            }
-            do {
-//                pmon.processLaunched(self)
-                try self.proc!.run(sync:false)
-                self.internalSync.sync {
-                    self._state = .running
+        try self.internalSync.sync {
+            let launchedProcess = try tt_spawn(path:commandToRun.executable, args: commandToRun.arguments, wd:wd, env: commandToRun.environment, stdin: true, stdout:true, stderr: true)
+            if let hasOut = launchedProcess.stdout {
+                self.stdout = ProcessPipes(hasOut, readQueue: internalAsync)
+                self.stdout!.readHandler = { [weak self] someData in
+                    guard let self = self else {
+                        return
+                    }
+                    self.internalSync.sync {
+                        self.lines.append(someData)
+                    }
+                    if let hasReadHandler = self.stdoutHandler {
+                        hasReadHandler(someData)
+                    }
                 }
-            } catch let error {
-                self.internalSync.sync {
-                    self.signalUp = false
-                    self._state = .failed
-                }
-                self.runSemaphore.signal()
             }
+            if let hasErr = launchedProcess.stderr {
+                self.stderr = ProcessPipes(hasErr, readQueue: internalAsync)
+                self.stderr!.readHandler = { [weak self] someData in
+                    guard let self = self else {
+                        return
+                    }
+                    self.internalSync.sync {
+                        self.lines.append(someData)
+                    }
+                    if let hasReadHandler = self.stderrHandler {
+                        hasReadHandler(someData)
+                    }
+                }
+            }
+            if let hasIn = launchedProcess.stdin {
+                self.stdin = ProcessPipes(hasIn, readQueue: internalAsync)
+            }
+            sig = launchedProcess
         }
-        global_run_queue.async(execute:runItem)
-        runWait.wait()
     }
     
     public func waitForExitCode() -> Int {
-        runSemaphore.wait()
-        let returnCode = proc!.exitCode!
-        return Int(returnCode)
+        let ec = tt_wait_sync(pid: sig!.worker)
+        return Int(ec)
     }
     
     deinit {
