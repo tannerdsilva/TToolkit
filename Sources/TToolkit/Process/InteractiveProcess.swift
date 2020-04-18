@@ -231,7 +231,7 @@ public class InteractiveProcess:Hashable {
     }
     
     public func run() throws {
-        try? self.internalSync.sync {
+        try self.internalSync.sync {
             let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdin: true, stdout:true, stderr: true)
             if let hasOut = launchedProcess.stdout {
                 self.stdout = ProcessPipes(hasOut, readQueue: internalAsync)
@@ -267,6 +267,7 @@ public class InteractiveProcess:Hashable {
                 self.stdin = ProcessPipes(hasIn, readQueue: nil)
             }
             print(Colors.Green("launched \(launchedProcess.worker)"))
+            self.sig = launchedProcess
             runSemaphore.signal()
         }
     }
