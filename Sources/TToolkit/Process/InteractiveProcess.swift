@@ -1,5 +1,7 @@
 import Foundation
 
+fileprivate let tt_spawn_sem = DispatchSemaphore(value:1)
+
 internal class DebugProcessMonitor {
 	
 //    let eventPipe:ProcessPipes
@@ -230,10 +232,12 @@ public class InteractiveProcess:Hashable {
     
     public func run() throws {
         let asyncRunItem = DispatchWorkItem(qos:_priority.process_launch_priority, flags:[.enforceQoS]) { [weak self] in
+            defer {
+                tt_spawn_sem.signal()
+            }
             guard let self = self else {
                 return
             }
-            
             try? self.internalSync.sync {
                 let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdin: true, stdout:true, stderr: true)
                 if let hasOut = launchedProcess.stdout {
@@ -274,6 +278,7 @@ public class InteractiveProcess:Hashable {
                 self.runSemaphore.signal()
             }
         }
+        tt_spawn_sem.wait()
         self.internalAsync.async(execute:asyncRunItem)
     }
     
