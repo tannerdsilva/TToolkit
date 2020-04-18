@@ -286,12 +286,18 @@ internal class ProcessPipes {
     }
     
     private func _scheduleReadCallback() {
-        if let hasHandler = _readHandler {
-            for (_, curLine) in self._readLines.enumerated() {
-                hasHandler(curLine)
+        let asyncWorkItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
+            guard let self = self else {
+                return
             }
-            self._readLines.removeAll(keepingCapacity: true)
+            let (newLines, handlerToCall) = self.popPendingCallbackLines()
+            if let hasNewLines = newLines, let hasHandler = handlerToCall {
+                for (_, curLine) in hasNewLines.enumerated() {
+                    hasHandler(curLine)
+                }
+            }
         }
+        self._readQueue?.async(execute: asyncWorkItem)
     }
 	
     convenience init(read:DispatchQueue?) throws {
