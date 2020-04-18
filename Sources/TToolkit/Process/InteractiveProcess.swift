@@ -231,13 +231,13 @@ public class InteractiveProcess:Hashable {
     }
     
     public func run() throws {
-        let asyncRunItem = DispatchWorkItem(qos:_priority.process_launch_priority, flags:[.enforceQoS]) { [weak self] in
-            defer {
-                tt_spawn_sem.signal()
-            }
-            guard let self = self else {
-                return
-            }
+//        let asyncRunItem = DispatchWorkItem(qos:_priority.process_launch_priority, flags:[.enforceQoS]) { [weak self] in
+//            defer {
+//                tt_spawn_sem.signal()
+//            }
+//            guard let self = self else {
+//                return
+//            }
             try? self.internalSync.sync {
                 let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdin: true, stdout:true, stderr: true)
                 if let hasOut = launchedProcess.stdout {
@@ -275,11 +275,13 @@ public class InteractiveProcess:Hashable {
                 }
                 print(Colors.Green("launched \(launchedProcess.worker)"))
                 self.sig = launchedProcess
-                self.runSemaphore.signal()
+                var status:Int32 = 0
+                waitpid(launchedProcess.container, &status, 0)
+                runSemaphore.signal()
             }
-        }
-        tt_spawn_sem.wait()
-        self.internalAsync.async(execute:asyncRunItem)
+//        }
+//        tt_spawn_sem.wait()
+//        self.internalAsync.async(execute:asyncRunItem)
     }
     
     public func waitForExitCode() -> Int {
