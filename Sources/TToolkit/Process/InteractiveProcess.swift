@@ -262,13 +262,15 @@ public class InteractiveProcess:Hashable {
             if let hasIn = launchedProcess.stdin {
                 self.stdin = ProcessPipes(hasIn, readQueue: internalAsync)
             }
+            print(Colors.Green("launched \(launchedProcess.worker)"))
             sig = launchedProcess
         }
     }
     
     public func waitForExitCode() -> Int {
         let ec = tt_wait_sync(pid: sig!.worker)
-        return Int(ec)
+        internalAsync.setTarget(queue: nil)
+        return internalAsync.sync { Int(ec) }
     }
     
     deinit {
