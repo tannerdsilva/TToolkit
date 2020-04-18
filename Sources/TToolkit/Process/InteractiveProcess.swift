@@ -267,9 +267,6 @@ public class InteractiveProcess:Hashable {
                 self.stdin = ProcessPipes(hasIn, readQueue: nil)
             }
             print(Colors.Green("launched \(launchedProcess.worker)"))
-            self.sig = launchedProcess
-            var status:Int32 = 0
-            waitpid(launchedProcess.container, &status, 0)
             runSemaphore.signal()
         }
     }
