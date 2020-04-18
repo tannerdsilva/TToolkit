@@ -272,11 +272,10 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
                         throw tt_spawn_error.internalError
                     default:
                         if let messagePid = pid_t(message) {
-                            var sigToReturn = tt_proc_signature(container:getpid(), work:messagePid)
+                            var sigToReturn = tt_proc_signature(container:forkResult, work:messagePid)
                             sigToReturn.stdin = stdin_export
                             sigToReturn.stdout = stdout_export
                             sigToReturn.stderr = stderr_export
-                            sigToReturn.container = getpid()
                             return sigToReturn
                         }
                     }
