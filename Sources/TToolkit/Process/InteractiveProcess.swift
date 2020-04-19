@@ -275,6 +275,8 @@ public class InteractiveProcess:Hashable {
     public func waitForExitCode() -> Int {
         runSemaphore.wait()
         let ec = tt_wait_sync(pid: sig!.container)
+        
+        ioGroup.wait()
 		if let hasOut = stdout {
             close(hasOut.reading.fileDescriptor)
             hasOut.readHandler = nil
@@ -287,7 +289,6 @@ public class InteractiveProcess:Hashable {
             close(hasIn.writing.fileDescriptor)
             hasIn.readHandler = nil
         }
-
         ioGroup.wait()
         defer { print(Colors.red("exit \(sig!.worker)")) }
         return internalAsync.sync { Int(ec) }
