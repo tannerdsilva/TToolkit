@@ -273,20 +273,20 @@ public class InteractiveProcess:Hashable {
     
     public func waitForExitCode() -> Int {
         let ec = tt_wait_sync(pid: sig!.container)
+		ioGroup.wait()
 		if let hasOut = stdout {
-            close(hasOut.reading.fileDescriptor)
             hasOut.readHandler = nil
+			close(hasOut.reading.fileDescriptor)
         }
         if let hasErr = stderr {
-            close(hasErr.reading.fileDescriptor)
             hasErr.readHandler = nil
+			close(hasErr.reading.fileDescriptor)
         }
         if let hasIn = stdin {
-            close(hasIn.writing.fileDescriptor)
             hasIn.readHandler = nil
+			close(hasIn.writing.fileDescriptor)
         }
 
-        ioGroup.wait()
         defer {
         	print(Colors.red("exit \(sig!.worker)"))
         	pmon.processEnded(self)
