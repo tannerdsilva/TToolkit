@@ -27,6 +27,7 @@ internal typealias WriteHandler = () -> Void
 */
 internal class PipeReader {
 	let internalSync:DispatchQueue
+	
 	var handleQueue:[ProcessHandle:DispatchSourceProtocol]
     var handleGroups:[ProcessHandle:DispatchGroup]
     
@@ -70,14 +71,14 @@ internal class PipeReader {
         newSource.activate()
 	}
 	func unschedule(_ handle:ProcessHandle) {
+		if let hasGroup = internalSync.sync(execute: { return handleGroups[handle] }) {
+			hasGroup.wait()
+		}
 		internalSync.sync {
-            if let hasGroup = handleGroups[handle] {
-                hasGroup.wait()
-                handleGroups[handle] = nil
-            }
 			if let hasExisting = handleQueue[handle] {
 				hasExisting.cancel()
 				handleQueue[handle] = nil
+				handleGroups[handle] = nil
 			}
 		}
 	}
@@ -245,7 +246,7 @@ internal class ProcessPipes {
                             return
                         }
                         self.intake(someData)
-                    }, queue:_readQueue)
+                    }, queue:nil)
 				} else {
 					if _readHandler != nil {
 						globalPR.unschedule(reading)
