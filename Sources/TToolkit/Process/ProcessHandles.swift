@@ -20,6 +20,11 @@ import Foundation
 internal typealias ReadHandler = (Data) -> Void
 internal typealias WriteHandler = () -> Void
 
+internal protocol IODescriptor {
+    var _fd:Int32 { get }
+    var fileDescriptor:Int32 { get }
+}
+
 /*
 	When external processes are launched, there is no way of influencing the rate of which that processess will output data.
 	The PipeReader class is used to immediately read data from available file descriptors. after a Data object is captured, Pipereader will call the completion handler at a specified dispatch queue while respecting that queues QoS
@@ -36,6 +41,7 @@ internal class PipeReader {
 		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
         self.handleGroups = [ProcessHandle:DispatchGroup]()
 	}
+    
     func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler), queue:DispatchQueue?) {
         let inFD = handle.fileDescriptor
         let newSource = DispatchSource.makeReadSource(fileDescriptor:inFD, queue:Priority.highest.globalConcurrentQueue)
@@ -345,7 +351,7 @@ internal class ProcessPipes {
 
 
 
-internal class ProcessHandle:Hashable {
+internal class ProcessHandle:Hashable, IODescriptor {
 	enum ProcessHandleError:Error {
 		case handleClosed
 	}
@@ -361,7 +367,7 @@ internal class ProcessHandle:Hashable {
 		}
 	}
 	
-	fileprivate let _fd:Int32
+	internal let _fd:Int32
 	var fileDescriptor:Int32 {
 		get {
 			internalSync.sync {
