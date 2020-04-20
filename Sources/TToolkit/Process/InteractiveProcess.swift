@@ -77,8 +77,7 @@ internal class DebugProcessMonitor {
 		}
 	}
 }
-
-//internal let pmon = DebugProcessMonitor()
+internal let pmon = DebugProcessMonitor()
 
 public class InteractiveProcess:Hashable {
     private var _priority:Priority
@@ -266,6 +265,7 @@ public class InteractiveProcess:Hashable {
             if let hasIn = launchedProcess.stdin {
                 self.stdin = ProcessPipes(hasIn, readQueue: nil)
             }
+            pmon.processLaunched(self)
             print(Colors.Green("launched \(launchedProcess.worker)"))
             self.sig = launchedProcess
         }
@@ -287,7 +287,10 @@ public class InteractiveProcess:Hashable {
         }
 
         ioGroup.wait()
-        defer { print(Colors.red("exit \(sig!.worker)")) }
+        defer {
+        	print(Colors.red("exit \(sig!.worker)"))
+        	pmon.processEnded(self)
+        }
         return internalAsync.sync { Int(ec) }
     }
     
