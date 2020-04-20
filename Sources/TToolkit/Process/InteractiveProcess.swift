@@ -276,16 +276,15 @@ public class InteractiveProcess:Hashable {
 
 		if let hasOut = stdout {
             hasOut.readHandler = nil
+            let availData = hasOut.writing.availableData()
 			close(hasOut.reading.fileDescriptor)
         }
         if let hasErr = stderr {
             hasErr.readHandler = nil
+            let availData = hasErr.reading.availableData()
 			close(hasErr.reading.fileDescriptor)
         }
-        if let hasIn = stdin {
-            hasIn.readHandler = nil
-			close(hasIn.writing.fileDescriptor)
-        }
+        
 		ioGroup.wait()
 		pmon.processEnded(self)
         defer {
