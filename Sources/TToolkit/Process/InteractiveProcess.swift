@@ -270,9 +270,22 @@ public class InteractiveProcess:Hashable {
     }
     
     public func waitForExitCode() -> Int {
+    	ioGroup.wait()
         let ec = tt_wait_sync(pid: sig!.container)
 		self.internalAsync.sync {
 			pmon.processEnded(self)
+			if let hasOut = stdout {
+				hasOut.readHandler = nil
+				close(hasOut.reading.fileDescriptor)
+			}
+			if let hasErr = stderr {
+				hasErr.readHandler = nil
+				close(hasErr.reading.fileDescriptor)
+			}
+			if let hasIn = stdin {
+				hasIn.readHandler = nil
+				close(hasIn.writing.fileDescriptor)
+			}
 		}
         defer {
             print(Colors.red("exit \(sig!.worker)"))
@@ -282,18 +295,6 @@ public class InteractiveProcess:Hashable {
     }
     
     deinit {
-		if let hasOut = stdout {
-			hasOut.readHandler = nil
-			close(hasOut.reading.fileDescriptor)
-		}
-		if let hasErr = stderr {
-			hasErr.readHandler = nil
-			close(hasErr.reading.fileDescriptor)
-		}
-		if let hasIn = stdin {
-			hasIn.readHandler = nil
-			close(hasIn.writing.fileDescriptor)
-		}
     	print(Colors.yellow("ip was deinit"))
     }
 }
