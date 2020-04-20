@@ -77,8 +77,7 @@ internal class DebugProcessMonitor {
 		}
 	}
 }
-
-//internal let pmon = DebugProcessMonitor()
+internal let pmon = DebugProcessMonitor()
 
 public class InteractiveProcess:Hashable {
     private var _priority:Priority
@@ -115,8 +114,7 @@ public class InteractiveProcess:Hashable {
 	*/
     private let internalSync:DispatchQueue
     private let internalAsync:DispatchQueue
-    
-    private let runSemaphore:DispatchSemaphore
+
     private var signalUp:Bool = false
     
 	public enum InteractiveProcessState:UInt8 {
@@ -226,13 +224,13 @@ public class InteractiveProcess:Hashable {
         let inputSerial = DispatchQueue(label:"footest", qos:priority.process_async_priority, target:process_master_queue)
         self.internalAsync = inputSerial
 
-        self.runSemaphore = rs
 		self._state = .initialized
     }
     
     public func run() throws {
         try self.internalSync.sync {
             let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdin: true, stdout:true, stderr: true)
+        	pmon.processLaunched(self)
             if let hasOut = launchedProcess.stdout {
                 self.stdout = ProcessPipes(hasOut, readQueue: internalAsync)
                 self.stdout!.readGroup = self.ioGroup
@@ -268,12 +266,10 @@ public class InteractiveProcess:Hashable {
             }
             print(Colors.Green("launched \(launchedProcess.worker)"))
             self.sig = launchedProcess
-            runSemaphore.signal()
         }
     }
     
     public func waitForExitCode() -> Int {
-        runSemaphore.wait()
         let ec = tt_wait_sync(pid: sig!.container)
         
         ioGroup.wait()
@@ -290,8 +286,13 @@ public class InteractiveProcess:Hashable {
             hasIn.readHandler = nil
         }
         ioGroup.wait()
-        defer { print(Colors.red("exit \(sig!.worker)")) }
-        return internalAsync.sync { Int(ec) }
+        
+        defer {
+            print(Colors.red("exit \(sig!.worker)"))
+            pmon.processEnded(self)
+        }
+        
+        return Int(ec)
     }
     
     deinit {
