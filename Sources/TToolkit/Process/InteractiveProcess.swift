@@ -275,12 +275,12 @@ public class InteractiveProcess:Hashable {
         let ec = tt_wait_sync(pid: sig!.container)
 		if let hasOut = stdout {
             hasOut.readHandler = nil
-            let availData = hasOut.reading.availableData()
+//            let availData = hasOut.reading.availableData()
 			close(hasOut.reading.fileDescriptor)
         }
         if let hasErr = stderr {
             hasErr.readHandler = nil
-            let availData = hasErr.reading.availableData()
+//            let availData = hasErr.reading.availableData()
 			close(hasErr.reading.fileDescriptor)
         }
 		ioGroup.wait()
