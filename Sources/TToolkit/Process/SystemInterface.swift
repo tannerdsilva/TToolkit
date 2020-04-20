@@ -211,6 +211,9 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
 			default:
                 try! launchWriter.write("\(processForkResult)\n\n")
                 _close(launchWriter.fileDescriptor)
+                _close(STDIN_FILENO)
+                _close(STDERR_FILENO)
+                _close(STDOUT_FILENO)
                 
 //                let notifyHandle = try! ProcessMonitor.global.newNotifyWriter()
                 
