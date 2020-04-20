@@ -276,15 +276,12 @@ public class InteractiveProcess:Hashable {
 		ioGroup.wait()
 		if let hasOut = stdout {
             hasOut.readHandler = nil
-			close(hasOut.reading.fileDescriptor)
         }
         if let hasErr = stderr {
             hasErr.readHandler = nil
-			close(hasErr.reading.fileDescriptor)
         }
         if let hasIn = stdin {
             hasIn.readHandler = nil
-			close(hasIn.writing.fileDescriptor)
         }
 
         defer {
@@ -295,6 +292,16 @@ public class InteractiveProcess:Hashable {
     }
     
     deinit {
+        if let hasOut = stdout {
+            close(hasOut.reading.fileDescriptor)
+        }
+        if let hasErr = stderr {
+            close(hasErr.reading.fileDescriptor)
+        }
+        if let hasIn = stdin {
+            close(hasIn.writing.fileDescriptor)
+        }
+
     	print(Colors.yellow("ip was deinit"))
     }
 }

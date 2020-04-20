@@ -28,22 +28,33 @@ internal typealias WriteHandler = () -> Void
 internal class PipeReader {
 	let internalSync:DispatchQueue
 	var handleQueue:[ProcessHandle:DispatchSourceProtocol]
+    var handleGroups:[ProcessHandle:DispatchGroup]
     
 	init() {
 		self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.sync")
 		self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
+        self.handleGroups = [ProcessHandle:DispatchGroup]()
 	}
     func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler), queue:DispatchQueue?) {
         let inFD = handle.fileDescriptor
         let newSource = DispatchSource.makeReadSource(fileDescriptor:inFD, queue:Priority.highest.globalConcurrentQueue)
+        let newGroup = DispatchGroup()
         if let hasQueue = queue {
             newSource.setEventHandler {
+                newGroup.enter()
+                defer {
+                    newGroup.leave()
+                }
                 if let newData = handle.availableData() {
                     hasQueue.sync { work(newData) }
                 }
             }
         } else {
             newSource.setEventHandler {
+                newGroup.enter()
+                defer {
+                    newGroup.leave()
+                }
                 if let newData = handle.availableData() {
                     work(newData)
                 }
@@ -51,23 +62,25 @@ internal class PipeReader {
         }
 		newSource.setCancelHandler {
 			print(Colors.bgBlue("AUTO CANCEL ENABLED"))
-            self.internalSync.sync {
-                self.handleQueue[handle] = nil
-            }
 		}
 		internalSync.sync {
             handleQueue[handle] = newSource
-            newSource.activate()
+            handleGroups[handle] = newGroup
         }
+        newSource.activate()
 	}
-//	func unschedule(_ handle:ProcessHandle) {
-//		internalSync.sync {
-//			if let hasExisting = handleQueue[handle] {
-////				hasExisting.cancel()
-//				handleQueue[handle] = nil
-//			}
-//		}
-//	}
+	func unschedule(_ handle:ProcessHandle) {
+		internalSync.sync {
+            if let hasGroup = handleGroups[handle] {
+                hasGroup.wait()
+                handleGroups[handle] = nil
+            }
+			if let hasExisting = handleQueue[handle] {
+				hasExisting.cancel()
+				handleQueue[handle] = nil
+			}
+		}
+	}
 }
 internal let globalPR = PipeReader()
 
@@ -235,7 +248,7 @@ internal class ProcessPipes {
                     }, queue:_readQueue)
 				} else {
 					if _readHandler != nil {
-//						globalPR.unschedule(reading)
+						globalPR.unschedule(reading)
 					}
 					_readHandler = nil
 				}
@@ -244,6 +257,10 @@ internal class ProcessPipes {
 	}
     
     func intake(_ dataIn:Data) {
+        readGroup?.enter()
+        defer {
+            readGroup?.leave()
+        }
         let hasNewLine = dataIn.withUnsafeBytes { unsafeBuffer -> Bool in
             if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
                 return true
@@ -275,10 +292,12 @@ internal class ProcessPipes {
                 }
             }
             _pendingReadFlush = false
+            _readGroup?.leave()
         }
     }
     
     private func _scheduleReadFlush() {
+        _readGroup?.enter()
         _pendingReadFlush = true
         let asyncFlushItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
             guard let self = self else {
@@ -417,17 +436,7 @@ internal class ProcessHandle:Hashable {
 			return Data(bytes:bytesBound, count:amountRead)
 		}
 	}
-	
-//	func close() {
-//		internalSync.sync {
-//			guard _isClosed != true, _close(_fd) >= 0 else {
-//				return
-//			}
-//
-//			_isClosed = true
-//		}
-//	}
-	
+
 	func hash(into hasher:inout Hasher) {
 		hasher.combine(_fd)
 	}
@@ -435,10 +444,4 @@ internal class ProcessHandle:Hashable {
 	static func == (lhs:ProcessHandle, rhs:ProcessHandle) -> Bool {
 		return lhs._fd == rhs._fd
 	}
-	
-//	deinit {
-//		if isClosed == false {
-//			close()
-//		}
-//	}
 }
