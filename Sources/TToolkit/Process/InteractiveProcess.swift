@@ -268,12 +268,10 @@ public class InteractiveProcess:Hashable {
             }
             print(Colors.Green("launched \(launchedProcess.worker)"))
             self.sig = launchedProcess
-            runSemaphore.signal()
         }
     }
     
     public func waitForExitCode() -> Int {
-        runSemaphore.wait()
         let ec = tt_wait_sync(pid: sig!.container)
 		if let hasOut = stdout {
             close(hasOut.reading.fileDescriptor)
