@@ -85,6 +85,7 @@ internal class PipeReader {
             return pendingLineBreaks.contains(handle)
         }
 		if isScheduled == false {
+            print(Colors.Yellow("SCHEDULING \(handle) FOR LINE INTAKE"))
             //dispatch an async barrier to assign the existing file handle to the pending line breaks
             pendingLineHandleSync.async(flags:[.barrier, .noQoS]) { [weak self] in
                 self!.pendingLineBreaks.update(with: handle)
@@ -103,9 +104,10 @@ internal class PipeReader {
 			}
 		}
 	}
-    
 	internal func clearLineBreak(_ handle:Int32) {
+        print(Colors.Yellow("\(handle) has a pending unschedule"))
         pendingLineHandleSync.async(flags:[.barrier, .noQoS]) { [weak self] in
+            print(Colors.Red("\(handle) UNSCHEDULED"))
 			_ = self!.pendingLineBreaks.remove(handle)
 		}
 	}
@@ -123,6 +125,7 @@ internal class PipeReader {
 	internal func bufferSync<R>(_ handle:Int32, _ work:() throws -> R) rethrows -> R {
 		return try bufferSync.sync {
 			return try bufferLocks[handle]!.sync {
+                print(Colors.Blue("BUFFER READ SYNC ACHIEVED \(handle)"))
 				return try work()
 			}
 		}
@@ -167,6 +170,7 @@ internal class PipeReader {
 	let launchSignaler = DispatchSemaphore(value:1)
 	func scheduleForReading(_ handle:Int32, queue:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
 		bufferSync.sync(flags:[.barrier]) {
+            print(Colors.bgMagenta("BARRIER ON \(handle) ACHIEVED"))
 			self.bufferLocks[handle] = DispatchQueue(label:"com.tannersilva.global.pipe.read.buffer.raw.sync", target:self.master)
 			self.sources[handle] = DispatchSource.makeReadSource(fileDescriptor:handle, queue:Priority.highest.globalConcurrentQueue)
 			self.sources[handle]!.setEventHandler(handler: { [weak self] in
