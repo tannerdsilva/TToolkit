@@ -197,7 +197,7 @@ public class InteractiveProcess:Hashable {
 	
     public init<C>(command:C, priority:Priority, workingDirectory:URL) throws where C:Command {
         self._priority = priority
-        self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync")
+        self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync", target:process_master_queue)
         let rs = DispatchSemaphore(value:0)
         commandToRun = command
         wd = workingDirectory
@@ -211,18 +211,16 @@ public class InteractiveProcess:Hashable {
     public func run() throws {
         try self.internalSync.sync {
             let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdin:true, stdout:{ [weak self] someData in
-                self?.internalAsync.sync {
-                    print("FOUND DATA")
-                    self?.lines.append(someData)
-                    self?._stdoutHandler?(someData)
-                }
+//                self?.internalAsync.sync {
+                print("FOUND DATA")
+                self?.lines.append(someData)
+                self?._stdoutHandler?(someData)
+//                }
             }, stderr: { [weak self] someData in
-                self?.internalAsync.sync {
-                    print("FOUND DATA")
-                    self?.lines.append(someData)
-                    self?._stderrHandler?(someData)
-                }
-            }, reading:process_master_queue, writing:nil)
+                print("FOUND DATA")
+                self?.lines.append(someData)
+                self?._stderrHandler?(someData)
+            }, reading:internalSync, writing:nil)
             pmon.processLaunched(self)
             print(Colors.Green("launched \(launchedProcess.worker)"))
             self.sig = launchedProcess
