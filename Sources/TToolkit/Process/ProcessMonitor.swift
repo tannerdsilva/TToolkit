@@ -1,6 +1,6 @@
 import Foundation
 
-
+//
 //internal var globalProcessMonitor:ProcessMonitor = ProcessMonitor()
 //internal class ProcessMonitor {
 //    class var global:ProcessMonitor {
@@ -8,40 +8,41 @@ import Foundation
 //            return globalProcessMonitor
 //        }
 //    }
-//    
+//
+//    internal enum ProcessStatus {
+//        
+//    }
 //	internal typealias ProcessKey = pid_t
 //	internal typealias ExitHandler = (Int32) -> Void
-//	
+//
 //	private var masterPipe:ProcessPipes? = nil
 //	private let internalSync:DispatchQueue
 //    private let dataProcess:DispatchQueue
 //
-//	var monitorWorkLaunchWaiters = [ProcessKey:DispatchSemaphore]()
-//	
-//    var monitorWorkLaunchResult = [ProcessKey:ProcessLaunchedError]()
+//	var processStatus = [ProcessKey:ProcessStatus]()
 //
 //	var accessErrors = Set<ProcessKey>()
 //	var exitHandlers:[Int32:ExitHandler]
-//	
+//
 //	private var dataBuffer = Data()
 //	private var dataLines = [Data]()
-//	
+//
 //	init() {
-//        let isync = DispatchQueue(label:"com.tannersilva.com.instance.process.monitor.sync", target:global_lock_queue)
+//        let isync = DispatchQueue(label:"com.tannersilva.instance.process.monitor.sync", target:global_lock_queue)
 //        let dataIntake = DispatchQueue(label:"com.tannersilva.instance.process.monitor.events", target:global_pipe_read)
 //        self.dataProcess = dataIntake
 //        self.internalSync = isync
 //		self.monitorWorkLaunchWaiters = [ProcessKey:DispatchSemaphore]()
 //		self.exitHandlers = [Int32:ExitHandler]()
 //	}
-//    
+//
 //    func newNotifyWriter() throws -> ProcessHandle {
 //        if masterPipe == nil {
 //            try loadPipes()
 //        }
 //        return ProcessHandle(fd:masterPipe!.writing.fileDescriptor)
 //    }
-//	
+//
 //	private func loadPipes() throws {
 //        let mainPipe = try ProcessPipes(read:dataProcess)
 //		mainPipe.readHandler = { [weak self] someData in
@@ -53,7 +54,7 @@ import Foundation
 //        mainPipe.readQueue = dataProcess
 //		self.masterPipe = mainPipe
 //	}
-//	
+//
 //	//when data is built to the point of becoming a valid event, it is passed here for parsing
 //	internal func eventHandle(_ newEvent:String) {
 //		guard let eventMode = newEvent.first else {
@@ -74,7 +75,7 @@ import Foundation
 //				return
 //			}
 //			processExited(mon:monitorProcessId, work:workerProcessId, code:exitCode)
-//			
+//
 //			case "l":
 //			let markDate = Date()
 //			let body = newEvent[nextIndex..<endIndex]
@@ -88,7 +89,7 @@ import Foundation
 //				return
 //			}
 //			processLaunched(mon:monitorProcessId, work:workerProcessId, time:markDate)
-//			
+//
 //			case "x":
 //                print(Colors.red("event fatal"))
 //			let body = newEvent[nextIndex..<endIndex]
@@ -97,7 +98,7 @@ import Foundation
 //				return
 //			}
 //			fatalEventOccurred(mon:monitorId)
-//			
+//
 //			case "a":
 //            print(Colors.red("event access"))
 //			let body = newEvent[nextIndex..<endIndex]
@@ -106,13 +107,13 @@ import Foundation
 //				return
 //			}
 //			accessErrorOccurred(mon:monitorId)
-//			
+//
 //			default:
 //			print("unknown process event occurred")
 //			return
 //		}
 //	}
-//	
+//
 //	fileprivate func fatalEventOccurred(mon:Int32) {
 //        internalSync.sync {
 //            if let hasWaiter = monitorWorkLaunchWaiters[mon] {
@@ -121,7 +122,7 @@ import Foundation
 //            }
 //        }
 //	}
-//		
+//
 //	fileprivate func accessErrorOccurred(mon:Int32) {
 //        internalSync.sync {
 //            _ = accessErrors.update(with:mon)
@@ -131,7 +132,7 @@ import Foundation
 //            }
 //        }
 //	}
-//	
+//
 //	fileprivate func processLaunched(mon:Int32, work:Int32, time:Date) {
 //         internalSync.sync {
 //            guard let hasWaiter = monitorWorkLaunchWaiters[mon] else {
@@ -142,7 +143,7 @@ import Foundation
 //            monitorWorkLaunchWaiters[mon] = nil
 //        }
 //	}
-//	
+//
 //	fileprivate func processExited(mon:Int32, work:Int32, code:Int32) {
 //        internalSync.sync {
 //            guard let hasExitHandler = exitHandlers[work] else {
@@ -153,7 +154,7 @@ import Foundation
 //            hasExitHandler(code)
 //        }
 //	}
-//		
+//
 //    func validateCompletedLaunch(_ sig:tt_proc_signature) {
 //        let newSemaphore = DispatchSemaphore(value:0) //this is probably the most expensive line in this function, so it is done outside of the internal sync block to reduce consumed syncronized time (better performance with concurrent callers)
 //        let storedSemaphore:DispatchSemaphore = self.internalSync.sync {
@@ -169,14 +170,14 @@ import Foundation
 //            monitorWorkLaunchWaiters[sig.container] = nil
 //        }
 //    }
-//    
+//
 //	func launchProcessContainer(_ workToRegister:@escaping(ExportedPipe) throws -> ProcessMonitor.ProcessKey, onExit:@escaping(ExitHandler)) throws -> (Int32, Date) {
 //        let launchedProcess = try workToRegister(notifyPipe)
 //        internalSync.sync {
 //            monitorWorkLaunchWaiters[launchedProcess] = newSem
 //        }
 //		newSem.wait()
-//        
+//
 //        let launchVars:(Int32, Date) = try internalSync.sync {
 //			//guard that there was a worker pid launched (guard that there was no error launching the worker process
 //			guard let hasWorkIdentifier = monitorWorkMapping[launchedProcess], let launchTime = monitorWorkLaunchTimes[launchedProcess] else {

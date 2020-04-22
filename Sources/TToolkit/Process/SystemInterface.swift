@@ -106,13 +106,30 @@ internal struct tt_proc_signature:Hashable {
     }
 }
 
-internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdin:Bool, stdout:Bool, stderr:Bool) throws -> tt_proc_signature {
+internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdin:Bool, stdout:(InteractiveProcess.OutputHandler)?, stderr:(InteractiveProcess.OutputHandler)?, reading:DispatchQueue?, writing:DispatchQueue?) throws -> tt_proc_signature {
+    
+    var err_export:ExportedPipe? = nil
+    var out_export:ExportedPipe? = nil
+    var in_export:ExportedPipe? = nil
+    
+    if stderr != nil, reading != nil {
+        err_export = try ExportedPipe.rw()
+        globalPR.scheduleForReading(err_export!.reading, queue:reading!, handler:stderr!)
+    }
+    
+    if stdout != nil, reading != nil {
+        out_export = try ExportedPipe.rw()
+        globalPR.scheduleForReading(out_export!.reading, queue: reading!, handler: stdout!)
+    }
+    
+    in_export = try ExportedPipe.rw()
+    
     return try path.path.withCString({ executablePathPointer in
         var argBuild = [path.path]
         argBuild.append(contentsOf:args)
         return try argBuild.with_spawn_ready_arguments({ argumentsToSpawn in
             return try wd.path.withCString({ workingDirectoryPath in
-                return try tt_spawn(path:executablePathPointer, args:argumentsToSpawn, wd:workingDirectoryPath, env:env, stdin:stdin, stdout:stdout, stderr:stderr)
+                return try tt_spawn(path:executablePathPointer, args:argumentsToSpawn, wd:workingDirectoryPath, env:env, stdin:in_export, stdout:out_export, stderr:err_export)
             })
         })
     })
@@ -127,23 +144,9 @@ internal enum tt_spawn_error:Error {
 //spawns two processes. first process is responsible for executing the actual command. second process is responsible for watching the executing process, and notifying the parent about the status of the executing process. This "monitor process" is also responsible for closing the standard inputs and outputs so that they do not get mixed in with the parents standard file descriptors
 //the primary means of I/O for the monitor process is the file descriptor passed to this function `notify`. This file descriptor acts as the activity log for the monitor process.
 //three types of monitor process events, launch event, exit event, and fatal event
-fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>, wd:UnsafePointer<Int8>, env:[String:String], stdin:Bool, stdout:Bool, stderr:Bool) throws -> tt_proc_signature {
+fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>, wd:UnsafePointer<Int8>, env:[String:String], stdin:ExportedPipe?, stdout:ExportedPipe?, stderr:ExportedPipe?) throws -> tt_proc_signature {
     
     let internalNotify = try ExportedPipe.rw()
-
-    var stdin_export:ExportedPipe? = nil
-    var stdout_export:ExportedPipe? = nil
-    var stderr_export:ExportedPipe? = nil
-    
-    if stdin {
-        stdin_export = try ExportedPipe.rw()
-    }
-    if stdout {
-        stdout_export = try ExportedPipe.rw()
-    }
-    if stderr {
-        stderr_export = try ExportedPipe.rw()
-    }
     
     let forkResult = fork()
     
@@ -166,7 +169,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
         let launchWriter = ProcessHandle(fd:internalNotify.writing)
         internalNotify.closeReading()
         
-        if let hasStdout = stdout_export {
+        if let hasStdout = stdout {
             let dupVal = _dup2(hasStdout.writing, STDOUT_FILENO)
             guard dupVal >= 0 else {
                 notifyFatal(launchWriter)
@@ -175,7 +178,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
             _ = _close(hasStdout.reading)
         }
         
-        if let hasStderr = stderr_export {
+        if let hasStderr = stderr {
             let dupVal = _dup2(hasStderr.writing, STDERR_FILENO)
             guard dupVal >= 0 else {
                 notifyFatal(launchWriter)
@@ -184,7 +187,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
             _ = _close(hasStderr.reading)
         }
 
-        if let hasStdin = stdin_export {
+        if let hasStdin = stdin {
             let dupVal = _dup2(hasStdin.reading, STDIN_FILENO)
             guard dupVal >= 0 else {
                 notifyFatal(launchWriter)
@@ -210,10 +213,10 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
 				
 			default:
                 try! launchWriter.write("\(processForkResult)\n\n")
-                _close(launchWriter.fileDescriptor)
-                _close(STDIN_FILENO)
-                _close(STDERR_FILENO)
-                _close(STDOUT_FILENO)
+                _ = _close(launchWriter.fileDescriptor)
+                _ = _close(STDIN_FILENO)
+                _ = _close(STDERR_FILENO)
+                _ = _close(STDOUT_FILENO)
                 
 //                let notifyHandle = try! ProcessMonitor.global.newNotifyWriter()
                 
@@ -253,9 +256,9 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
         
         default:
             //in parent, success
-            stdin_export?.closeReading()
-            stdout_export?.closeWriting()
-            stderr_export?.closeWriting()
+            stdin?.closeReading()
+            stderr?.closeWriting()
+            stdout?.closeWriting()
             internalNotify.closeWriting()
             
             let launchReader = ProcessHandle(fd:internalNotify.reading)
@@ -276,16 +279,15 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
                     default:
                         if let messagePid = pid_t(message) {
                             var sigToReturn = tt_proc_signature(container:forkResult, work:messagePid)
-                            sigToReturn.stdin = stdin_export
-                            sigToReturn.stdout = stdout_export
-                            sigToReturn.stderr = stderr_export
+                            sigToReturn.stdin = stdin
+                            sigToReturn.stdout = stdout
+                            sigToReturn.stderr = stderr
                             return sigToReturn
                         }
                     }
                 }
             }
             throw tt_spawn_error.internalError
-                        
     }
 }
 

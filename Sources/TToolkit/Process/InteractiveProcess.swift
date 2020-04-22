@@ -81,7 +81,6 @@ internal let pmon = DebugProcessMonitor()
 
 public class InteractiveProcess:Hashable {
     private var _priority:Priority
-    
 	private var _id = UUID()
 	internal var _uniqueID:String {
 		get {
@@ -143,30 +142,10 @@ public class InteractiveProcess:Hashable {
 			}
 		}
 	}
-	
-    internal var ioGroup:DispatchGroup = DispatchGroup()
-    
-	internal var stdin:ProcessPipes? = nil
-	internal var stdout:ProcessPipes? = nil
-	internal var stderr:ProcessPipes? = nil
-	
-	internal var _stdoutBuffer = Data()
-	public var stdoutBuffer:Data {
-		get {
-			return internalSync.sync {
-				return _stdoutBuffer
-			}
-		}
-	}
-	
-	internal var _stderrBuffer = Data()
-	public var stderrBuffer:Data {
-		get {
-			return internalSync.sync {
-				return _stderrBuffer
-			}
-		}
-	}
+
+	internal var stdin:Int32? = nil
+	internal var stdout:Int32? = nil
+	internal var stderr:Int32? = nil
 	
 	private var _stdoutHandler:OutputHandler? = nil
 	public var stdoutHandler:OutputHandler? {
@@ -231,40 +210,19 @@ public class InteractiveProcess:Hashable {
     
     public func run() throws {
         try self.internalSync.sync {
-            let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdin: true, stdout:true, stderr: true)
-            if let hasOut = launchedProcess.stdout {
-                self.stdout = ProcessPipes(hasOut, readQueue: internalAsync)
-                self.stdout!.readGroup = self.ioGroup
-                self.stdout!.readHandler = { [weak self] someData in
-                    guard let self = self else {
-                        return
-                    }
-                    self.internalSync.sync {
-                        self.lines.append(someData)
-                    }
-                    if let hasReadHandler = self.stdoutHandler {
-                        hasReadHandler(someData)
-                    }
+            let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdin:true, stdout:{ [weak self] someData in
+                self?.internalAsync.sync {
+                    print("FOUND DATA")
+                    self?.lines.append(someData)
+                    self?._stdoutHandler?(someData)
                 }
-            }
-            if let hasErr = launchedProcess.stderr {
-                self.stderr = ProcessPipes(hasErr, readQueue: internalAsync)
-                self.stderr!.readGroup = self.ioGroup
-                self.stderr!.readHandler = { [weak self] someData in
-                    guard let self = self else {
-                        return
-                    }
-                    self.internalSync.sync {
-                        self.lines.append(someData)
-                    }
-                    if let hasReadHandler = self.stderrHandler {
-                        hasReadHandler(someData)
-                    }
+            }, stderr: { [weak self] someData in
+                self?.internalAsync.sync {
+                    print("FOUND DATA")
+                    self?.lines.append(someData)
+                    self?._stderrHandler?(someData)
                 }
-            }
-            if let hasIn = launchedProcess.stdin {
-                self.stdin = ProcessPipes(hasIn, readQueue: nil)
-            }
+            }, reading:process_master_queue, writing:nil)
             pmon.processLaunched(self)
             print(Colors.Green("launched \(launchedProcess.worker)"))
             self.sig = launchedProcess
@@ -273,22 +231,6 @@ public class InteractiveProcess:Hashable {
     
     public func waitForExitCode() -> Int {
         let ec = tt_wait_sync(pid: sig!.container)
-        ioGroup.wait()
-		if let hasOut = stdout {
-            hasOut.readHandler = nil
-//            let availData = hasOut.reading.availableData()
-			close(hasOut.reading.fileDescriptor)
-        }
-        if let hasErr = stderr {
-            hasErr.readHandler = nil
-//            let availData = hasErr.reading.availableData()
-			close(hasErr.reading.fileDescriptor)
-        }
-        defer {
-            pmon.processEnded(self)
-        	print(Colors.red("exit \(sig!.worker)"))
-
-        }
         return internalAsync.sync { Int(ec) }
     }
     
