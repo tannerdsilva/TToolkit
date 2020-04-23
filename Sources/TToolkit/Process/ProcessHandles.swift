@@ -160,9 +160,9 @@ internal class PipeReader {
             }()
     	}
     }
-    private func accessBlock<R>(_ work:() throws -> R) rethrows -> R {
-        return try accessSync.sync(flags:[.barrier]) {
-            return try work()
+    private func accessBlock(_ work:@escaping() -> Void) {
+        return try accessSync.async(flags:[.barrier]) { [weak self] in
+            work()
         }
     }
 	
@@ -185,10 +185,10 @@ internal class PipeReader {
     let launchSem = DispatchSemaphore(value:1)
 	func scheduleForReading(_ handle:Int32, queue:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
         launchSem.wait()
-        accessBlock({
-            launchSem.signal()
+        accessBlock({ [weak self] in
+            self!.launchSem.signal()
             let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:Priority.highest.globalConcurrentQueue)
-            handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:instanceMaster, callback: queue, handler:handler, source: newSource)
+            self!.handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:instanceMaster, callback: queue, handler:handler, source: newSource)
             newSource.setEventHandler(handler: { [weak self] in
                 self?.readHandle(handle)
             })
