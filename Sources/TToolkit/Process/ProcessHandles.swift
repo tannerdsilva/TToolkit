@@ -183,15 +183,16 @@ internal class PipeReader {
 	}
 	
 	func scheduleForReading(_ handle:Int32, queue:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
-        let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:Priority.highest.globalConcurrentQueue)
         accessBlock({
+            let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:Priority.highest.globalConcurrentQueue)
             handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:instanceMaster, callback: queue, handler:handler, source: newSource)
+            newSource.setEventHandler(handler: { [weak self] in
+                self?.readHandle(handle)
+            })
+            newSource.activate()
+            print(Colors.BgRed("! ACTIVATED ! \(handle)"))
         })
-        newSource.setEventHandler(handler: { [weak self] in
-            self?.readHandle(handle)
-        })
-        newSource.activate()
-	}
+    }
 }
 internal let globalPR = PipeReader()
 
