@@ -124,7 +124,7 @@ internal class PipeReader {
         func intake(_ data:Data?) {
             if data != nil && data!.count > 0 && _intake(data!) {
                 callbackQueue.async(flags:[.inheritQoS]) { [weak self, handlerToCall = self.handler] in
-                    let lineExtract = self!.extractLines()
+                    let lineExtract = self?.extractLines()
                     if lineExtract != nil {
                         for (_, curLine) in lineExtract!.enumerated() {
                             handlerToCall(curLine)
