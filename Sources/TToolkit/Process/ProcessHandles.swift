@@ -110,12 +110,14 @@ internal class PipeReader {
         
         func capture() {
             executeGroup.enter()
+            print(Colors.white("capture scheduled"))
             self.captureQueue.async { [eg = executeGroup, weak globalPR, hanCap = handle] in
+                print(Colors.dim("capture running"))
                 defer {
                     eg.leave()
                 }
                 if let hasData = hanCap.availableData() {
-                    print(Colors.dim("Data was captured"))
+                    print(Colors.dim("data was captured"))
                     globalPR!.access(hanCap) { handlerState in
                         handlerState.intake(hasData)
                     }
