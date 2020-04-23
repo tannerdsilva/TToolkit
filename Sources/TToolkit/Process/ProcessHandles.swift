@@ -183,8 +183,8 @@ internal class PipeReader {
             flightGroup.leave()
         }
         accessSync.sync {
-            return { [weak bufState = self.handles[handle]!] in
-                work(bufState!)
+            return { [bufState = self.handles[handle]!] in
+                work(bufState)
             }()
         }
     }
@@ -225,8 +225,8 @@ internal class PipeReader {
         accessModify({
             self.handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:instanceMaster, callback: queue, handler:handler, source: newSource, capture: intakeQueue)
             print(Colors.green("SUCCESSFULLY INSERTED WITH BARRIER \(handle)"))
+            newSource.activate()
         })
-        newSource.activate()
     }
 }
 internal let globalPR = PipeReader()
