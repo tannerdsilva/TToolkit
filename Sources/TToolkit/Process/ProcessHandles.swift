@@ -73,116 +73,120 @@ extension Int32:IODescriptor {
 }
 
 internal class PipeReader {
+    private class HandleState {
+        let handle:Int32
+        
+        private let callbackQueue:DispatchQueue
+        private let internalSync:DispatchQueue
+        private var _pnl:Bool = false
+        var pendingNewLines:Bool {
+            get {
+                return internalSync.sync {
+                    return _pnl
+                }
+            }
+        }
+        
+        private var buffer = Data()
+        private let bufferSync:DispatchQueue
+        
+        private var handler:InteractiveProcess.OutputHandler
+        
+        init(handle:Int32, syncMaster:DispatchQueue, callback:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
+            self.handle = handle
+            internalSync = DispatchQueue(label:"com.tannersilva.instance.pipe.read.internal.sync", target:syncMaster)
+        	bufferSync = DispatchQueue(label:"com.tannersilva.instance.pipe.read.buffer.sync", target:syncMaster)
+            callbackQueue = DispatchQueue(label:"com.tannersilva.instance.pipe.read.callback-target.serial", target:callback)
+            self.handler = handler
+        }
+        
+        internal func _intake(_ data:Data) -> Bool {
+        	return bufferSync.sync {
+                buffer.append(data)
+                return data.withUnsafeBytes({ unsafeBuffer in
+                    if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
+                        return internalSync.sync {
+                            defer { _pnl = true }
+                            if _pnl == false {
+                                return true
+                            }
+                            return true
+                        }
+                    }
+                    return false
+                })
+        	}
+        }
+        
+        func intake(_ data:Data?) {
+            if data != nil && data!.count > 0 && _intake(data!) {
+                callbackQueue.async(flags:[.inheritQoS]) { [weak self, handlerToCall = self.handler] in
+                    let lineExtract = self!.extractLines()
+                    if lineExtract != nil {
+                        for (_, curLine) in lineExtract!.enumerated() {
+                            handlerToCall(curLine)
+                        }
+                    }
+                }
+            }
+        }
+        func extractLines() -> [Data]? {
+            internalSync.async { [weak self] in
+                self!._pnl = false
+            }
+            
+        	return bufferSync.sync {
+        		let parseResult = buffer.lineSlice(removeBOM:false, completeLinesOnly:true)
+                buffer.removeAll(keepingCapacity: true)
+                if parseResult.remain != nil && parseResult.remain!.count > 0 {
+                    buffer.append(parseResult.remain!)
+                }
+                return parseResult.lines
+        	}
+        }
+    }
+    
 	var master:DispatchQueue
 	var internalSync:DispatchQueue
+    
+    var instanceMaster:DispatchQueue
 
-	//helps prevent duplicate schedules for line breakup events
-	var pendingLineHandleSync:DispatchQueue	//concurrent
-	var pendingLineBreaks = Set<Int32>()
-	internal func needsLineBreak(_ handle:Int32) {
-        //concurrent read of the handles already scheduled for a line dump
-		let isScheduled:Bool = pendingLineHandleSync.sync {
-            return pendingLineBreaks.contains(handle)
+    var accessSync:DispatchQueue
+    private var handles = [Int32:PipeReader.HandleState]()
+    private func access<R>(_ handle:Int32, _ work:(PipeReader.HandleState) throws -> R) rethrows -> R {
+    	return try accessSync.sync {
+            return try { [weak bufState = self.handles[handle]!] in
+                return try work(bufState!)
+            }()
+    	}
+    }
+    private func accessBlock<R>(_ work:() throws -> R) rethrows -> R {
+        return try accessSync.sync(flags:[.barrier]) {
+            return try work()
         }
-		if isScheduled == false {
-            print(Colors.Yellow("SCHEDULING \(handle) FOR LINE INTAKE"))
-            //dispatch an async barrier to assign the existing file handle to the pending line breaks
-            pendingLineHandleSync.async(flags:[.barrier, .noQoS]) { [weak self] in
-                self!.pendingLineBreaks.update(with: handle)
-            }
-			handlerSync.sync {
-				outboundQueues[handle]!.async(flags:[.inheritQoS]) { [weak self] in
-					let intakeHandle = self!.handlerSync.sync {
-						return self!.handlers[handle]!
-					}
-					if let clearedLines = self!.flushLines(handle) {
-						for (_, curLine) in clearedLines.enumerated() {
-							intakeHandle(curLine)
-						}
-					}
-				}
-			}
-		}
-	}
-	internal func clearLineBreak(_ handle:Int32) {
-        print(Colors.Yellow("\(handle) has a pending unschedule"))
-        pendingLineHandleSync.async(flags:[.barrier, .noQoS]) { [weak self] in
-            print(Colors.Red("\(handle) UNSCHEDULED"))
-			_ = self!.pendingLineBreaks.remove(handle)
-		}
-	}
-	
-	//line cache is accessable atomicallly through lineSync
-	var handlerSync:DispatchQueue   //concurrent
-    var handlers = [Int32:InteractiveProcess.OutputHandler]()
-	var outboundQueues = [Int32:DispatchQueue]()  //these target intake or external queues
-	
-	//hot file handles are stored and buffered here
-	var bufferSync:DispatchQueue
-	var bufferLocks = [Int32:DispatchQueue]()
-	var sources = [Int32:DispatchSourceProtocol]()
-	var buffers = [Int32:Data]()
-	internal func bufferSync<R>(_ handle:Int32, _ work:() throws -> R) rethrows -> R {
-		return try bufferSync.sync {
-			return try bufferLocks[handle]!.sync {
-                print(Colors.Blue("BUFFER READ SYNC ACHIEVED \(handle)"))
-				return try work()
-			}
-		}
-	}
+    }
 	
 	init() {
 		self.master = DispatchQueue(label:"com.tannersilva.global.pipe.read.master", attributes:[.concurrent], target:process_master_queue)
 		self.internalSync = DispatchQueue(label:"com.tannersilva.global.pipe.read.sync", attributes:[.concurrent], target:self.master)
-		
-		//serial queues for marking file handles with pending line breaks and callback events scheduled in an asynchronous workload
-        self.pendingLineHandleSync = DispatchQueue(label:"com.tannersilva.global.pipe.read.linebreak.sync", attributes:[.concurrent], target:self.internalSync)
-
-        self.handlerSync = DispatchQueue(label:"com.tannersilva.global.pipe.read.buffer.line.sync", target:self.internalSync)
-		self.bufferSync = DispatchQueue(label:"com.tannersilva.global.pipe.read.buffer.raw.sync", attributes:[.concurrent], target:self.internalSync)
+        
+        self.instanceMaster = DispatchQueue(label:"com.tannersilva.instance.pipe.read.master", attributes:[.concurrent], target:self.master)
+    
+        self.accessSync = DispatchQueue(label:"com.tannersilva.global.pipe.handle.access.sync", attributes:[.concurrent], target:self.master)
 	}
-		
+    
 	internal func readHandle(_ handle:Int32) {
-		if let newData = handle.availableData(), newData.count > 0 {
-			bufferSync(handle) {
-				buffers[handle]!.append(newData)
-				newData.withUnsafeBytes({ unsafeBuffer in
-					if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
-						needsLineBreak(handle)
-					}
-				})
-			}
-		}
-	}
-	
-	internal func flushLines(_ handle:Int32) -> [Data]? {
-		return bufferSync(handle) {
-			let parseResult = buffers[handle]!.lineSlice(removeBOM:false, completeLinesOnly:true)
-			buffers[handle]!.removeAll(keepingCapacity:true)
-			if parseResult.remain != nil && parseResult.remain!.count > 0 {
-				buffers[handle]!.append(parseResult.remain!)
-			}
-			clearLineBreak(handle)
-			return parseResult.lines
-		}
+        access(handle) { handleState in
+            handleState.intake(handle.availableData())
+        }
+        print(Colors.dim("Successfully captured \(handle)"))
 	}
 	
 	let launchSignaler = DispatchSemaphore(value:1)
 	func scheduleForReading(_ handle:Int32, queue:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
-		bufferSync.sync(flags:[.barrier]) {
-            print(Colors.bgMagenta("BARRIER ON \(handle) ACHIEVED"))
-			self.bufferLocks[handle] = DispatchQueue(label:"com.tannersilva.global.pipe.read.buffer.raw.sync", target:self.master)
-			self.sources[handle] = DispatchSource.makeReadSource(fileDescriptor:handle, queue:Priority.highest.globalConcurrentQueue)
-			self.sources[handle]!.setEventHandler(handler: { [weak self] in
-                self?.readHandle(handle)
-            })
-			self.buffers[handle] = Data()
-			self.handlerSync.async(flags:[.barrier, .noQoS]) {
-                self.handlers[handle] = handler
-                self.outboundQueues[handle] = queue
-			}
-			sources[handle]!.activate()
-		}
+        accessBlock({
+            handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:instanceMaster, callback: queue, handler:handler)
+        })
 	}
 }
 internal let globalPR = PipeReader()
