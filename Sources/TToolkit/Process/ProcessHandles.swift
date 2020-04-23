@@ -112,12 +112,15 @@ internal class PipeReader {
             executeGroup.enter()
             print(Colors.white("capture scheduled"))
             self.captureQueue.async { [eg = executeGroup, weak globalPR, hanCap = handle] in
-                print(Colors.dim("capture running \(hanCap)"))
+                
                 defer {
                     eg.leave()
                 }
-                if let hasData = hanCap.availableData() {
+                let hasData = hanCap.availableData()
+                print(Colors.dim("capture running \(hanCap) - \(hasData?.count)"))
+                if hasData != nil && hasData!.count > 0 {
                     globalPR!.access(hanCap) { handlerState in
+                        print(Colors.bgCyan("ACCESS DATA CALLED"))
                         handlerState.intake(hasData)
                     }
                 }
