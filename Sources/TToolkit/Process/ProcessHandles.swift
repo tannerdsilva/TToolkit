@@ -220,7 +220,7 @@ internal struct ExportedPipe:Hashable {
             fds.deallocate()
         }
         
-        let rwfds = global_pipe_lock.sync {
+        let rwfds = file_handle_guard.sync {
             return _pipe(fds)
         }
         
@@ -247,16 +247,22 @@ internal struct ExportedPipe:Hashable {
     }
     
     func closeReading() {
-        _ = _close(reading)
+        file_handle_guard.async { [reading = self.reading] in
+            _ = _close(reading)
+        }
     }
     
     func closeWriting() {
-        _ = _close(writing)
+        file_handle_guard.async { [writing = self.writing] in
+            _ = _close(writing)
+        }
     }
 
     func close() {
-        _ = _close(writing)
-        _ = _close(reading)
+        file_handle_guard.async { [reading = self.reading, writing = self.writing] in
+            _ = _close(writing)
+            _ = _close(reading)
+        }
     }
     
     func hash(into hasher:inout Hasher) {

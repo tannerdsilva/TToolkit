@@ -175,7 +175,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
 	
     func processMonitor() -> Never {
         let launchWriter = ProcessHandle(fd:internalNotify.writing)
-        internalNotify.closeReading()
+        _close(internalNotify.reading)
         
         if let hasStdout = stdout {
             let dupVal = _dup2(hasStdout.writing, STDOUT_FILENO)
@@ -275,7 +275,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
                 incomingData = launchReader.availableData()
             }
             
-            _ = _close(internalNotify.reading)
+            internalNotify.closeReading()
             if let message = String(data:incomingData!.lineSlice(removeBOM: false).first!, encoding:.utf8) {
                 if let firstChar = message.first {
                     switch firstChar {
