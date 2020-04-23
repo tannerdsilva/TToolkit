@@ -170,7 +170,7 @@ internal class PipeReader {
 		self.master = DispatchQueue(label:"com.tannersilva.global.pipe.read.master", attributes:[.concurrent], target:process_master_queue)
 		self.internalSync = DispatchQueue(label:"com.tannersilva.global.pipe.read.sync", attributes:[.concurrent], target:self.master)
         
-        self.instanceMaster = DispatchQueue(label:"com.tannersilva.instance.pipe.read.master", attributes:[.concurrent], target:self.master)
+        self.instanceMaster = DispatchQueue(label:"com.tannersilva.instance.pipe.read.master", attributes:[.concurrent], target:process_master_queue)
     
         self.accessSync = DispatchQueue(label:"com.tannersilva.global.pipe.handle.access.sync", attributes:[.concurrent], target:self.master)
 	}
