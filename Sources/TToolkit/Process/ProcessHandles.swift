@@ -182,8 +182,11 @@ internal class PipeReader {
         print(Colors.dim("Successfully captured \(handle)"))
 	}
 	
+    let launchSem = DispatchSemaphore(value:1)
 	func scheduleForReading(_ handle:Int32, queue:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
+        launchSem.wait()
         accessBlock({
+            launchSem.signal()
             let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:Priority.highest.globalConcurrentQueue)
             handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:instanceMaster, callback: queue, handler:handler, source: newSource)
             newSource.setEventHandler(handler: { [weak self] in
