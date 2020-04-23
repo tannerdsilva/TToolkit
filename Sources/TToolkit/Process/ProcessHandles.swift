@@ -167,9 +167,7 @@ internal class PipeReader {
             flightGroup.leave()
         }
         accessSync.sync {
-            return { [handleState = self.handles[handle]!] in
-                return work(handleState)
-            }()
+            return work(self.handles[handle]!)
         }
     }
     private func accessModify(_ work:() -> Void) {
@@ -201,11 +199,12 @@ internal class PipeReader {
 	func scheduleForReading(_ handle:Int32, queue:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
         let intakeQueue = DispatchQueue(label:"com.tannersilva.instance.pipe.handle.read.capture", target:global_pipe_read)
         let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:intakeQueue)
-        newSource.setEventHandler(handler: { [weak self] in
-            self?.readHandle(handle)
+        let newHandle = PipeReader.HandleState(handle:handle, syncMaster:instanceMaster, callback: queue, handler:handler, source: newSource, capture: intakeQueue)
+        newSource.setEventHandler(handler: { [handle_in = handle, handle_state = newHandle] in
+            handle_state.intake(handle_in.availableData())
         })
-        accessModify({ [weak self, intakeQueue, newSource] in
-            self!.handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:self!.instanceMaster, callback: queue, handler:handler, source: newSource, capture: intakeQueue)
+        accessModify({ [handle_capture = newHandle] in
+            self.handles[handle] = handle_capture
         })
         newSource.activate()
     }
