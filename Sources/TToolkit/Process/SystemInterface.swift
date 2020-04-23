@@ -2,21 +2,10 @@ import Foundation
 
 #if canImport(Darwin)
     import Darwin
-    fileprivate let _read = Darwin.read(_:_:_:)
-    fileprivate let _write = Darwin.write(_:_:_:)
-    fileprivate let _close = Darwin.close(_:)
-    fileprivate let _pipe = Darwin.pipe(_:)
     fileprivate let _dup2 = Darwin.dup2(_:_:)
-//    fileprivate let _clearenv = Darwin.clearenv()
-//    fileprivate let _execle = Darwin.execle(_:_:_:)
 #elseif canImport(Glibc)
     import Glibc
-    fileprivate let _read = Glibc.read(_:_:_:)
-    fileprivate let _write = Glibc.write(_:_:_:)
-    fileprivate let _close = Glibc.close(_:)
-    fileprivate let _pipe = Glibc.pipe(_:)
     fileprivate let _dup2 = Glibc.dup2(_:_:)
-    fileprivate let _clearenv = Glibc.clearenv()
 #endif
 
 fileprivate func _WSTATUS(_ status:Int32) -> Int32 {
@@ -152,7 +141,9 @@ internal enum tt_spawn_error:Error {
 //the primary means of I/O for the monitor process is the file descriptor passed to this function `notify`. This file descriptor acts as the activity log for the monitor process.
 //three types of monitor process events, launch event, exit event, and fatal event
 fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>, wd:UnsafePointer<Int8>, env:[String:String], stdin:ExportedPipe?, stdout:ExportedPipe?, stderr:ExportedPipe?) throws -> tt_proc_signature {
+    _ = try ProcessMonitor.globalMonitor() //test that the process monitor has been initialized before forking
     
+    //used internally for this function to determine when the forked process has successfully initialized
     let internalNotify = try ExportedPipe.rw()
     
     let forkResult = fork()
@@ -225,17 +216,19 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
                 _ = _close(STDERR_FILENO)
                 _ = _close(STDOUT_FILENO)
                 
-//                let notifyHandle = try! ProcessMonitor.global.newNotifyWriter()
+                let notifyHandle = try! ProcessMonitor.globalMonitor().newNotifyWriter()
                 
 				//detach from the executing process's standard inputs and outputs
 				//notify the process monitor of the newly launched worker process
 				let processIDEventMapping = "\(getpid()) -> \(processForkResult)"
 				let launchEvent = "l" + processIDEventMapping + "\n\n"
 				do {
-//					try notifyHandle.write(launchEvent)
+					try notifyHandle.write(launchEvent)
 				} catch _ {
-//                    notifyFatal(notifyHandle)
+                    notifyFatal(notifyHandle)
 				}
+                
+                
                 
 				//wait for the worker process to exit
                 let exitCode = tt_wait_sync(pid:processForkResult)
@@ -243,9 +236,9 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
 				//notify the process monitor about the exit of the executing process
 				let exitEvent = "e" + processIDEventMapping + " -> \(exitCode)" + "\n\n"
 				do {
-//					try notifyHandle.write(exitEvent)
+					try notifyHandle.write(exitEvent)
 				} catch _ {
-//                    notifyFatal(notifyHandle)
+                    notifyFatal(notifyHandle)
 				}
                 _exit(0)
         }
@@ -286,6 +279,19 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
                     default:
                         if let messagePid = pid_t(message) {
                             var sigToReturn = tt_proc_signature(container:forkResult, work:messagePid)
+                            var idset = Set<Int32>()
+                            if let hasIn = stdin {
+                                idset.insert(hasIn.writing)
+                            }
+                            if let hasOut = stdout {
+                                idset.insert(hasOut.reading)
+                            }
+                            if let hasErr = stderr {
+                                idset.insert(hasErr.reading)
+                            }
+                            if idset.count > 0 {
+                                try! ProcessMonitor.globalMonitor().closeHandles(container: forkResult, handles: idset)
+                            }
                             sigToReturn.stdin = stdin
                             sigToReturn.stdout = stdout
                             sigToReturn.stderr = stderr

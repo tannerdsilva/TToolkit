@@ -3,18 +3,18 @@ import Foundation
 
 #if canImport(Darwin)
 	import Darwin
-	fileprivate let _read = Darwin.read(_:_:_:)
-	fileprivate let _write = Darwin.write(_:_:_:)
-	fileprivate let _close = Darwin.close(_:)
-	fileprivate let o_cloexec = Darwin.O_CLOEXEC
-	fileprivate let _pipe = Darwin.pipe(_:)
+	internal let _read = Darwin.read(_:_:_:)
+	internal let _write = Darwin.write(_:_:_:)
+	internal let _close = Darwin.close(_:)
+	internal let o_cloexec = Darwin.O_CLOEXEC
+	internal let _pipe = Darwin.pipe(_:)
 #elseif canImport(Glibc)
 	import Glibc
-	fileprivate let _read = Glibc.read(_:_:_:)
-	fileprivate let _write = Glibc.write(_:_:_:)
-	fileprivate let _close = Glibc.close(_:)
-	fileprivate let o_cloexec = Glibc.O_CLOEXEC
-	fileprivate let _pipe = Glibc.pipe(_:)
+	internal let _read = Glibc.read(_:_:_:)
+	internal let _write = Glibc.write(_:_:_:)
+	internal let _close = Glibc.close(_:)
+	internal let o_cloexec = Glibc.O_CLOEXEC
+	internal let _pipe = Glibc.pipe(_:)
 #endif
 
 internal typealias ReadHandler = (Data) -> Void
@@ -186,7 +186,6 @@ internal class PipeReader {
 	
     let launchSem = DispatchSemaphore(value:1)
 	func scheduleForReading(_ handle:Int32, queue:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
-        launchSem.wait()
         accessBlock({ [weak self] in
             let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:Priority.highest.globalConcurrentQueue)
             newSource.setEventHandler(handler: { [weak self] in
@@ -195,7 +194,6 @@ internal class PipeReader {
             self!.handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:self!.instanceMaster, callback: queue, handler:handler, source: newSource)
             defer {
                 newSource.activate()
-                self!.launchSem.signal()
             }
         })
     }
