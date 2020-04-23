@@ -118,7 +118,6 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
     
     if stdout != nil, reading != nil {
         out_export = try ExportedPipe.rw()
-        
     }
     
     in_export = try ExportedPipe.rw()

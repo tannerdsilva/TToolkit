@@ -76,6 +76,8 @@ internal class PipeReader {
     private class HandleState {
         let handle:Int32
         
+        let source:DispatchSourceProtocol
+        
         private let callbackQueue:DispatchQueue
         private let internalSync:DispatchQueue
         private var _pnl:Bool = false
@@ -98,6 +100,7 @@ internal class PipeReader {
         	bufferSync = DispatchQueue(label:"com.tannersilva.instance.pipe.read.buffer.sync", target:syncMaster)
             callbackQueue = DispatchQueue(label:"com.tannersilva.instance.pipe.read.callback-target.serial", target:callback)
             self.handler = handler
+            self.source = source
         }
         
         internal func _intake(_ data:Data) -> Bool {
@@ -161,7 +164,7 @@ internal class PipeReader {
         }
     }
     private func accessBlock(_ work:@escaping() -> Void) {
-        return try accessSync.sync(flags:[.barrier]) { [weak self] in
+        accessSync.sync(flags:[.barrier]) { [weak self] in
             work()
         }
     }
@@ -196,10 +199,8 @@ internal class PipeReader {
             })
             self!.handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:self!.instanceMaster, callback: queue, handler:handler, source: newSource)
             defer {
-                print(".activate")
                 newSource.activate()
                 self!.launchSem.signal()
-                print(".signal")
             }
         })
     }
