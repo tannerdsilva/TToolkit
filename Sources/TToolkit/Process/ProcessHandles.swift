@@ -78,6 +78,8 @@ internal class PipeReader {
         
         let source:DispatchSourceProtocol
         
+        let captureQueue:DispatchQueue
+        
         private let callbackQueue:DispatchQueue
         private let internalSync:DispatchQueue
         private var _pnl:Bool = false
@@ -94,13 +96,14 @@ internal class PipeReader {
         
         private var handler:InteractiveProcess.OutputHandler
         
-        init(handle:Int32, syncMaster:DispatchQueue, callback:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler), source:DispatchSourceProtocol) {
+        init(handle:Int32, syncMaster:DispatchQueue, callback:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler), source:DispatchSourceProtocol, capture:DispatchQueue) {
             self.handle = handle
             internalSync = DispatchQueue(label:"com.tannersilva.instance.pipe.read.internal.sync", target:syncMaster)
         	bufferSync = DispatchQueue(label:"com.tannersilva.instance.pipe.read.buffer.sync", target:syncMaster)
             callbackQueue = DispatchQueue(label:"com.tannersilva.instance.pipe.read.callback-target.serial", target:callback)
             self.handler = handler
             self.source = source
+            self.captureQueue = capture
         }
         
         internal func _intake(_ data:Data) -> Bool {
@@ -187,11 +190,12 @@ internal class PipeReader {
     let launchSem = DispatchSemaphore(value:1)
 	func scheduleForReading(_ handle:Int32, queue:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
         accessBlock({ [weak self] in
-            let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:Priority.highest.globalConcurrentQueue)
+            let intakeQueue = DispatchQueue(label:"com.tannersilva.instance.pipe.handle.read.capture", target:global_pipe_read)
+            let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:intakeQueue)
             newSource.setEventHandler(handler: { [weak self] in
                 self?.readHandle(handle)
             })
-            self!.handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:self!.instanceMaster, callback: queue, handler:handler, source: newSource)
+            self!.handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:self!.instanceMaster, callback: queue, handler:handler, source: newSource, capture: intakeQueue)
             newSource.activate()
         })
     }
