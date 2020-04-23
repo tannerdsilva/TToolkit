@@ -92,7 +92,7 @@ internal class PipeReader {
         
         private var handler:InteractiveProcess.OutputHandler
         
-        init(handle:Int32, syncMaster:DispatchQueue, callback:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
+        init(handle:Int32, syncMaster:DispatchQueue, callback:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler), source:DispatchSourceProtocol) {
             self.handle = handle
             internalSync = DispatchQueue(label:"com.tannersilva.instance.pipe.read.internal.sync", target:syncMaster)
         	bufferSync = DispatchQueue(label:"com.tannersilva.instance.pipe.read.buffer.sync", target:syncMaster)
@@ -182,11 +182,15 @@ internal class PipeReader {
         print(Colors.dim("Successfully captured \(handle)"))
 	}
 	
-	let launchSignaler = DispatchSemaphore(value:1)
 	func scheduleForReading(_ handle:Int32, queue:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
+        let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:Priority.highest.globalConcurrentQueue)
         accessBlock({
-            handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:instanceMaster, callback: queue, handler:handler)
+            handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:instanceMaster, callback: queue, handler:handler, source: newSource)
         })
+        newSource.setEventHandler(handler: { [weak self] in
+            self?.readHandle(handle)
+        })
+        newSource.activate()
 	}
 }
 internal let globalPR = PipeReader()
