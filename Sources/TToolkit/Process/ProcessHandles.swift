@@ -192,9 +192,7 @@ internal class PipeReader {
                 self?.readHandle(handle)
             })
             self!.handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:self!.instanceMaster, callback: queue, handler:handler, source: newSource)
-            defer {
-                newSource.activate()
-            }
+            newSource.activate()
         })
     }
 }

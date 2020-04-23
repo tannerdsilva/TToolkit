@@ -225,6 +225,9 @@ public class InteractiveProcess:Hashable {
     
     public func waitForExitCode() -> Int {
         let ec = tt_wait_sync(pid: sig!.container)
+        defer {
+            pmon.processEnded(self)
+        }
         return internalAsync.sync { Int(ec) }
     }
     
