@@ -190,6 +190,7 @@ internal class PipeReader {
         let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:Priority.highest.globalConcurrentQueue)
         accessBlock({ [weak self, newSource] in
             newSource.setEventHandler(handler: { [weak self] in
+                print("EVENT HANDLER IS CALLED")
                 self?.readHandle(handle)
             })
             self!.handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:self!.instanceMaster, callback: queue, handler:handler, source: newSource)

@@ -114,17 +114,16 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
     
     if stderr != nil, reading != nil {
         err_export = try ExportedPipe.rw()
-        globalPR.scheduleForReading(err_export!.reading, queue:reading!, handler:stderr!)
     }
     
     if stdout != nil, reading != nil {
         out_export = try ExportedPipe.rw()
-        globalPR.scheduleForReading(out_export!.reading, queue: reading!, handler: stdout!)
+        
     }
     
     in_export = try ExportedPipe.rw()
     
-    return try path.path.withCString({ executablePathPointer in
+    let reutnVal = try path.path.withCString({ executablePathPointer -> tt_proc_signature in
         var argBuild = [path.path]
         argBuild.append(contentsOf:args)
         return try argBuild.with_spawn_ready_arguments({ argumentsToSpawn in
@@ -133,6 +132,15 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
             })
         })
     })
+    defer {
+        if err_export != nil {
+            globalPR.scheduleForReading(err_export!.reading, queue:reading!, handler:stderr!)
+        }
+        if out_export != nil {
+            globalPR.scheduleForReading(out_export!.reading, queue: reading!, handler: stdout!)
+        }
+    }
+    return reutnVal
 }
 
 internal enum tt_spawn_error:Error {
