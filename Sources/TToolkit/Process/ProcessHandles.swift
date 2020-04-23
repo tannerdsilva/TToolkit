@@ -110,11 +110,16 @@ internal class PipeReader {
         
         func capture() {
             executeGroup.enter()
-            self.captureQueue.async { [intake, handle, executeGroup] in
+            self.captureQueue.async { [eg = executeGroup, weak globalPR, hanCap = handle] in
                 defer {
-                    executeGroup.leave()
+                    eg.leave()
                 }
-                intake(handle.availableData())
+                if let hasData = hanCap.availableData() {
+                    print(Colors.dim("Data was captured"))
+                    globalPR!.access(hanCap) { handlerState in
+                        handlerState.intake(hasData)
+                    }
+                }
             }
         }
         
@@ -217,9 +222,10 @@ internal class PipeReader {
 	func scheduleForReading(_ handle:Int32, queue:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
         let intakeQueue = DispatchQueue(label:"com.tannersilva.instance.pipe.handle.read.capture", target:global_pipe_read)
         let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:global_pipe_read)
-        newSource.setEventHandler(handler: { [weak self, handle] in
-            self!.access(handle) { handleState in
-                handleState.capture()
+        newSource.setEventHandler(handler: { [handle, weak globalPR] in
+            print("attempting to capture")
+            globalPR!.access(handle) { (someState) in
+                someState.capture()
             }
         })
         accessModify({
