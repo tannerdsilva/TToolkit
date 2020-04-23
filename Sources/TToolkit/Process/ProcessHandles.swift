@@ -15,7 +15,7 @@ import Foundation
 	internal let _close = Glibc.close(_:)
 	internal let o_cloexec = Glibc.O_CLOEXEC
 	internal let _pipe = Glibc.pipe(_:)
-    internal let _fcntl = Glibc.fcntl(_:_:_:)
+    internal let _fcntl = Glibc.fcntl(_:Int32,_:Int32,_:Int32)
 #endif
 
 internal typealias ReadHandler = (Data) -> Void
