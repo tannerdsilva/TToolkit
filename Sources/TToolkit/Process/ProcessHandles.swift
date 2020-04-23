@@ -166,9 +166,9 @@ internal class PipeReader {
         defer {
             flightGroup.leave()
         }
-        accessSync.sync {
-            return work(self.handles[handle]!)
-        }
+        return { [weak bufState = self.handles[handle]!] in
+            work(bufState!)
+        }()
     }
     private func accessModify(_ work:() -> Void) {
         flightGroup.enter()
