@@ -217,14 +217,13 @@ internal class PipeReader {
 	func scheduleForReading(_ handle:Int32, queue:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
         let intakeQueue = DispatchQueue(label:"com.tannersilva.instance.pipe.handle.read.capture", target:global_pipe_read)
         let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:global_pipe_read)
-        let newHandle = PipeReader.HandleState(handle:handle, syncMaster:instanceMaster, callback: queue, handler:handler, source: newSource, capture: intakeQueue)
-        newSource.setEventHandler(handler: { [handle, access] in
-            access(handle) { handleState in
+        newSource.setEventHandler(handler: { [weak self, handle] in
+            self!.access(handle) { handleState in
                 handleState.capture()
             }
         })
-        accessModify({ [newHandle] in
-            self.handles[handle] = newHandle
+        accessModify({
+            self.handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:instanceMaster, callback: queue, handler:handler, source: newSource, capture: intakeQueue)
             print(Colors.green("SUCCESSFULLY INSERTED WITH BARRIER \(handle)"))
         })
         newSource.activate()
