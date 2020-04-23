@@ -177,9 +177,9 @@ internal class PipeReader {
     
 	internal func readHandle(_ handle:Int32) {
         print("access? \(handle)")
-        access(handle) { handleState in
-            print(Colors.bgGreen("+ ACCESS + \(handle)"))
-            handleState.intake(handle.availableData())
+        access(handle) { [availData = handle.availableData()] handleState in
+            print(Colors.bgGreen("+ ACCESS + \(handle) + \(availData?.count)"))
+            handleState.intake(availData)
         }
         print(Colors.dim("Successfully captured \(handle)"))
 	}
