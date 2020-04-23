@@ -191,13 +191,12 @@ public class TTimer {
 		}
 	}
 	
-	public init() {
-		let defaultPriority = Priority.`default`
-		let globalConcurrent = defaultPriority.globalConcurrentQueue
+    public init(priority:Priority = Priority.`default`) {
+		let globalConcurrent = priority.globalConcurrentQueue
 		self._timerTarget = globalConcurrent
-		self._timerQueue = DispatchQueue(label:"com.tannersilva.instance.ttimer.fire", qos:defaultPriority.asDispatchQoS(), target:globalConcurrent)
-		self._priority = defaultPriority
-		self._internalSync = DispatchQueue(label:"com.tannersilva.instance.ttimer.internal-sync", qos:defaultPriority.asDispatchQoS(), target:globalConcurrent)
+		self._timerQueue = DispatchQueue(label:"com.tannersilva.instance.ttimer.fire", qos:priority.asDispatchQoS(), target:globalConcurrent)
+		self._priority = priority
+		self._internalSync = DispatchQueue(label:"com.tannersilva.instance.ttimer.internal-sync", qos:priority.asDispatchQoS(), target:globalConcurrent)
 		self._state = .canceled
 	}
 	

@@ -90,15 +90,14 @@ internal class ProcessMonitor {
 	fileprivate func processExited(mon:pid_t, work:pid_t, code:Int32) {
         internalSync.sync {
             if let closeHandles = needsClose[mon] {
-                for (_, curHandle) in closeHandles.enumerated() {
-                    file_handle_guard.async { [curHandle] in
-                        _close(curHandle)
+                file_handle_guard.async { [closeHandles] in
+                    var enumerator = closeHandles.makeIterator()
+                    while let curHandle = enumerator.next() {
+                        _ = _close(curHandle)
                     }
                 }
                 needsClose[mon] = nil
             }
         }
 	}
-    
-    
 }

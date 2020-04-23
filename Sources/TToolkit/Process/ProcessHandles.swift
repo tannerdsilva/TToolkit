@@ -35,7 +35,7 @@ extension IODescriptor {
         if statbuf.st_mode & S_IFMT == S_IFREG && statbuf.st_blksize > 0 {
             readBlockSize = Int(clamping:statbuf.st_blksize)
         } else {
-            readBlockSize = 1024 * 8
+            readBlockSize = SSIZE_MAX
         }
     
         guard var dynamicBuffer = malloc(readBlockSize + 1) else {
@@ -152,6 +152,8 @@ internal class PipeReader {
         }
     }
     
+    var flightGroup = DispatchGroup()
+    
 	var master:DispatchQueue
 	var internalSync:DispatchQueue
     
@@ -159,15 +161,24 @@ internal class PipeReader {
 
     var accessSync:DispatchQueue
     private var handles = [Int32:PipeReader.HandleState]()
-    private func access(_ handle:Int32, _ work:@escaping(PipeReader.HandleState) -> Void) {
-    	accessSync.sync { [weak self] in
-            return { [weak bufState = self!.handles[handle]!] in
-                work(bufState!)
+    private func access(_ handle:Int32, _ work:(PipeReader.HandleState) -> Void) {
+        flightGroup.enter()
+        defer {
+            flightGroup.leave()
+        }
+    	let fetchedState = accessSync.sync {
+            return { [weak bufState = self.handles[handle]!] in
+                return bufState
             }()
         }
+        return work(fetchedState!)
     }
-    private func accessBlock(_ work:@escaping() -> Void) {
-        accessSync.sync(flags:[.barrier]) { [weak self] in
+    private func accessModify(_ work:() -> Void) {
+        flightGroup.enter()
+        defer {
+            flightGroup.leave()
+        }
+        accessSync.sync(flags:[.barrier]) {
             work()
         }
     }
@@ -176,9 +187,9 @@ internal class PipeReader {
 		self.master = DispatchQueue(label:"com.tannersilva.global.pipe.read.master", attributes:[.concurrent], target:process_master_queue)
 		self.internalSync = DispatchQueue(label:"com.tannersilva.global.pipe.read.sync", attributes:[.concurrent], target:self.master)
         
-        self.instanceMaster = DispatchQueue(label:"com.tannersilva.instance.pipe.read.master", attributes:[.concurrent], target:process_master_queue)
+        self.instanceMaster = DispatchQueue(label:"com.tannersilva.instance.pipe.read.master", attributes:[.concurrent], target:self.master)
     
-        self.accessSync = DispatchQueue(label:"com.tannersilva.global.pipe.handle.access.sync", attributes:[.concurrent])
+        self.accessSync = DispatchQueue(label:"com.tannersilva.global.pipe.handle.access.sync", attributes:[.concurrent], target:self.master)
 	}
     
 	internal func readHandle(_ handle:Int32) {
@@ -194,7 +205,7 @@ internal class PipeReader {
         newSource.setEventHandler(handler: { [weak self] in
             self?.readHandle(handle)
         })
-        accessBlock({ [weak self, intakeQueue, newSource] in
+        accessModify({ [weak self, intakeQueue, newSource] in
             self!.handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:self!.instanceMaster, callback: queue, handler:handler, source: newSource, capture: intakeQueue)
         })
         newSource.activate()

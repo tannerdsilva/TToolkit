@@ -6,7 +6,7 @@ internal class DebugProcessMonitor {
 	
 //    let eventPipe:ProcessPipes
     
-	let internalSync = DispatchQueue(label:"com.tannersilva.process.monitor.sync")
+    let internalSync = DispatchQueue(label:"com.tannersilva.process.monitor.sync", target:process_master_queue)
 	
 	var announceTimer:TTimer
 	var processHashes = [InteractiveProcess:Int]()
