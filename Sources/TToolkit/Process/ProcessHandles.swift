@@ -167,8 +167,8 @@ internal class PipeReader {
             flightGroup.leave()
         }
     	let fetchedState = accessSync.sync {
-            return { [bufState = self.handles[handle]!] in
-                return bufState
+            return { [handles = self.handles] in
+                return handles[handle]!
             }()
         }
         return work(fetchedState)
