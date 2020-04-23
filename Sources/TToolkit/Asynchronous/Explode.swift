@@ -60,10 +60,10 @@ extension UnsafeBufferPointer {
         let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
        Priority.high.globalConcurrentQueue.sync {
             DispatchQueue.concurrentPerform(iterations:count) { n in
-               launchSem.wait()
-               defer {
-                   launchSem.signal()
-               }
+//               launchSem.wait()
+//               defer {
+//                   launchSem.signal()
+//               }
                 print("\(n) - \(count)")
 
                 try? thisFunction(n, startIndex.advanced(by:n).pointee)
@@ -84,10 +84,10 @@ extension UnsafeBufferPointer {
         Priority.high.globalConcurrentQueue.sync {
 
             DispatchQueue.concurrentPerform(iterations:count) { n in
-               launchSem.wait()
-               defer {
-                   launchSem.signal()
-               }
+//               launchSem.wait()
+//               defer {
+//                   launchSem.signal()
+//               }
                 print("\(n) - \(count)")
 
                 if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
@@ -111,10 +111,10 @@ extension UnsafeBufferPointer {
        Priority.high.globalConcurrentQueue.sync {
             DispatchQueue.concurrentPerform(iterations:count) { n in
 
-               launchSem.wait()
-               defer {
-                   launchSem.signal()
-               }
+//               launchSem.wait()
+//               defer {
+//                   launchSem.signal()
+//               }
                 print("\(n) - \(count)")
 
                 if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
@@ -139,10 +139,10 @@ extension UnsafeBufferPointer {
        Priority.high.globalConcurrentQueue.sync {
             DispatchQueue.concurrentPerform(iterations:count) { n in
                 print("\(n) - \(count)")
-               launchSem.wait()
-               defer {
-                   launchSem.signal()
-               }
+//               launchSem.wait()
+//               defer {
+//                   launchSem.signal()
+//               }
                 if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
                     if returnedValue.value != nil {
                         callbackQueue.sync {
