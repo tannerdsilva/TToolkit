@@ -189,15 +189,15 @@ internal class PipeReader {
 	
     let launchSem = DispatchSemaphore(value:1)
 	func scheduleForReading(_ handle:Int32, queue:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
-        accessBlock({ [weak self] in
-            let intakeQueue = DispatchQueue(label:"com.tannersilva.instance.pipe.handle.read.capture", target:global_pipe_read)
-            let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:intakeQueue)
-            newSource.setEventHandler(handler: { [weak self] in
-                self?.readHandle(handle)
-            })
-            self!.handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:self!.instanceMaster, callback: queue, handler:handler, source: newSource, capture: intakeQueue)
-            newSource.activate()
+        let intakeQueue = DispatchQueue(label:"com.tannersilva.instance.pipe.handle.read.capture", target:global_pipe_read)
+        let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:intakeQueue)
+        newSource.setEventHandler(handler: { [weak self] in
+            self?.readHandle(handle)
         })
+        accessBlock({ [weak self, intakeQueue, newSource] in
+            self!.handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:self!.instanceMaster, callback: queue, handler:handler, source: newSource, capture: intakeQueue)
+        })
+        newSource.activate()
     }
 }
 internal let globalPR = PipeReader()
