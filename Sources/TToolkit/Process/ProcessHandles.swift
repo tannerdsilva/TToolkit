@@ -15,6 +15,7 @@ import Foundation
 	internal let _close = Glibc.close(_:)
 	internal let o_cloexec = Glibc.O_CLOEXEC
 	internal let _pipe = Glibc.pipe(_:)
+    internal let _fcntl = Glibc.fcntl(_:_:_:)
 #endif
 
 internal typealias ReadHandler = (Data) -> Void
@@ -75,6 +76,7 @@ extension Int32:IODescriptor {
 internal class PipeReader {
     private class HandleState {
         let handle:Int32
+        let executeGroup = DispatchGroup()
         
         let source:DispatchSourceProtocol
         
@@ -106,6 +108,16 @@ internal class PipeReader {
             self.captureQueue = capture
         }
         
+        func capture() {
+            executeGroup.enter()
+            self.captureQueue.async { [intake, handle, executeGroup] in
+                defer {
+                    executeGroup.leave()
+                }
+                intake(handle.availableData())
+            }
+        }
+        
         internal func _intake(_ data:Data) -> Bool {
         	return bufferSync.sync {
                 buffer.append(data)
@@ -126,8 +138,8 @@ internal class PipeReader {
         
         func intake(_ data:Data?) {
             if data != nil && data!.count > 0 && _intake(data!) {
-                callbackQueue.async(flags:[.inheritQoS]) { [weak self, handlerToCall = self.handler] in
-                    let lineExtract = self?.extractLines()
+                callbackQueue.async(flags:[.inheritQoS]) { [extractLines, handlerToCall = self.handler] in
+                    let lineExtract = extractLines()
                     if lineExtract != nil {
                         for (_, curLine) in lineExtract!.enumerated() {
                             handlerToCall(curLine)
@@ -137,7 +149,11 @@ internal class PipeReader {
             }
         }
         func extractLines() -> [Data]? {
-            internalSync.async { [weak self] in
+            executeGroup.enter()
+            internalSync.async { [weak self, executeGroup] in
+                defer {
+                    executeGroup.leave()
+                }
                 self!._pnl = false
             }
             
@@ -166,9 +182,11 @@ internal class PipeReader {
         defer {
             flightGroup.leave()
         }
-        return { [weak bufState = self.handles[handle]!] in
-            work(bufState!)
-        }()
+        accessSync.sync {
+            return { [weak bufState = self.handles[handle]!] in
+                work(bufState!)
+            }()
+        }
     }
     private func accessModify(_ work:() -> Void) {
         flightGroup.enter()
@@ -198,13 +216,16 @@ internal class PipeReader {
     let launchSem = DispatchSemaphore(value:1)
 	func scheduleForReading(_ handle:Int32, queue:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
         let intakeQueue = DispatchQueue(label:"com.tannersilva.instance.pipe.handle.read.capture", target:global_pipe_read)
-        let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:intakeQueue)
+        let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:global_pipe_read)
         let newHandle = PipeReader.HandleState(handle:handle, syncMaster:instanceMaster, callback: queue, handler:handler, source: newSource, capture: intakeQueue)
-        newSource.setEventHandler(handler: { [handle_in = handle, handle_state = newHandle] in
-            handle_state.intake(handle_in.availableData())
+        newSource.setEventHandler(handler: { [handle, access] in
+            access(handle) { handleState in
+                handleState.capture()
+            }
         })
-        accessModify({ [handle_capture = newHandle] in
-            self.handles[handle] = handle_capture
+        accessModify({ [newHandle] in
+            self.handles[handle] = newHandle
+            print(Colors.green("SUCCESSFULLY INSERTED WITH BARRIER \(handle)"))
         })
         newSource.activate()
     }
@@ -233,6 +254,7 @@ internal struct ExportedPipe:Hashable {
             case 0:
                 let readFD = fds.pointee
                 let writeFD = fds.successor().pointee
+                _fcntl(readFD, F_SETFL, O_NONBLOCK)
                 print(Colors.magenta("created for reading: \(readFD)"))
                 print(Colors.Magenta("created for writing: \(writeFD)"))
                 return ExportedPipe(r:readFD, w:writeFD)
