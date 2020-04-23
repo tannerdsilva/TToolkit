@@ -188,7 +188,7 @@ internal class PipeReader {
         accessBlock({ [weak self] in
             self!.launchSem.signal()
             let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:Priority.highest.globalConcurrentQueue)
-            self!.handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:instanceMaster, callback: queue, handler:handler, source: newSource)
+            self!.handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:self!.instanceMaster, callback: queue, handler:handler, source: newSource)
             newSource.setEventHandler(handler: { [weak self] in
                 self?.readHandle(handle)
             })
