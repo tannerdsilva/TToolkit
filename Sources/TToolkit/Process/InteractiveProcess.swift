@@ -211,11 +211,9 @@ public class InteractiveProcess:Hashable {
     public func run() throws {
         try self.internalSync.sync {
             let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdin:true, stdout:{ [weak self] someData in
-                print("FOUND DATA")
                 self?.lines.append(someData)
                 self?._stdoutHandler?(someData)
             }, stderr: { [weak self] someData in
-                print("FOUND DATA")
                 self?.lines.append(someData)
                 self?._stderrHandler?(someData)
             }, reading:internalSync, writing:nil)
