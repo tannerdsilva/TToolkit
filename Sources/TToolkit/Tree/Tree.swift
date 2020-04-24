@@ -5,130 +5,145 @@ enum Child:UInt8 {
 	case right
 }
 
+fileprivate let tree_master_queue = DispatchQueue(label:"com.tannersilva.global.tree.access", attributes:[.concurrent])
+fileprivate let tree_master_lock = DispatchQueue(label:"com.tannersilva.global.tree.instance", attributes:[.concurrent])
+
 class Tree<T> where T:Comparable {
-	private var val:T? = nil
-	
-	private var childCount:Int = 0
-	
-	private var left:Tree<T>? = nil
-	private var right:Tree<T>? = nil
+    fileprivate let _instanceSync = DispatchQueue(label:"com.tannersilva.instance.tree.sync", target:tree_master_lock)
+    fileprivate var _queue = DispatchQueue(label:"com.tannersilva.instance.tree.node.access", attributes: [.concurrent], target:tree_master_queue)
+    fileprivate var queue:DispatchQueue {
+        get {
+            _instanceSync.sync {
+                return _queue
+            }
+        }
+    }
+    fileprivate var _parent:Tree<T>? = nil
+    internal var parent:Tree<T>? {
+        get {
+            queue.sync {
+                return _parent
+            }
+        }
+        set {
+            _instanceSync.async { [weak self, newValue] in
+                self?._queue.async(flags:[.barrier]) { [weak self, newValue] in
+                    self?._parent = newValue
+                }
+                
+            }
+        }
+    }
+    
+	fileprivate var _val:T? = nil
+    internal var val:T? {
+        get {
+            queue.sync {
+                return _val
+            }
+        }
+        set {
+            queue.async(flags:[.barrier]) { [weak self, newValue] in
+                self?._val = newValue
+            }
+        }
+    }
+    fileprivate var val_:T? {
+            get {
+               _queue.sync(flags:[.barrier]) {
+                   return _val
+               }
+           }
+           set {
+               _queue.async(flags:[.barrier]) { [weak self, newValue] in
+                    self?._val = newValue
+               }
+           }
+    }
+    
+    fileprivate var _left:Tree<T>? = nil
+    internal var left:Tree<T>? {
+        get {
+            queue.sync {
+                return _left
+            }
+        }
+        set {
+            queue.async(flags:[.barrier]) { [weak self, newValue] in
+                self?._left = newValue
+            }
+        }
+    }
+    fileprivate var left_:Tree<T>? {
+        get {
+            _queue.sync(flags:[.barrier]) {
+                return _left
+            }
+        }
+        set {
+            _queue.async(flags:[.barrier]) { [weak self, newValue] in
+                self?._left = newValue
+            }
+        }
+    }
 
-	//build a tree with a collection of objects
-	public init<U>(_ input:U) where U:Collection, U.Element == T {
-		childCount = input.count
-		for (n, curVal) in input.enumerated() {
-			switch n {
-				case 0:
-					val = curVal
-				default:
-					if val! > curVal {
-						if left != nil {
-							left!.insert(curVal)
-						} else {
-							left = Tree(curVal)
-						}
-					} else {
-						if right != nil {
-							right!.insert(curVal)
-						} else {
-							right = Tree(curVal)
-						}
-					}
-			}
-		}
-	}
-	
-	public init(_ input:T?) {
-		val = input
-		childCount = 1
-	}
-	
-	public func forEveryValue(_ doThisWork:@escaping(T) throws -> Void) rethrows {
-		if val != nil {
-			try doThisWork(val!)
-		}
-		if left != nil {
-			try left!.forEveryValue(doThisWork)
-		}
-		if right != nil {
-			try right!.forEveryValue(doThisWork)
-		}
-	}
-	
-	//return the side that has a higher number of children
-	private var imbalance:Child? {
-		get {
-			let leftCount = left?.childCount ?? 0
-			let rightCount = right?.childCount ?? 0
-			
-			let absoluteDelta = Int(abs(leftCount - rightCount))
-			
-			if leftCount == rightCount || absoluteDelta < 2 {
-				return nil
-			} else if leftCount < rightCount {
-				return .right
-			} else if rightCount < leftCount {
-				return .left
-			}
-			return nil
-		}
-	}
-	
+    
+	fileprivate var _right:Tree<T>? = nil
+    internal var right:Tree<T>? {
+        get {
+            queue.sync {
+                return _right
+            }
+        }
+        set {
+            queue.async(flags:[.barrier]) { [weak self, newValue] in
+                self?._right = newValue
+            }
+        }
+    }
+    fileprivate var right_:Tree<T>? {
+        get {
+            _queue.sync(flags:[.barrier]) {
+                return _right
+            }
+        }
+        set {
+            _queue.async(flags:[.barrier]) { [weak self, newValue] in
+                self?._right = newValue
+            }
+        }
+    }
+
+
 	public func insert(_ newValue:T) {
-		if val == nil { 
-			val = newValue
-		} else if val! > newValue {
-			if left != nil {
-				left!.insert(newValue)
-			} else {
-				left = Tree<T>(newValue)
-			}
-		} else {
-			if right != nil {
-				right!.insert(newValue)
-			} else {
-				right = Tree<T>(newValue)
-			}
-		}
-		childCount += 1
-	}
-		
-	//build the child values of the tree into the given array pointer
-	internal func childValues(_ buildArray:inout Array<T>) {
-		if val != nil {
-			buildArray.append(val!)
-		}
-
-		if left != nil {
-			left!.childValues(&buildArray)
-		}
-		
-		if right != nil {
-			right!.childValues(&buildArray)
-		}
-	}
+        _instanceSync.async { [newValue] in
+            if self.val_ == nil {
+                self.val_ = newValue
+            } else if self.val_! > newValue {
+                if self.left_ != nil {
+                    self.left_!.insert(newValue)
+                } else {
+                    let newTree = Tree<T>(newValue)
+                    newTree.parent = self
+                    self.left_ = newTree
+                }
+            } else {
+                if self.right_ != nil {
+                    self.right_!.insert(newValue)
+                } else {
+                    let newTree = Tree<T>(newValue)
+                    newTree.parent = self
+                    self.right_ = Tree<T>(newValue)
+                    self.right_!.parent = self
+                }
+            }
+        }
+    }
+    
+    init(_ inVal:T?) {
+        val = inVal
+    }
 	
-	//what are the child values of the tree
-	public var childValues:[T] {
-		get {
-			var buildChildValues = [T]()
-			
-			if let hasLeft = left { 
-				hasLeft.childValues(&buildChildValues)
-			}
-			
-			if val != nil {
-				buildChildValues.append(val!)
-			}
-			
-			if let hasRight = right {
-				hasRight.childValues(&buildChildValues)
-			}
-
-			return buildChildValues 
-		}
-	}
-		
 	//how deep is this tree?
 	public var depth:Int {
 		get {
