@@ -26,6 +26,7 @@ internal protocol IODescriptor {
 
 extension IODescriptor {
     func availableData() -> Data? {
+        print("attempting to read data")
         var statbuf = stat()
         if fstat(_fd, &statbuf) < 0 {
             return nil
