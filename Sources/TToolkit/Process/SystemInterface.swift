@@ -111,16 +111,16 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
     
     in_export = try ExportedPipe.rw()
     
-    defer {
-        if err_export != nil {
-            print("SCHEDULED ERR")
-            globalPR.scheduleForReading(err_export!.reading, work:stderr!, queue: reading!)
-        }
-        if out_export != nil {
-            print("SCHEDULED OUT")
-            globalPR.scheduleForReading(out_export!.reading, work: stdout!, queue: reading!)
-        }
-    }
+//    defer {
+//        if err_export != nil {
+//            print("SCHEDULED ERR")
+//            globalPR.scheduleForReading(err_export!.reading, work:stderr!, queue: reading!)
+//        }
+//        if out_export != nil {
+//            print("SCHEDULED OUT")
+//            globalPR.scheduleForReading(out_export!.reading, work: stdout!, queue: reading!)
+//        }
+//    }
     	
     let reutnVal = try path.path.withCString({ executablePathPointer -> tt_proc_signature in
         var argBuild = [path.path]
