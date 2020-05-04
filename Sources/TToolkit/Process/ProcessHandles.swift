@@ -15,7 +15,6 @@ import Foundation
 	internal let _close = Glibc.close(_:)
 	internal let o_cloexec = Glibc.O_CLOEXEC
 	internal let _pipe = Glibc.pipe(_:)
-//    internal let _fcntl = Glibc.fcntl(Int32,Int32,Int32)
 #endif
 
 internal typealias ReadHandler = (Data) -> Void
@@ -264,8 +263,8 @@ internal struct ExportedPipe:Hashable {
                 let readFD = fds.pointee
                 let writeFD = fds.successor().pointee
                 fcntl(readFD, F_SETFL, O_NONBLOCK)
-                print(Colors.magenta("created for reading: \(readFD)"))
-                print(Colors.Magenta("created for writing: \(writeFD)"))
+                print(Colors.magenta("created for reading [NONBLOCK]: \(readFD)"))
+                print(Colors.magenta("created for writing: \(writeFD)"))
                 return ExportedPipe(r:readFD, w:writeFD)
             default:
                 throw pipe_errors.unableToCreatePipes
