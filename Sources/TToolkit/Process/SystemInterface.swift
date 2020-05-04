@@ -96,6 +96,7 @@ internal struct tt_proc_signature:Hashable {
 }
 
 internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdin:Bool, stdout:(InteractiveProcess.OutputHandler)?, stderr:(InteractiveProcess.OutputHandler)?, reading:DispatchQueue?, writing:DispatchQueue?) throws -> tt_proc_signature {
+    print("OK CALLING TTSPAWN")
     var err_export:ExportedPipe? = nil
     var out_export:ExportedPipe? = nil
     var in_export:ExportedPipe? = nil
@@ -111,9 +112,11 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
     in_export = try ExportedPipe.rw()
     
     if err_export != nil {
+        print("SCHEDULED ERR")
 		globalPR.scheduleForReading(err_export!.reading, work:stderr!, queue: reading!)
 	}
 	if out_export != nil {
+        print("SCHEDULED OUT")
 		globalPR.scheduleForReading(out_export!.reading, work: stdout!, queue: reading!)
 	}
 	
