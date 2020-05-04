@@ -54,16 +54,8 @@ extension IODescriptor {
     }
     
     func availableDataLoop(_ outputFunction:(Data?) -> Void) {
-        defer {
-            print(Colors.Red("Data loop ended"))
-        }
-        var i = 0
         while let curData = self.availableData(), curData.count > 0 {
-        	i += 1
             outputFunction(curData)
-        }
-        if i > 1 {
-        	print(Colors.bgWhite("Data loop itterated \(i) times"))
         }
     }
 }
@@ -207,7 +199,7 @@ internal class PipeReader {
         let newHandleState = PipeReader.HandleState(handle:handle, callback: queue, handler:handler, source: newSource, capture: intakeQueue)
         newSource.setEventHandler(handler: { [handle, newHandleState] in
             handle.availableDataLoop({ [newHandleState] (someData) in
-                print(Colors.dim(" \(handle) -> \(someData?.count) bytes"))
+//                print(Colors.dim(" \(handle) -> \(someData?.count) bytes"))
                 if let validateData = someData {
                     newHandleState.intakeData(validateData)
                 }
