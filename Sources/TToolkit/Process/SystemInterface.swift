@@ -96,7 +96,6 @@ internal struct tt_proc_signature:Hashable {
 }
 
 internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdin:Bool, stdout:(InteractiveProcess.OutputHandler)?, stderr:(InteractiveProcess.OutputHandler)?, reading:DispatchQueue?, writing:DispatchQueue?) throws -> tt_proc_signature {
-    
     var err_export:ExportedPipe? = nil
     var out_export:ExportedPipe? = nil
     var in_export:ExportedPipe? = nil
@@ -111,6 +110,13 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
     
     in_export = try ExportedPipe.rw()
     
+    if err_export != nil {
+		globalPR.scheduleForReading(err_export!.reading, queue:reading!, handler:stderr!)
+	}
+	if out_export != nil {
+		globalPR.scheduleForReading(out_export!.reading, queue: reading!, handler: stdout!)
+	}
+	
     let reutnVal = try path.path.withCString({ executablePathPointer -> tt_proc_signature in
         var argBuild = [path.path]
         argBuild.append(contentsOf:args)
@@ -120,14 +126,6 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
             })
         })
     })
-    defer {
-        if err_export != nil {
-            globalPR.scheduleForReading(err_export!.reading, queue:reading!, handler:stderr!)
-        }
-        if out_export != nil {
-            globalPR.scheduleForReading(out_export!.reading, queue: reading!, handler: stdout!)
-        }
-    }
     return reutnVal
 }
 

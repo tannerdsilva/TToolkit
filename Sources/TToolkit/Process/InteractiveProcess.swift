@@ -113,8 +113,7 @@ public class InteractiveProcess:Hashable {
 	*/
     private let internalSync:DispatchQueue
     private let internalAsync:DispatchQueue
-    
-    private let runSemaphore:DispatchSemaphore
+
     private var signalUp:Bool = false
     
 	public enum InteractiveProcessState:UInt8 {
@@ -204,18 +203,17 @@ public class InteractiveProcess:Hashable {
         let inputSerial = DispatchQueue(label:"footest", qos:priority.process_async_priority, target:process_master_queue)
         self.internalAsync = inputSerial
 
-        self.runSemaphore = rs
 		self._state = .initialized
     }
     
     public func run() throws {
         try self.internalSync.sync {
-            let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdin:true, stdout:{ [weak self] someData in
-                self?.lines.append(someData)
-                self?._stdoutHandler?(someData)
-            }, stderr: { [weak self] someData in
-                self?.lines.append(someData)
-                self?._stderrHandler?(someData)
+            let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdin:true, stdout:{ someData in
+                self.lines.append(someData)
+                self._stdoutHandler?(someData)
+            }, stderr: { someData in
+                self.lines.append(someData)
+                self._stderrHandler?(someData)
             }, reading:internalSync, writing:nil)
             pmon.processLaunched(self)
             print(Colors.Green("launched \(launchedProcess.worker)"))
