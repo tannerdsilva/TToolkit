@@ -111,10 +111,10 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
     in_export = try ExportedPipe.rw()
     
     if err_export != nil {
-		globalPR.scheduleForReading(err_export!.reading, queue:reading!, handler:stderr!)
+		globalPR.scheduleForReading(err_export!.reading, work:stderr!, queue: reading!)
 	}
 	if out_export != nil {
-		globalPR.scheduleForReading(out_export!.reading, queue: reading!, handler: stdout!)
+		globalPR.scheduleForReading(out_export!.reading, work: stdout!, queue: reading!)
 	}
 	
     let reutnVal = try path.path.withCString({ executablePathPointer -> tt_proc_signature in

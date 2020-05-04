@@ -27,11 +27,11 @@ internal class ProcessMonitor {
         let dataIntake = DispatchQueue(label:"com.tannersilva.instance.process.monitor.events", target:process_master_queue)
         self.internalSync = isync
         mainPipe = try ExportedPipe.rw()
-        globalPR.scheduleForReading(mainPipe.reading, queue: dataIntake, handler: { [weak self] someData in
+        globalPR.scheduleForReading(mainPipe.reading, work: { [weak self] someData in
             if let asString = String(data:someData, encoding: .utf8) {
                 self!.eventHandle(asString)
             }
-        })
+        }, queue: dataIntake)
 	}
 
     func newNotifyWriter() throws -> ProcessHandle {

@@ -90,15 +90,13 @@ extension Int32:IODescriptor {
 
 internal class PipeReader {
     let internalSync:DispatchQueue
-    var handleQueue:[ProcessHandle:DispatchSourceProtocol]
-    
+    var handleQueue:[Int32:DispatchSourceProtocol]
     init() {
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.sync")
-        self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
+        self.handleQueue = [Int32:DispatchSourceProtocol]()
     }
-    func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler), queue:DispatchQueue) {
-        let inFD = handle.fileDescriptor
-        let newSource = DispatchSource.makeReadSource(fileDescriptor:inFD, queue:Priority.highest.globalConcurrentQueue)
+    func scheduleForReading(_ handle:Int32, work:@escaping(ReadHandler), queue:DispatchQueue) {
+        let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:Priority.highest.globalConcurrentQueue)
         newSource.setEventHandler { [handle, queue, work] in
             if let newData = handle.availableDataLoop() {
                 queue.sync { work(newData) }
@@ -109,11 +107,11 @@ internal class PipeReader {
             newSource.activate()
         }
     }
-    func unschedule(_ handle:ProcessHandle) {
-        internalSync.sync {
-            if let hasExisting = handleQueue[handle] {
+    func unschedule(_ handle:Int32) {
+        internalSync.async {
+            if let hasExisting = self.handleQueue[handle] {
                 hasExisting.cancel()
-                handleQueue[handle] = nil
+                self.handleQueue[handle] = nil
             }
         }
     }
