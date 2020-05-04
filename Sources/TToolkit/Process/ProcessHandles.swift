@@ -150,7 +150,6 @@ internal class PipeReader {
                 }
                 if let linesToCallback = self.extractLines() {
                     for (_, curLine) in linesToCallback.enumerated() {
-                        print(".")
                         self.handler(curLine)
                     }
                 }
@@ -215,7 +214,7 @@ internal class PipeReader {
         let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:global_pipe_read)
         let newHandleState = PipeReader.HandleState(handle:handle, callback: queue, handler:handler, source: newSource, capture: intakeQueue)
         newSource.setEventHandler(handler: { [handle, newHandleState] in
-            if let newData = handle.availableDataLoop() {
+            if let newData = handle.availableData() {
                 newHandleState.intakeData(newData)
             }
         })
