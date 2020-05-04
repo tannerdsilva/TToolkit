@@ -37,7 +37,7 @@ extension IODescriptor {
         } else {
             readBlockSize = 10240
         }
-    	print("assigned a reading block size of \(readBlockSize)")
+
         guard var dynamicBuffer = malloc(readBlockSize + 1) else {
             return nil
         }
@@ -150,6 +150,7 @@ internal class PipeReader {
                 }
                 if let linesToCallback = self.extractLines() {
                     for (_, curLine) in linesToCallback.enumerated() {
+                        print(".")
                         self.handler(curLine)
                     }
                 }
