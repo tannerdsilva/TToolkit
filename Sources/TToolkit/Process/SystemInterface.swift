@@ -1,12 +1,23 @@
 import Foundation
 
 #if canImport(Darwin)
-    import Darwin
-    fileprivate let _dup2 = Darwin.dup2(_:_:)
+	import Darwin
+	internal let _read = Darwin.read(_:_:_:)
+	internal let _write = Darwin.write(_:_:_:)
+	internal let _close = Darwin.close(_:)
+	internal let o_cloexec = Darwin.O_CLOEXEC
+	internal let _pipe = Darwin.pipe(_:)
+	internal let _dup2 = Darwin.dup2(_:_:)
 #elseif canImport(Glibc)
-    import Glibc
-    fileprivate let _dup2 = Glibc.dup2(_:_:)
+	import Glibc
+	internal let _read = Glibc.read(_:_:_:)
+	internal let _write = Glibc.write(_:_:_:)
+	internal let _close = Glibc.close(_:)
+	internal let o_cloexec = Glibc.O_CLOEXEC
+	internal let _pipe = Glibc.pipe(_:)
+	internal let _dup2 = Glibc.dup2(_:_:)
 #endif
+
 
 fileprivate func _WSTATUS(_ status:Int32) -> Int32 {
     return status & 0x7f
@@ -110,16 +121,14 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
     }
     
     in_export = try ExportedPipe.rw()
-    
-//	defer {
-        if err_export != nil {
-            globalPR.scheduleForReading(err_export!.reading, queue:reading!, handler:stderr!)
-        }
-        if out_export != nil {
-            globalPR.scheduleForReading(out_export!.reading, queue: reading!, handler: stdout!)
-        }
-//    }
-    	
+
+    if err_export != nil {
+        globalPR.scheduleForReading(err_export!.reading, queue:reading!, handler:stderr!)
+    }
+    if out_export != nil {
+        globalPR.scheduleForReading(out_export!.reading, queue: reading!, handler: stdout!)
+    }
+
     let reutnVal = try path.path.withCString({ executablePathPointer -> tt_proc_signature in
         var argBuild = [path.path]
         argBuild.append(contentsOf:args)

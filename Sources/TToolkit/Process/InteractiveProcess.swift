@@ -3,9 +3,6 @@ import Foundation
 fileprivate let tt_spawn_sem = DispatchSemaphore(value:1)
 
 internal class DebugProcessMonitor {
-	
-//    let eventPipe:ProcessPipes
-    
     let internalSync = DispatchQueue(label:"com.tannersilva.process.monitor.sync", target:process_master_queue)
 	
 	var announceTimer:TTimer
@@ -113,8 +110,6 @@ public class InteractiveProcess:Hashable {
 	*/
     private let internalSync:DispatchQueue
     private let internalAsync:DispatchQueue
-
-    private var signalUp:Bool = false
     
 	public enum InteractiveProcessState:UInt8 {
 		case initialized

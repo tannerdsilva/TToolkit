@@ -1,29 +1,28 @@
-import Dispatch
 import Foundation
-
-#if canImport(Darwin)
-	import Darwin
-	internal let _read = Darwin.read(_:_:_:)
-	internal let _write = Darwin.write(_:_:_:)
-	internal let _close = Darwin.close(_:)
-	internal let o_cloexec = Darwin.O_CLOEXEC
-	internal let _pipe = Darwin.pipe(_:)
-#elseif canImport(Glibc)
-	import Glibc
-	internal let _read = Glibc.read(_:_:_:)
-	internal let _write = Glibc.write(_:_:_:)
-	internal let _close = Glibc.close(_:)
-	internal let o_cloexec = Glibc.O_CLOEXEC
-	internal let _pipe = Glibc.pipe(_:)
-#endif
 
 internal typealias ReadHandler = (Data) -> Void
 internal typealias WriteHandler = () -> Void
 
+/*
+	IODescriptor
+	==============================================
+	file descriptors are represented as Int32 on Darwin and Linux. IODescriptor is a protocol that defines the file descriptor value as a protocol, so that it can be extended for convenient functionality
+*/
 internal protocol IODescriptor {
     var _fd:Int32 { get }
 }
-
+extension Int32:IODescriptor {
+    var _fd:Int32 {
+        get {
+            return self
+        }
+    }
+    var fileDescriptor: Int32 {
+        get {
+            return self
+        }
+    }
+}
 extension IODescriptor {
     func availableData() -> Data? {
         var statbuf = stat()
@@ -60,25 +59,33 @@ extension IODescriptor {
     }
 }
 
+/*
+	IOPipe
+	========================
+	IOPipe is a protocol representation of posix pipes.
+	Posix pipes are a set of file descriptors that are created as unique pairs. Data written to the writing end of the pipe is readable in the reading end of the pipe.
+	Posix pipes are the primary means of transporting data from external processes back to the spawning process.
+*/
 internal protocol IOPipe {
     var reading:IODescriptor { get }
     var writing:IODescriptor { get }
 }
 
-extension Int32:IODescriptor {
-    var _fd:Int32 {
-        get {
-            return self
-        }
-    }
-    var fileDescriptor: Int32 {
-        get {
-            return self
-        }
-    }
-}
 
+/*
+	PipeReader
+	=================================
+	This is an internal class that is responsible for IO globally across all running shell commands.
+	PipeReader will buffer the incoming data, break it into lines, and flush these lines out to the user-accessable instances for downstream consumption
+*/
 internal class PipeReader {
+
+	/*
+		HandleState
+		====================================================
+		For every file handle that the PipeReader needs to read, a HandleState class is created to assist in buffering, parsing, and delivering the data downstream to the consumer
+		PipeReader feeds data to the appropriate HandleState as soon as it becomes available.
+	*/
     private class HandleState {
         let handle:Int32
         let source:DispatchSourceProtocol
@@ -199,7 +206,6 @@ internal class PipeReader {
         let newHandleState = PipeReader.HandleState(handle:handle, callback: queue, handler:handler, source: newSource, capture: intakeQueue)
         newSource.setEventHandler(handler: { [handle, newHandleState] in
             handle.availableDataLoop({ [newHandleState] (someData) in
-//                print(Colors.dim(" \(handle) -> \(someData?.count) bytes"))
                 if let validateData = someData {
                     newHandleState.intakeData(validateData)
                 }
@@ -207,10 +213,11 @@ internal class PipeReader {
         })
         accessModify({
             self.handles[handle] = newHandleState
-            print(Colors.green("SUCCESSFULLY INSERTED WITH BARRIER \(handle)"))
             newSource.activate()
         })
     }
+    
+    
 }
 internal let globalPR = PipeReader()
 
