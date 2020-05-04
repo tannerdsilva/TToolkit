@@ -37,8 +37,10 @@ extension IODescriptor {
         let readBlockSize:Int
         if statbuf.st_mode & S_IFMT == S_IFREG && statbuf.st_blksize > 0 {
             readBlockSize = Int(clamping:statbuf.st_blksize)
+            print("CLAMPED")
         } else {
             readBlockSize = SSIZE_MAX
+            print("MAX")
         }
     	print("assigned a reading block size of \(readBlockSize)")
         guard var dynamicBuffer = malloc(readBlockSize + 1) else {
