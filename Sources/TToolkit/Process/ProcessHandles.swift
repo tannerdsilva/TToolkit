@@ -131,8 +131,6 @@ internal struct ExportedPipe:Hashable {
             case 0:
                 let readFD = fds.pointee
                 let writeFD = fds.successor().pointee
-                print(Colors.magenta("created for reading: \(readFD)"))
-                print(Colors.Magenta("created for writing: \(writeFD)"))
                 return ExportedPipe(r:readFD, w:writeFD)
             default:
                 throw pipe_errors.unableToCreatePipes
@@ -221,10 +219,7 @@ internal class ProcessPipes {
 			internalSync.sync {
 				if let hasNewHandler = newValue {
 					_readHandler = hasNewHandler
-					globalPR.scheduleForReading(reading, work:{ [weak self] someData in
-                        guard let self = self else {
-                            return
-                        }
+					globalPR.scheduleForReading(reading, work:{ someData in
                         self.intake(someData)
                     }, queue:_readQueue)
 				} else {
@@ -282,10 +277,7 @@ internal class ProcessPipes {
     private func _scheduleReadFlush() {
 		_readGroup?.enter()
         _pendingReadFlush = true
-        let asyncFlushItem = DispatchWorkItem(flags:[.inheritQoS]) { [weak self] in
-            guard let self = self else {
-                return
-            }
+        let asyncFlushItem = DispatchWorkItem(flags:[.inheritQoS]) {
             self.flushRead()
         }
         _readQueue?.async(execute:asyncFlushItem)
