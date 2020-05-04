@@ -58,7 +58,7 @@ extension IODescriptor {
             print(Colors.Red("Data loop ended"))
         }
         var tempBuff = Data()
-        while let curData = self.availableData() {
+        while let curData = self.availableData(), curData.count > 0 {
             tempBuff.append(curData)
         }
         if tempBuff.count > 0 {
@@ -99,9 +99,7 @@ internal class PipeReader {
         internalSync.sync { [work, handle, queue] in
             let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:Priority.highest.globalConcurrentQueue)
             newSource.setEventHandler { [handle, queue, work] in
-                print("EH")
-                if let newData = handle.availableDataLoop() {
-                    print("NDA")
+                if let newData = handle.availableData() {
                     queue.async { work(newData) }
                 }
             }
