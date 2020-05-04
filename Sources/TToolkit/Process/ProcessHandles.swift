@@ -102,9 +102,10 @@ internal class PipeReader {
                 queue.sync { work(newData) }
             }
         }
-        internalSync.sync {
-            handleQueue[handle] = newSource
-            newSource.activate()
+        newSource.activate()
+        internalSync.async { [newSource, handle] in
+            print(Colors.Green("OK HANDLE SCHEDULED \(handle)"))
+            self.handleQueue[handle] = newSource
         }
     }
     func unschedule(_ handle:Int32) {
