@@ -58,9 +58,15 @@ extension IODescriptor {
             print(Colors.Red("Data loop ended"))
         }
         var tempBuff = Data()
+        var i = 0
         while let curData = self.availableData(), curData.count > 0 {
+        	i += 1
             tempBuff.append(curData)
         }
+        if i > 1 {
+        	print(Colors.bgWhite("Data loop itterated \(i) times"))
+        }
+        
         if tempBuff.count > 0 {
             return tempBuff
         } else {
@@ -98,7 +104,7 @@ internal class PipeReader {
     func scheduleForReading(_ handle:Int32, work:@escaping(ReadHandler), queue:DispatchQueue) {
         let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:queue)
         newSource.setEventHandler { [handle, queue, work] in
-            if let newData = handle.availableData() {
+            if let newData = handle.availableDataLoop() {
                 work(newData)
             }
         }
