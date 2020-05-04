@@ -52,6 +52,22 @@ extension IODescriptor {
         let bytesBound = dynamicBuffer.bindMemory(to:UInt8.self, capacity:amountRead)
         return Data(bytes:bytesBound, count:amountRead)
     }
+    
+    func availableDataLoop() -> Data? {
+        defer {
+            print(Colors.Red("Data loop ended"))
+        }
+        var tempBuff = Data()
+        while let curData = self.availableData() {
+            tempBuff.append(curData)
+        }
+        if tempBuff.count > 0 {
+            return tempBuff
+        } else {
+            return nil
+        }
+        
+    }
 }
 
 internal protocol IOPipe {
@@ -72,97 +88,34 @@ extension Int32:IODescriptor {
     }
 }
 
-
-
 internal class PipeReader {
-    private class HandleState {
-        let handle:Int32
-        let source:DispatchSourceProtocol
-        private let internalSync:DispatchQueue
-        private var buffer = Data()
-
-        init(handle:Int32, source:DispatchSourceProtocol) {
-            self.handle = handle
-            internalSync = DispatchQueue(label:"com.tannersilva.instance.pipe.read.internal.sync")
-            self.source = source
-        }
-        
-        func intake(_ data:Data?) -> [Data]? {
-            guard let newData = data, newData.count > 0 else {
-                return nil
-            }
-            internalSync.async { [newData] in
-                self.buffer.append(newData)
-            }
-            let hasNewLine = newData.withUnsafeBytes({ unsafeByteBuff -> Bool in
-                if unsafeByteBuff.contains(where: { $0 == 10 || $0 == 13 }) {
-                    return true
-                }
-                return false
-            })
-            if hasNewLine {
-                return self.extractLines()
-            } else {
-                return nil
-            }
-        }
-        
-        internal func extractLines() -> [Data]? {
-            return internalSync.sync {
-                let parseResult = buffer.lineSlice(removeBOM:false, completeLinesOnly:true)
-                buffer.removeAll(keepingCapacity: true)
-                if parseResult.remain != nil && parseResult.remain!.count > 0 {
-                    buffer.append(parseResult.remain!)
-                }
-                return parseResult.lines
-            }
-        }
-    }
+    let internalSync:DispatchQueue
+    var handleQueue:[ProcessHandle:DispatchSourceProtocol]
     
-    var accessQueue:DispatchQueue
-    private var handles = [Int32:PipeReader.HandleState]()
-    private func access<R>(_ handle:Int32, _ work:(PipeReader.HandleState) throws -> R) rethrows -> R {
-        return try accessQueue.sync {
-            return try { [bufState = self.handles[handle]!] in
-                try work(bufState)
-            }()
-        }
+    init() {
+        self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process-pipe.reader.sync")
+        self.handleQueue = [ProcessHandle:DispatchSourceProtocol]()
     }
-    private func accessAsssign(_ handle:Int32, _ work:@autoclosure() throws -> PipeReader.HandleState) rethrows {
-        return try accessQueue.sync(flags:[.barrier]) { [work] in
-            return try self.handles[handle] = work()
-        }
-    }
-	
-	init() {
-        self.accessQueue = DispatchQueue(label:"com.tannersilva.global.pipe.handle.access.sync", attributes:[.concurrent])
-	}
-    
-    internal func readHandle(_ handle:Int32) -> [Data]? {
-        var dataBuild = Data()
-        while let curNewData = handle.availableData() {
-            dataBuild.append(curNewData)
-        }
-        let newLines = access(handle) { [dataBuild] handleState in
-            return handleState.intake(dataBuild)
-        }
-        return newLines
-	}
-	
-	func scheduleForReading(_ handle:Int32, queue:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
-        let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:global_pipe_read)
-        let newHandle = HandleState(handle:handle, source: newSource)
-        accessAsssign(handle, newHandle)
-        newSource.setEventHandler(handler: { [handle, handler, queue] in
-            if let newLines = self.readHandle(handle) {
-                queue.async { [newLines, handler] in
-                    for (_, curLine) in newLines.enumerated() {
-                        handler(curLine)
-                    }
-                }
+    func scheduleForReading(_ handle:ProcessHandle, work:@escaping(ReadHandler), queue:DispatchQueue) {
+        let inFD = handle.fileDescriptor
+        let newSource = DispatchSource.makeReadSource(fileDescriptor:inFD, queue:Priority.highest.globalConcurrentQueue)
+        newSource.setEventHandler { [handle, queue, work] in
+            if let newData = handle.availableDataLoop() {
+                queue.sync { work(newData) }
             }
-        })
-        newSource.activate()
+        }
+        internalSync.sync {
+            handleQueue[handle] = newSource
+            newSource.activate()
+        }
+    }
+    func unschedule(_ handle:ProcessHandle) {
+        internalSync.sync {
+            if let hasExisting = handleQueue[handle] {
+                hasExisting.cancel()
+                handleQueue[handle] = nil
+            }
+        }
     }
 }
 internal let globalPR = PipeReader()
