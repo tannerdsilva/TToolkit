@@ -97,96 +97,67 @@ extension Int32:IODescriptor {
 internal class PipeReader {
     private class HandleState {
         let handle:Int32
-        let executeGroup = DispatchGroup()
-        
         let source:DispatchSourceProtocol
         
-        let captureQueue:DispatchQueue
-        
         private let callbackQueue:DispatchQueue
+        
         private let internalSync:DispatchQueue
+        
+        //pending new lines
         private var _pnl:Bool = false
         var pendingNewLines:Bool {
             get {
-                return internalSync.sync {
-                    return _pnl
+                return _pnl
+            }
+            set {
+                if _pnl == false && newValue == true {
+                    _pnl = true
+                    scheduleLineCallback()
+                } else if _pnl == true && newValue == false {
+                    _pnl = false
                 }
             }
         }
         
         private var buffer = Data()
-        private let bufferSync:DispatchQueue
         
         private var handler:InteractiveProcess.OutputHandler
         
-        init(handle:Int32, syncMaster:DispatchQueue, callback:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler), source:DispatchSourceProtocol, capture:DispatchQueue) {
+        init(handle:Int32, callback:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler), source:DispatchSourceProtocol, capture:DispatchQueue) {
             self.handle = handle
-            internalSync = DispatchQueue(label:"com.tannersilva.instance.pipe.read.internal.sync", target:syncMaster)
-        	bufferSync = DispatchQueue(label:"com.tannersilva.instance.pipe.read.buffer.sync", target:syncMaster)
+            internalSync = DispatchQueue(label:"com.tannersilva.instance.pipe.read.internal.sync")
             callbackQueue = DispatchQueue(label:"com.tannersilva.instance.pipe.read.callback-target.serial", target:callback)
             self.handler = handler
             self.source = source
-            self.captureQueue = capture
         }
         
-        func capture() {
-            executeGroup.enter()
-            print(Colors.white("capture scheduled"))
-            self.captureQueue.async { [eg = executeGroup, weak globalPR, hanCap = handle] in
-                defer {
-                    eg.leave()
-                }
-                let hasData = hanCap.availableData()
-                print(Colors.dim("capture running \(hanCap) - \(hasData?.count)"))
-                if hasData != nil && hasData!.count > 0 {
-                    globalPR!.access(hanCap) { handlerState in
-                        print(Colors.bgCyan("ACCESS DATA CALLED"))
-                        handlerState.intake(hasData)
-                    }
-                }
-            }
-        }
         
-        internal func _intake(_ data:Data) -> Bool {
-        	return bufferSync.sync {
+        internal func intakeData(_ data:Data) {
+            internalSync.sync {
                 buffer.append(data)
-                return data.withUnsafeBytes({ unsafeBuffer in
-                    if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
-                        return internalSync.sync {
-                            defer { _pnl = true }
-                            if _pnl == false {
-                                return true
-                            }
-                            return true
-                        }
+                data.withUnsafeBytes({ unsafeBuffer in
+                    if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) && pendingNewLines == false {
+                        pendingNewLines = true
                     }
-                    return false
                 })
         	}
         }
         
-        func intake(_ data:Data?) {
-            if data != nil && data!.count > 0 && _intake(data!) {
-                callbackQueue.async(flags:[.inheritQoS]) { [extractLines, handlerToCall = self.handler] in
-                    let lineExtract = extractLines()
-                    if lineExtract != nil {
-                        for (_, curLine) in lineExtract!.enumerated() {
-                            handlerToCall(curLine)
-                        }
+        func scheduleLineCallback() {
+            callbackQueue.async {
+                self.internalSync.async {
+                    self.pendingNewLines = false
+                }
+                if let linesToCallback = self.extractLines() {
+                    for (_, curLine) in linesToCallback.enumerated() {
+                        self.handler(curLine)
                     }
                 }
             }
         }
+
         func extractLines() -> [Data]? {
-            executeGroup.enter()
-            internalSync.async { [weak self, executeGroup] in
-                defer {
-                    executeGroup.leave()
-                }
-                self!._pnl = false
-            }
-            
-        	return bufferSync.sync {
+        	return internalSync.sync {
         		let parseResult = buffer.lineSlice(removeBOM:false, completeLinesOnly:true)
                 buffer.removeAll(keepingCapacity: true)
                 if parseResult.remain != nil && parseResult.remain!.count > 0 {
@@ -236,24 +207,19 @@ internal class PipeReader {
         self.accessSync = DispatchQueue(label:"com.tannersilva.global.pipe.handle.access.sync", attributes:[.concurrent], target:self.master)
 	}
     
-	internal func readHandle(_ handle:Int32) {
-        access(handle) { [availData = handle.availableData()] handleState in
-            handleState.intake(availData)
-        }
-	}
 	
     let launchSem = DispatchSemaphore(value:1)
 	func scheduleForReading(_ handle:Int32, queue:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
         let intakeQueue = DispatchQueue(label:"com.tannersilva.instance.pipe.handle.read.capture", target:global_pipe_read)
         let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:global_pipe_read)
-        newSource.setEventHandler(handler: { [handle, weak globalPR] in
-            print("attempting to capture")
-            globalPR!.access(handle) { (someState) in
-                someState.capture()
+        let newHandleState = PipeReader.HandleState(handle:handle, callback: queue, handler:handler, source: newSource, capture: intakeQueue)
+        newSource.setEventHandler(handler: { [handle, newHandleState] in
+            if let newData = handle.availableDataLoop() {
+                newHandleState.intakeData(newData)
             }
         })
         accessModify({
-            self.handles[handle] = PipeReader.HandleState(handle:handle, syncMaster:instanceMaster, callback: queue, handler:handler, source: newSource, capture: intakeQueue)
+            self.handles[handle] = newHandleState
             print(Colors.green("SUCCESSFULLY INSERTED WITH BARRIER \(handle)"))
             newSource.activate()
         })
@@ -283,7 +249,7 @@ internal struct ExportedPipe:Hashable {
             case 0:
                 let readFD = fds.pointee
                 let writeFD = fds.successor().pointee
-				fcntl(readFD, F_SETFL, O_NONBLOCK)
+//				fcntl(readFD, F_SETFL, O_NONBLOCK)
                 print(Colors.magenta("created for reading [NONBLOCK]: \(readFD)"))
                 print(Colors.magenta("created for writing: \(writeFD)"))
                 return ExportedPipe(r:readFD, w:writeFD)
