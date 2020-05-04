@@ -26,21 +26,16 @@ internal protocol IODescriptor {
 
 extension IODescriptor {
     func availableData() -> Data? {
-        print("attempting to read data")
         var statbuf = stat()
-		print("stat created")
         if fstat(_fd, &statbuf) < 0 {
             return nil
         }
-		print("stat assigned")
     
         let readBlockSize:Int
         if statbuf.st_mode & S_IFMT == S_IFREG && statbuf.st_blksize > 0 {
             readBlockSize = Int(clamping:statbuf.st_blksize)
-            print("CLAMPED")
         } else {
-            readBlockSize = SSIZE_MAX
-            print("MAX")
+            readBlockSize = 10240
         }
     	print("assigned a reading block size of \(readBlockSize)")
         guard var dynamicBuffer = malloc(readBlockSize + 1) else {
@@ -49,11 +44,9 @@ extension IODescriptor {
         defer {
             free(dynamicBuffer)
         }
-        print("buffer initialized")
     
         let amountRead = read(_fd, dynamicBuffer, readBlockSize)
         guard amountRead > 0 else {
-        	print("nothign read")
             return nil
         }
         let bytesBound = dynamicBuffer.bindMemory(to:UInt8.self, capacity:amountRead)
