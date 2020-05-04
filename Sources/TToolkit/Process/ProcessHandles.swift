@@ -99,9 +99,10 @@ internal class PipeReader {
         internalSync.sync { [work, handle, queue] in
             let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:Priority.highest.globalConcurrentQueue)
             newSource.setEventHandler { [handle, queue, work] in
-                print("EH") 
+                print("EH")
                 if let newData = handle.availableDataLoop() {
-                    queue.sync { work(newData) }
+                    print("NDA")
+                    queue.async { work(newData) }
                 }
             }
             newSource.activate()
