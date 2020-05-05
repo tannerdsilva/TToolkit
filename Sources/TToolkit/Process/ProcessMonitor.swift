@@ -94,10 +94,10 @@ internal class ProcessMonitor {
                     var enumerator = closeHandles.makeIterator()
                     while let curHandle = enumerator.next() {
                         _ = _close(curHandle)
+                        globalPR.unschedule(curHandle)
                     }
                 }
                 needsClose[mon] = nil
-                
             }
         }
 	}

@@ -204,8 +204,9 @@ internal class PipeReader {
     }
     
     func unschedule(_ handle:Int32) {
-        accessSync.sync(flags:[.barrier]) { [self, handle] in
+        accessSync.async(flags:[.barrier]) { [self, handle] in
             self.handles[handle]?.flushAll({ [self, handle] in
+                print("\(handle) was flushed")
                 self.asyncRemove(handle)
             })
         }
@@ -224,8 +225,9 @@ internal struct ExportedPipe:Hashable {
     internal static func nullPipe() throws -> ExportedPipe {
         let read = open("/dev/null", O_RDWR)
         let write = open("/dev/null", O_WRONLY)
+        fcntl(read, F_SETFL, O_NONBLOCK)
+        fcntl(write, F_SETFL, O_NONBLOCK)
         guard read != -1 && write != -1 else {
-        	print("ERROR CREATING THE NULL PIPES")
             throw pipe_errors.unableToCreatePipes
         }
         return ExportedPipe(r:read, w:write)
