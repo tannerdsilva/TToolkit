@@ -9,7 +9,7 @@ Import this into your Swift package with the following dependency declaration
 # What does TToolkit do?
 
 ## 🔥 SwiftSlash 🔥
-###\ High-Performance Concurrent Shell Framework
+### High-Performance Concurrent Shell Framework
 
 **Concurrent shell functionality in TToolkit will soon be forked as an independent framework - to be named SwiftSlash. In its current form [this repository], SwiftSlash represents a robust functional core but a minimal external API.**
 
