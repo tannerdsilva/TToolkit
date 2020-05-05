@@ -8,11 +8,35 @@ Import this into your Swift package with the following dependency declaration
 
 # What does TToolkit do?
 
+# 🔥 High-Performance Concurrent Shell Framework 🔥
+
+**Concurrent shell functionality in TToolkit will soon be forked as an independent framework - to be named SwiftSlash. In its current form [this repository], SwiftSlash represents a robust functional core but a minimal external API.**
+
+TToolkit's class `InteractiveProcess` was born from a need for interface with large sets of executing processes with complete concurrency and safety. Furthermore, `InteractiveProcess` was built with an uncompromising desire for time efficiency.
+
+Foundation framework offers classes that theoretically deliver shell-like functionality, however, in practice, these classes do not hold together well under intense, prolonged workloads. From this unfortunate discovery came the need to reimplement Foundation frameworks `Process`, `Pipe` and `FileHandle` classes from scratch to achieve a more robust shell/process framework - one that can operate in an time-sensitive, concurrent environment.
+
+When comparing TToolkits `InteractiveProcess` with Foundation's `Process` class (used by the popular *SwiftShell* framework), the performance improvements of `InteractiveProcess` speak for themselves.
+
+- `Process` class will leak memory as many class instances are created. This means that `Process` classes can not be treated as transactional objects, despite *transactional use* being the encouraged usage. `InteractiveProcess` instances need an **order of magnitude** less memory, and do not leak their contents after use. `InteractiveProcess` classes are transactional by nature, and the internal resource management reflects this pattern.
+
+- `InteractiveProcess` is completely safe to use concurrently and asynchronously, unlike `Process` class, which takes neither of these features into consideration. By allowing many external processes to be run simultaneously 
+
+- `InteractiveProcess` can initialize and launch a process over 10x faster than Foundation's `Process` class. Similar performance improvements are seen in reading data from the `stdin`, `stdout`, and `stderr` streams. The results of these performance improvements means that more instances of `InteractiveProcess` can execute 
+
+- `InteractiveProcess` has the necessary infrastructure to ensure secure execution. `Process` class has many security vulnerabilities, including file handle sharing with the executing process and improper  
+
+- `InteractiveProcess` **can scale to massive workloads without consuming equally massive resources**. 
+
+By executing shell commands concurrently rather than serially, one could see speedup multiples of *up to* 250x - *workload dependent*
+
+The functional core of SwiftSlash can be found at the following path `./Sources/TToolkit/SwiftSlash`
+
 ## Asynchronous Utilities
 
 ### Explosions! :D
 
-Explosions allow for *very* high performance, multithreaded collection remapping. Just as a standard `map` function will transform a collection with a single thread, `explode` will do the same with multiple concurrent worker threads.
+Explosions allow for *very* high performance concurrent collection remapping. Just as a standard `map` function will transform a collection with a single thread, `explode` will do the same with multiple concurrent worker threads.
 
 Explosions are also useful for expanding large sets of data quickly. For example, a collection of URL's might be exploded to allow for multiple URL's to be fetched asyncronously.
 
@@ -55,19 +79,6 @@ manyImages.explode(using: { (n, curImageURL) -> Data in
 
 `TTimer` allows for precise control of code execution in relation to time. `TTimer` can be (optionally) recurring, delayed, and anchored to precise moments in system time.
 
-## InteractiveProcess
-
-`InteractiveProcess` was born from a need for interface with external processes with complete asyncronicity and thread safety. Furthermore, `InteractiveProcess` was built with an uncompromising desire for performance.
-
-Foundation framework offers classes that theoretically deliver this functionality, however, in practice, these classes do not hold together well under intense enterprise-level workloads. From this unfortunate discovery came the need to reimplement Foundation frameworks `Process`, `Pipe` and `FileHandle` classes from scratch to achieve a more robust shell/process framework.
-
-When comparing TToolkits `InteractiveProcess` with Foundation's `Process` class, the performance improvements of `InteractiveProcess` speak for themselves.
-
-- `Process` class will leak memory as many class instances are created. `InteractiveProcess` instances need an order of magnitude less memory, and do not leak their contents after use.
-
-- `InteractiveProcess` is completely thread safe. `Process` is not completely thread safe. It will fail (roughly 15% of the time) via illegal instruction when multiple instances are running at the same time.
-
-- `InteractiveProcess` can initialize and launch a process over 10x faster than Foundation's `Process` class. Similar performance improvements are seen in reading data from the `stdin`, `stdout`, and `stderr` streams.
 
 ## Data Manipulation
 ### High Performance Line Parsing
