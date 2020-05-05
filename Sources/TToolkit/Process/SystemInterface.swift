@@ -110,7 +110,7 @@ let launchSem =  DispatchSemaphore(value:1)
 internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdout:(InteractiveProcess.OutputHandler)?, stderr:(InteractiveProcess.OutputHandler)?, reading:DispatchQueue?, writing:DispatchQueue?) throws -> tt_proc_signature {
     var err_export:ExportedPipe? = nil
     var out_export:ExportedPipe? = nil
-    
+	launchSem.wait()
     if stderr != nil, reading != nil {
         err_export = try ExportedPipe.rw()
     }
@@ -125,6 +125,7 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
 		if out_export != nil {
 			globalPR.scheduleForReading(out_export!.reading, queue: reading!, handler: stdout!)
 		}
+		launchSem.signal()
 	}
     let reutnVal = try path.path.withCString({ executablePathPointer -> tt_proc_signature in
         var argBuild = [path.path]

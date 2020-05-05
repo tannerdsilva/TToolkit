@@ -84,7 +84,6 @@ internal class ProcessMonitor {
     }
 
     fileprivate func processLaunched(mon:pid_t, work:pid_t, time:Date) {
-    	launchSem.signal()
         print("process monitor confirmed launch of monitor \(mon) and process \(work) at \(time)")
 	}
 

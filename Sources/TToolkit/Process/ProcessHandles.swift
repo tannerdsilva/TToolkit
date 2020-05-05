@@ -128,7 +128,7 @@ internal class PipeReader {
         
         
         internal func intakeData(_ data:Data) {
-            internalSync.async {
+            internalSync.sync {
                 self.buffer.append(data)
                 data.withUnsafeBytes({ unsafeBuffer in
                     if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) && self.pendingNewLines == false {
