@@ -91,8 +91,8 @@ internal class ProcessMonitor {
         internalSync.sync {
             if let closeHandles = needsClose[mon] {
                 for (_, curHandle) in closeHandles.enumerated() {
-                    globalPR.unschedule(curHandle, { in
-                        file_handle_guard.async { in
+                    globalPR.unschedule(curHandle, {
+                        file_handle_guard.async {
 							_ = _close(curHandle)
                         }
                     })
