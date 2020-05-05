@@ -155,6 +155,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
     //used internally for this function to determine when the forked process has successfully initialized
     let internalNotify = try ExportedPipe.rw()
     
+
     let forkResult = fork()
     
     func executeProcessWork() {
@@ -172,35 +173,48 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
 		_exit(-1)
 	}
 	
-    func processMonitor() -> Never {
+    func processMonitor() throws -> Never {
         let launchWriter = ProcessHandle(fd:internalNotify.writing)
         _close(internalNotify.reading)
-        
-        if let hasStdout = stdout {
-            let dupVal = _dup2(hasStdout.writing, STDOUT_FILENO)
-            guard dupVal >= 0 else {
+        do {
+            //assign stdout to the writing end of the file descriptor
+            let hasStdout:ExportedPipe
+            if stdout == nil {
+                hasStdout = try ExportedPipe.nullPipe()
+            } else {
+                hasStdout = stdout!
+            }
+            guard _dup2(hasStdout.writing, STDOUT_FILENO) >= 0 else {
                 notifyFatal(launchWriter)
             }
             _ = _close(hasStdout.writing)
             _ = _close(hasStdout.reading)
-        }
-        
-        if let hasStderr = stderr {
-            let dupVal = _dup2(hasStderr.writing, STDERR_FILENO)
-            guard dupVal >= 0 else {
+            
+            //assign stderr to the writing end of the file descriptor
+            let hasStderr:ExportedPipe
+            if stderr == nil {
+                hasStdout = try ExportedPipe.nullPipe()
+            } else {
+                hasStderr = stderr!
+            }
+            guard _dup2(hasStderr.writing, STDERR_FILENO) >= 0 else {
                 notifyFatal(launchWriter)
             }
             _ = _close(hasStderr.writing)
             _ = _close(hasStderr.reading)
-        }
 
-        if let hasStdin = stdin {
-            let dupVal = _dup2(hasStdin.reading, STDIN_FILENO)
-            guard dupVal >= 0 else {
+            //assign stdin to the writing end of the file descriptor
+            let hasStdin:ExportedPipe
+            if stdin == nil {
+                hasStdin = try ExportedPipe.nullPipe()
+            }
+            guard _dup2(hasStdin.reading, STDIN_FILENO) >= 0 else {
                 notifyFatal(launchWriter)
             }
             _ = _close(hasStdin.writing)
             _ = _close(hasStdin.reading)
+        } catch _ {
+            notifyFatal(launchWriter)
         }
         
         //access checks
@@ -261,7 +275,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
             throw tt_spawn_error.systemForkErrorno(errno)
         case 0:
             //in child: success
-            processMonitor()
+            try processMonitor()
         
         default:
             //in parent, success

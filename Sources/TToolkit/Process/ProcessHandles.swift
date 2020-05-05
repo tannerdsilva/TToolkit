@@ -221,6 +221,15 @@ internal struct ExportedPipe:Hashable {
     let reading:Int32
     let writing:Int32
     
+    internal static func nullPipe() throws -> ExportedPipe {
+        let read = open("/dev/null", O_RDWR)
+        let write = open("/dev/null", O_WRONLY)
+        guard read != -1 && write != -1 else {
+            throw pipe_errors.unableToCreatePipes
+        }
+        return ExportedPipe(r:read, w:write)
+    }
+    
     internal static func rw() throws -> ExportedPipe {
         let fds = UnsafeMutablePointer<Int32>.allocate(capacity:2)
         defer {
