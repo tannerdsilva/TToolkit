@@ -354,13 +354,7 @@ internal class ProcessHandle:Hashable, IODescriptor {
 	
 	fileprivate func write(buf:UnsafeRawPointer, length:Int) throws {
 		var bytesRemaining = length
-		while bytesRemaining > 0 {
-			var bytesWritten = 0
-			repeat {
-				bytesWritten = _write(_fd, buf.advanced(by:length - bytesRemaining), bytesRemaining)
-			} while (bytesWritten < 0 && errno == EINTR)
-			bytesRemaining -= bytesWritten
-		}
+		var bytesWritten = _write(_fd, buf.advanced(by:length - bytesRemaining), bytesRemaining)
 	}
     
 	func availableData() -> Data? {
