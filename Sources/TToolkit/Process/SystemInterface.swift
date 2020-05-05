@@ -107,7 +107,6 @@ internal struct tt_proc_signature:Hashable {
 }
 
 internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdin:Bool, stdout:(InteractiveProcess.OutputHandler)?, stderr:(InteractiveProcess.OutputHandler)?, reading:DispatchQueue?, writing:DispatchQueue?) throws -> tt_proc_signature {
-    print("OK CALLING TTSPAWN")
     var err_export:ExportedPipe? = nil
     var out_export:ExportedPipe? = nil
     var in_export:ExportedPipe? = nil

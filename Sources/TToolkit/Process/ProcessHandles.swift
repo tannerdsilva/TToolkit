@@ -95,6 +95,7 @@ internal class PipeReader {
         private let internalSync:DispatchQueue
         
         //pending new lines
+        private var _flushAll = false
         private var _pnl:Bool = false
         var pendingNewLines:Bool {
             get {
@@ -124,11 +125,11 @@ internal class PipeReader {
         
         
         internal func intakeData(_ data:Data) {
-            internalSync.sync {
-                buffer.append(data)
+            internalSync.async {
+                self.buffer.append(data)
                 data.withUnsafeBytes({ unsafeBuffer in
-                    if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) && pendingNewLines == false {
-                        pendingNewLines = true
+                    if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) && self.pendingNewLines == false {
+                        self.pendingNewLines = true
                     }
                 })
         	}
@@ -149,7 +150,7 @@ internal class PipeReader {
 
         func extractLines() -> [Data]? {
         	return internalSync.sync {
-        		let parseResult = buffer.lineSlice(removeBOM:false, completeLinesOnly:true)
+        		let parseResult = buffer.lineSlice(removeBOM:false, completeLinesOnly:!_flushAll)
                 buffer.removeAll(keepingCapacity: true)
                 if parseResult.remain != nil && parseResult.remain!.count > 0 {
                     buffer.append(parseResult.remain!)
@@ -157,49 +158,28 @@ internal class PipeReader {
                 return parseResult.lines
         	}
         }
-    }
-    
-    var flightGroup = DispatchGroup()
-    
-	var master:DispatchQueue
-	var internalSync:DispatchQueue
-    
-    var instanceMaster:DispatchQueue
-
-    var accessSync:DispatchQueue
-    private var handles = [Int32:PipeReader.HandleState]()
-    private func access(_ handle:Int32, _ work:(PipeReader.HandleState) -> Void) {
-        flightGroup.enter()
-        defer {
-            flightGroup.leave()
-        }
-        accessSync.sync {
-            return { [bufState = self.handles[handle]!] in
-                work(bufState)
-            }()
-        }
-    }
-    private func accessModify(_ work:() -> Void) {
-        flightGroup.enter()
-        defer {
-            flightGroup.leave()
-        }
-        accessSync.sync(flags:[.barrier]) {
-            work()
-        }
-    }
-	
-	init() {
-		self.master = DispatchQueue(label:"com.tannersilva.global.pipe.read.master", attributes:[.concurrent], target:process_master_queue)
-		self.internalSync = DispatchQueue(label:"com.tannersilva.global.pipe.read.sync", attributes:[.concurrent], target:self.master)
         
-        self.instanceMaster = DispatchQueue(label:"com.tannersilva.instance.pipe.read.master", attributes:[.concurrent], target:self.master)
+        func flushAll(_ terminatingAction:@escaping() -> Void) {
+            source.cancel()
+            internalSync.sync {
+                _flushAll = true
+                if pendingNewLines == false {
+                    pendingNewLines = true
+                }
+                callbackQueue.async {
+                    terminatingAction()
+                }
+            }
+        }
+    }
+    var accessSync:DispatchQueue
     
-        self.accessSync = DispatchQueue(label:"com.tannersilva.global.pipe.handle.access.sync", attributes:[.concurrent], target:self.master)
+    private var handles = [Int32:PipeReader.HandleState]()
+
+	init() {
+        self.accessSync = DispatchQueue(label:"com.tannersilva.global.pipe.handle.access.sync", attributes:[.concurrent], target:process_master_queue)
 	}
     
-	
-    let launchSem = DispatchSemaphore(value:1)
 	func scheduleForReading(_ handle:Int32, queue:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
         let intakeQueue = DispatchQueue(label:"com.tannersilva.instance.pipe.handle.read.capture", target:global_pipe_read)
         let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:global_pipe_read)
@@ -211,13 +191,25 @@ internal class PipeReader {
                 }
             })
         })
-        accessModify({
+        newSource.activate()
+        accessSync.sync(flags:[.barrier]) {
             self.handles[handle] = newHandleState
-            newSource.activate()
-        })
+        }
     }
     
+    fileprivate func asyncRemove(_ handle:Int32) {
+        accessSync.async(flags:[.barrier]) { [handle, self] in
+            self.handles[handle] = nil
+        }
+    }
     
+    func unschedule(_ handle:Int32) {
+        accessSync.sync(flags:[.barrier]) { [self, handle] in
+            self.handles[handle]?.flushAll({ [self, handle] in
+                self.asyncRemove(handle)
+            })
+        }
+    }
 }
 internal let globalPR = PipeReader()
 
@@ -244,6 +236,7 @@ internal struct ExportedPipe:Hashable {
                 let readFD = fds.pointee
                 let writeFD = fds.successor().pointee
 				fcntl(readFD, F_SETFL, O_NONBLOCK)
+                fcntl(writeFD, F_SETFL, O_NONBLOCK)
                 print(Colors.magenta("created for reading [NONBLOCK]: \(readFD)"))
                 print(Colors.magenta("created for writing: \(writeFD)"))
                 return ExportedPipe(r:readFD, w:writeFD)

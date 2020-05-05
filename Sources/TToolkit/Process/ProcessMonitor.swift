@@ -88,7 +88,6 @@ internal class ProcessMonitor {
 	}
 
 	fileprivate func processExited(mon:pid_t, work:pid_t, code:Int32) {
-		print("monitor \(mon) and its worker \(work) have exited")
         internalSync.sync {
             if let closeHandles = needsClose[mon] {
                 file_handle_guard.async { [closeHandles] in
@@ -98,6 +97,7 @@ internal class ProcessMonitor {
                     }
                 }
                 needsClose[mon] = nil
+                
             }
         }
 	}
