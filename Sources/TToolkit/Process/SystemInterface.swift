@@ -106,7 +106,7 @@ internal struct tt_proc_signature:Hashable {
     }
 }
 
-internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdin:Bool, stdout:(InteractiveProcess.OutputHandler)?, stderr:(InteractiveProcess.OutputHandler)?, reading:DispatchQueue?, writing:DispatchQueue?) throws -> tt_proc_signature {
+internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdout:(InteractiveProcess.OutputHandler)?, stderr:(InteractiveProcess.OutputHandler)?, reading:DispatchQueue?, writing:DispatchQueue?) throws -> tt_proc_signature {
     var err_export:ExportedPipe? = nil
     var out_export:ExportedPipe? = nil
     var in_export:ExportedPipe? = nil
@@ -118,8 +118,6 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
     if stdout != nil, reading != nil {
         out_export = try ExportedPipe.rw()
     }
-    
-    in_export = try ExportedPipe.rw()
 
     if err_export != nil {
         globalPR.scheduleForReading(err_export!.reading, queue:reading!, handler:stderr!)
@@ -133,7 +131,7 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
         argBuild.append(contentsOf:args)
         return try argBuild.with_spawn_ready_arguments({ argumentsToSpawn in
             return try wd.path.withCString({ workingDirectoryPath in
-                return try tt_spawn(path:executablePathPointer, args:argumentsToSpawn, wd:workingDirectoryPath, env:env, stdin:in_export, stdout:out_export, stderr:err_export)
+                return try tt_spawn(path:executablePathPointer, args:argumentsToSpawn, wd:workingDirectoryPath, env:env, stdin:nil, stdout:out_export, stderr:err_export)
             })
         })
     })
@@ -177,26 +175,39 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
         let launchWriter = ProcessHandle(fd:internalNotify.writing)
         _close(internalNotify.reading)
         do {
-            //assign stdout to the writing end of the file descriptor
-            var hasStdout:ExportedPipe
-            if stdout == nil {
-                hasStdout = try ExportedPipe.nullPipe()
-            } else {
-                hasStdout = stdout!
+            func bindingStdout() throws -> ExportedPipe {
+                if stdout == nil {
+                    return try ExportedPipe.nullPipe()
+                } else {
+                    return stdout!
+                }
             }
+            func bindingStderr() throws -> ExportedPipe {
+                if stderr == nil {
+                    return try ExportedPipe.nullPipe()
+                } else {
+                    return stdout!
+                }
+            }
+            func bindingStdin() throws -> ExportedPipe {
+                if stdin == nil {
+                    return try ExportedPipe.nullPipe()
+                } else {
+                    return stdout!
+                }
+            }
+
+            //assign stdout to the writing end of the file descriptor
+            var hasStdout:ExportedPipe = try bindingStdout()
             guard _dup2(hasStdout.writing, STDOUT_FILENO) >= 0 else {
                 notifyFatal(launchWriter)
             }
             _ = _close(hasStdout.writing)
             _ = _close(hasStdout.reading)
             
+            
             //assign stderr to the writing end of the file descriptor
-            var hasStderr:ExportedPipe
-            if stderr == nil {
-                hasStdout = try ExportedPipe.nullPipe()
-            } else {
-                hasStderr = stderr!
-            }
+            var hasStderr:ExportedPipe = try bindingStderr()
             guard _dup2(hasStderr.writing, STDERR_FILENO) >= 0 else {
                 notifyFatal(launchWriter)
             }
@@ -204,10 +215,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
             _ = _close(hasStderr.reading)
 
             //assign stdin to the writing end of the file descriptor
-            var hasStdin:ExportedPipe
-            if stdin == nil {
-                hasStdin = try ExportedPipe.nullPipe()
-            }
+            var hasStdin:ExportedPipe = try bindingStdin()
             guard _dup2(hasStdin.reading, STDIN_FILENO) >= 0 else {
                 notifyFatal(launchWriter)
             }
