@@ -178,7 +178,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
         _close(internalNotify.reading)
         do {
             //assign stdout to the writing end of the file descriptor
-            let hasStdout:ExportedPipe
+            var hasStdout:ExportedPipe
             if stdout == nil {
                 hasStdout = try ExportedPipe.nullPipe()
             } else {
@@ -191,7 +191,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
             _ = _close(hasStdout.reading)
             
             //assign stderr to the writing end of the file descriptor
-            let hasStderr:ExportedPipe
+            var hasStderr:ExportedPipe
             if stderr == nil {
                 hasStdout = try ExportedPipe.nullPipe()
             } else {
@@ -204,7 +204,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
             _ = _close(hasStderr.reading)
 
             //assign stdin to the writing end of the file descriptor
-            let hasStdin:ExportedPipe
+            var hasStdin:ExportedPipe
             if stdin == nil {
                 hasStdin = try ExportedPipe.nullPipe()
             }
