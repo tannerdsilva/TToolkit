@@ -197,7 +197,7 @@ internal class PipeReader {
             })
         })
         newSource.activate()
-        accessSync.sync(flags:[.barrier]) {
+        accessSync.async(flags:[.barrier]) { [newHandleState] in
             self.handles[handle] = newHandleState
         }
     }
