@@ -225,6 +225,7 @@ internal struct ExportedPipe:Hashable {
         let read = open("/dev/null", O_RDWR)
         let write = open("/dev/null", O_WRONLY)
         guard read != -1 && write != -1 else {
+        	print("ERROR CREATING THE NULL PIPES")
             throw pipe_errors.unableToCreatePipes
         }
         return ExportedPipe(r:read, w:write)
