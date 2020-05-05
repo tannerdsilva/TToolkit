@@ -186,14 +186,14 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
                 if stderr == nil {
                     return try ExportedPipe.nullPipe()
                 } else {
-                    return stdout!
+                    return stderr!
                 }
             }
             func bindingStdin() throws -> ExportedPipe {
                 if stdin == nil {
                     return try ExportedPipe.nullPipe()
                 } else {
-                    return stdout!
+                    return stdin!
                 }
             }
 
