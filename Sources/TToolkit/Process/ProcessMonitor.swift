@@ -26,7 +26,7 @@ internal class ProcessMonitor {
         let isync = DispatchQueue(label:"com.tannersilva.instance.process.monitor.sync", target:global_lock_queue)
         let dataIntake = DispatchQueue(label:"com.tannersilva.instance.process.monitor.events", target:process_master_queue)
         self.internalSync = isync
-        mainPipe = try ExportedPipe.rw(nonblock:false)
+        mainPipe = try ExportedPipe.rw(nonblock:true)
         globalPR.scheduleForReading(mainPipe.reading, queue: dataIntake, handler: { [weak self] someData in
             if let asString = String(data:someData, encoding: .utf8) {
                 self!.eventHandle(asString)
@@ -92,7 +92,7 @@ internal class ProcessMonitor {
             if let closeHandles = needsClose[mon] {
                 for (_, curHandle) in closeHandles.enumerated() {
                     globalPR.unschedule(curHandle, { [closeHandles] in
-                        file_handle_guard.async { [closeHandles] in
+                        file_handle_guard.sync { [closeHandles] in
                             var enumerator = closeHandles.makeIterator()
                             while let curHandle = enumerator.next() {
                                 _ = _close(curHandle)
