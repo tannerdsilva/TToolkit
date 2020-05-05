@@ -56,19 +56,11 @@ extension UnsafeBufferPointer {
 		guard let startIndex = baseAddress else {
 			return
 		}
-        print("GO?")
         let launchSem = DispatchSemaphore(value:ProcessInfo.processInfo.activeProcessorCount)
        Priority.high.globalConcurrentQueue.sync {
             DispatchQueue.concurrentPerform(iterations:count) { n in
-//               launchSem.wait()
-//               defer {
-//                   launchSem.signal()
-//               }
-                print("\(n) - \(count)")
-
                 try? thisFunction(n, startIndex.advanced(by:n).pointee)
            }
-	 print("fin?")
         }
 	}
 
@@ -84,10 +76,6 @@ extension UnsafeBufferPointer {
         Priority.high.globalConcurrentQueue.sync {
 
             DispatchQueue.concurrentPerform(iterations:count) { n in
-//               launchSem.wait()
-//               defer {
-//                   launchSem.signal()
-//               }
                 print("\(n) - \(count)")
 
                 if let returnedValue = try? thisFunction(n, startIndex.advanced(by:n).pointee) {
