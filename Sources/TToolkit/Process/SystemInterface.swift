@@ -108,7 +108,6 @@ internal struct tt_proc_signature:Hashable {
 
 let launchSem =  DispatchSemaphore(value:1)
 internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdout:(InteractiveProcess.OutputHandler)?, stderr:(InteractiveProcess.OutputHandler)?, reading:DispatchQueue?, writing:DispatchQueue?) throws -> tt_proc_signature {
-    launchSem.wait()
     var err_export:ExportedPipe? = nil
     var out_export:ExportedPipe? = nil
     
@@ -119,14 +118,14 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
     if stdout != nil, reading != nil {
         out_export = try ExportedPipe.rw()
     }
-//	defer {
-		if err_export != nil {
-			globalPR.scheduleForReading(err_export!.reading, queue:reading!, handler:stderr!)
-		}
-		if out_export != nil {
-			globalPR.scheduleForReading(out_export!.reading, queue: reading!, handler: stdout!)
-		}
-//	}
+    //defer?
+	if err_export != nil {
+		globalPR.scheduleForReading(err_export!.reading, queue:reading!, handler:stderr!)
+	}
+	if out_export != nil {
+		globalPR.scheduleForReading(out_export!.reading, queue: reading!, handler: stdout!)
+	}
+	launchSem.wait()
     let reutnVal = try path.path.withCString({ executablePathPointer -> tt_proc_signature in
         var argBuild = [path.path]
         argBuild.append(contentsOf:args)
