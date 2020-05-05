@@ -203,10 +203,10 @@ internal class PipeReader {
         }
     }
     
-    func unschedule(_ handle:Int32) {
-        accessSync.async(flags:[.barrier]) { [self, handle] in
-            self.handles[handle]?.flushAll({ [self, handle] in
-                print("\(handle) was flushed")
+    func unschedule(_ handle:Int32, _ closingWork:@escaping() -> Void) {
+        accessSync.sync(flags:[.barrier]) { [self, handle, closingWork] in
+            self.handles[handle]?.flushAll({ [self, handle, closingWork] in
+                closingWork()
                 self.asyncRemove(handle)
             })
         }
