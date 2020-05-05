@@ -1,10 +1,10 @@
 # TToolkit
 
-A library of convenience functions that use when developing applications in Swift on Linux.
+*tl;dr*: A library of low-level functions for developing *very* fast backend automations in Swift.
 
 Import this into your Swift package with the following dependency declaration
 
-`.package(url: "https://github.com/tannerdsilva/TToolkit.git", .branch("master"))`
+`.package(url: "https://github.com/tannerdsilva/TToolkit.git", .branch("swiftslash"))`
 
 # What does TToolkit do?
 
