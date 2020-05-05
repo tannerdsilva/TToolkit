@@ -90,6 +90,8 @@ internal class PipeReader {
         let handle:Int32
         let source:DispatchSourceProtocol
         
+        private let captureQueue:DispatchQueue
+        
         private let callbackQueue:DispatchQueue
         
         private let internalSync:DispatchQueue
@@ -117,6 +119,7 @@ internal class PipeReader {
         
         init(handle:Int32, callback:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler), source:DispatchSourceProtocol, capture:DispatchQueue) {
             self.handle = handle
+            self.captureQueue = capture
             internalSync = DispatchQueue(label:"com.tannersilva.instance.pipe.read.internal.sync")
             callbackQueue = DispatchQueue(label:"com.tannersilva.instance.pipe.read.callback-target.serial", target:callback)
             self.handler = handler
@@ -165,9 +168,11 @@ internal class PipeReader {
                 if pendingNewLines == false {
                     pendingNewLines = true
                 }
-                callbackQueue.async {
-                    terminatingAction()
-					self.source.cancel()
+                self.captureQueue.async {
+                	self.callbackQueue.async {
+						terminatingAction()
+						self.source.cancel()
+					}
                 }
             }
         }
@@ -204,7 +209,7 @@ internal class PipeReader {
     }
     
     func unschedule(_ handle:Int32, _ closingWork:@escaping() -> Void) {
-        accessSync.sync(flags:[.barrier]) { [self, handle, closingWork] in
+        accessSync.async(flags:[.barrier]) { [self, handle, closingWork] in
             self.handles[handle]?.flushAll({ [self, handle, closingWork] in
                 closingWork()
                 self.asyncRemove(handle)
