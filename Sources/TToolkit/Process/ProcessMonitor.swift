@@ -26,7 +26,7 @@ internal class ProcessMonitor {
         let isync = DispatchQueue(label:"com.tannersilva.instance.process.monitor.sync", target:global_lock_queue)
         let dataIntake = DispatchQueue(label:"com.tannersilva.instance.process.monitor.events", target:process_master_queue)
         self.internalSync = isync
-        mainPipe = try ExportedPipe.rw(nonblock:false)
+        mainPipe = try ExportedPipe.rw(nonblock:true)
         globalPR.scheduleForReading(mainPipe.reading, queue: dataIntake, handler: { [weak self] someData in
             if let asString = String(data:someData, encoding: .utf8) {
                 self!.eventHandle(asString)
@@ -84,6 +84,7 @@ internal class ProcessMonitor {
     }
 
     fileprivate func processLaunched(mon:pid_t, work:pid_t, time:Date) {
+    	launchSem.signal()
         print("process monitor confirmed launch of monitor \(mon) and process \(work) at \(time)")
 	}
 

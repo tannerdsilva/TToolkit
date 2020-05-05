@@ -106,7 +106,9 @@ internal struct tt_proc_signature:Hashable {
     }
 }
 
+let launchSem =  DispatchSemaphore(value:1)
 internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdout:(InteractiveProcess.OutputHandler)?, stderr:(InteractiveProcess.OutputHandler)?, reading:DispatchQueue?, writing:DispatchQueue?) throws -> tt_proc_signature {
+    launchSem.wait()
     var err_export:ExportedPipe? = nil
     var out_export:ExportedPipe? = nil
     
@@ -150,7 +152,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
     _ = try ProcessMonitor.globalMonitor() //test that the process monitor has been initialized before forking
     
     //used internally for this function to determine when the forked process has successfully initialized
-    let internalNotify = try ExportedPipe.rw(nonblock:false)
+    let internalNotify = try ExportedPipe.rw(nonblock:true)
     
 
     let forkResult = fork()
