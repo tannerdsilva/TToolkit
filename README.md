@@ -8,17 +8,18 @@ Import this into your Swift package with the following dependency declaration
 
 # What does TToolkit do?
 
-# 🔥 High-Performance Concurrent Shell Framework 🔥
+# 🔥 SwiftSlash 🔥
+## High-Performance Concurrent Shell Framework
 
 **Concurrent shell functionality in TToolkit will soon be forked as an independent framework - to be named SwiftSlash. In its current form [this repository], SwiftSlash represents a robust functional core but a minimal external API.**
 
-TToolkit's class `InteractiveProcess` was born from a need for interface with large sets of executing processes with complete concurrency and safety. Furthermore, `InteractiveProcess` was built with an uncompromising desire for time efficiency.
+TToolkit's class `InteractiveProcess` was born from a need for interface with large sets of concurrently executed processes with complete instructional safety. Furthermore, `InteractiveProcess` was built with an uncompromising desire for time efficiency.
 
 Foundation framework offers classes that theoretically deliver shell-like functionality, however, in practice, these classes do not hold together well under intense, prolonged workloads. From this unfortunate discovery came the need to reimplement Foundation frameworks `Process`, `Pipe` and `FileHandle` classes from scratch to achieve a more robust shell/process framework - one that can operate in an time-sensitive, concurrent environment.
 
 When comparing TToolkits `InteractiveProcess` with Foundation's `Process` class (used by the popular *SwiftShell* framework), the performance improvements of `InteractiveProcess` speak for themselves.
 
-- `Process` class will leak memory as many class instances are created. This means that `Process` classes can not be treated as transactional objects, despite *transactional use* being the encouraged usage. `InteractiveProcess` instances need an **order of magnitude** less memory, and do not leak their contents after use. `InteractiveProcess` classes are transactional by nature, and the internal resource management reflects this pattern.
+- Foundation's `Process` class will leak memory as many class instances are created. This means that `Process` classes can not be treated as transactional objects, despite *transactional use* being the encouraged usage. `InteractiveProcess` instances need an **order of magnitude** less memory, and do not leak their contents after use. `InteractiveProcess` classes are transactional by nature, and the internal resource management reflects this pattern.
 
 - `InteractiveProcess` is completely safe to use concurrently and asynchronously, unlike `Process` class, which takes neither of these features into consideration. By allowing many external processes to be run simultaneously 
 
