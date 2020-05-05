@@ -11,29 +11,29 @@ Import this into your Swift package with the following dependency declaration
 ## 🔥 SwiftSlash 🔥
 ### High-Performance Concurrent Shell Framework
 
-**Concurrent shell functionality in TToolkit will soon be forked as an independent framework - to be named SwiftSlash. In its current form [this repository], SwiftSlash represents a robust functional core but a minimal external API.**
+**Concurrent shell functionality in TToolkit will soon be forked as an independent framework - to be named SwiftSlash. In its current form [this repository], SwiftSlash represents a fully developed internal core but a minimal external API.**
 
-TToolkit's class `InteractiveProcess` was born from a need for interface with large sets of concurrently executed processes with complete instructional safety. Furthermore, `InteractiveProcess` was built with an uncompromising desire for time efficiency.
+TToolkit's `SwiftSlash` classes were born from a need for interface with large sets of concurrently executed processes with complete instructional safety. Furthermore, `SwiftSlash` was built with an uncompromising desire for time efficiency.
 
-Foundation framework offers classes that theoretically deliver shell-like functionality, however, in practice, these classes do not hold together well under intense, prolonged workloads. From this unfortunate discovery came the need to reimplement Foundation frameworks `Process`, `Pipe` and `FileHandle` classes from scratch to achieve a more robust shell/process framework - one that can operate in an time-sensitive, concurrent environment.
+Swift's own `Foundation` framework offers classes that theoretically deliver shell-like functionality, however, in practice, these classes do not hold together well under intense, prolonged workloads. From this unfortunate discovery came the need to reimplement Foundation frameworks `Process`, `Pipe` and `FileHandle` classes from scratch to achieve a more robust shell/process framework - one that can operate in an time-sensitive, concurrent environment.
 
-When comparing TToolkits `InteractiveProcess` with Foundation's `Process` class (used by the popular *SwiftShell* framework), the performance improvements of `InteractiveProcess` speak for themselves.
+When comparing TToolkits `SwiftSlash` with Foundation's `Process` class (used by the popular *SwiftShell* framework), the performance improvements of `SwiftSlash` speak for themselves.
 
-- Foundation's `Process` class will leak memory as many class instances are created. This means that `Process` classes can not be treated as transactional objects, despite *transactional use* being the encouraged usage. `InteractiveProcess` instances need an **order of magnitude** less memory, and do not leak their contents after use. `InteractiveProcess` classes are transactional by nature, and the internal resource management reflects this pattern.
+- Foundation's `Process` class **will leak memory** as many class instances are created. This means that `Process` classes can not be treated as transactional objects, *despite transactional use being the intended lifecycle*! By comparison, `SwiftSlash` instances need an **order of magnitude** less memory, and do not leak their contents after use. `SwiftSlash` classes are transactional by nature, and the internal resource management reflects this pattern.
 
-- `InteractiveProcess` is completely safe to use concurrently and asynchronously, unlike `Process` class, which takes neither of these features into consideration. By allowing many external processes to be run simultaneously 
+- `SwiftSlash` is completely safe to use concurrently and asynchronously, unlike `Process` class, which takes neither of these features into consideration. By allowing shell commands to be run concurrently rather than serially, `SwiftSlash` can complete complex multi-command workloads in **fractions** of their expected time.
 
-- `InteractiveProcess` can initialize and launch a process over 10x faster than Foundation's `Process` class. Similar performance improvements are seen in reading data from the `stdin`, `stdout`, and `stderr` streams. The results of these performance improvements means that more instances of `InteractiveProcess` can execute 
+- `SwiftSlash` can initialize and launch an external command with significantly greater computational and memory efficiency than Foundation's `Process` class. Similar performance improvements are seen in reading data from the `stdin`, `stdout`, and `stderr` streams. For industrial workloads, better performance means a faster time to completion. For mobile workloads, better performance means better battery life.
 
-- `InteractiveProcess` has the necessary infrastructure to ensure secure execution. `Process` class has many security vulnerabilities, including file handle sharing with the executing process and improper  
+- `SwiftSlash` has the necessary infrastructure to **ensure a secure execution environment**. `Process` class has many security vulnerabilities, including file handle sharing with the executing process and improper changing of the specified *current directory*.
 
-- `InteractiveProcess` **can scale to massive workloads without consuming equally massive resources**. 
+- `SwiftSlash` **can scale to massive workloads without consuming equally massive resources or time**. 
 
 By executing shell commands concurrently rather than serially, one could see speedup multiples of *up to* 250x - *workload dependent*
 
-The functional core of SwiftSlash can be found at the following path `./Sources/TToolkit/SwiftSlash`
+The functional internal core of SwiftSlash can be found at the following subpath of this repository: `./Sources/TToolkit/SwiftSlash`
 
-## Asynchronous Utilities
+## Other Asynchronous/Concurrent Utilities
 
 ### Explosions! :D
 
@@ -41,7 +41,7 @@ Explosions allow for *very* high performance concurrent collection remapping. Ju
 
 Explosions are also useful for expanding large sets of data quickly. For example, a collection of URL's might be exploded to allow for multiple URL's to be fetched asyncronously.
 
-Every variant of the `explode` functions has a leading argument: `lanes:Int` in which the numer of actively working threads can be defined. When a lane count is not provided, TToolkit will assign the CPU core count to this value. When one lane is finished executing, another lane _(if available)_ will begin executing in its place.
+Every variant of the `explode` functions has a leading argument: `lanes:Int` in which the numer of actively working threads can be defined. When a lane count is not provided, TToolkit will assign the appropriate lane count based on your hardware.
 
 ```
 //Explode - Example 1: Reverse a collection of strings using 2 concurrent workers
