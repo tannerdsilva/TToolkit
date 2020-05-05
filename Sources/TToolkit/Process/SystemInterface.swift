@@ -150,7 +150,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
     _ = try ProcessMonitor.globalMonitor() //test that the process monitor has been initialized before forking
     
     //used internally for this function to determine when the forked process has successfully initialized
-    let internalNotify = try ExportedPipe.rw()
+    let internalNotify = try ExportedPipe.rw(nonblock:false)
     
 
     let forkResult = fork()

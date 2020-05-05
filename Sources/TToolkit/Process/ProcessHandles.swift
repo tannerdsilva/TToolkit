@@ -233,7 +233,7 @@ internal struct ExportedPipe:Hashable {
         return ExportedPipe(r:read, w:write)
     }
     
-    internal static func rw() throws -> ExportedPipe {
+    internal static func rw(nonblock:Bool = true) throws -> ExportedPipe {
         let fds = UnsafeMutablePointer<Int32>.allocate(capacity:2)
         defer {
             fds.deallocate()
@@ -247,8 +247,10 @@ internal struct ExportedPipe:Hashable {
             case 0:
                 let readFD = fds.pointee
                 let writeFD = fds.successor().pointee
-				_ = fcntl(readFD, F_SETFL, O_NONBLOCK)
-                _ = fcntl(writeFD, F_SETFL, O_NONBLOCK)
+                if nonblock {
+					_ = fcntl(readFD, F_SETFL, O_NONBLOCK)
+					_ = fcntl(writeFD, F_SETFL, O_NONBLOCK)
+                }
                 print(Colors.magenta("created for reading [NONBLOCK]: \(readFD)"))
                 print(Colors.magenta("created for writing: \(writeFD)"))
                 return ExportedPipe(r:readFD, w:writeFD)
