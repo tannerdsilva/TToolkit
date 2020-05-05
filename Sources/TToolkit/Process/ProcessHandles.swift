@@ -167,7 +167,7 @@ internal class PipeReader {
                 }
                 callbackQueue.async {
                     terminatingAction()
-					source.cancel()
+					self.source.cancel()
                 }
             }
         }
