@@ -225,8 +225,8 @@ internal struct ExportedPipe:Hashable {
     internal static func nullPipe() throws -> ExportedPipe {
         let read = open("/dev/null", O_RDWR)
         let write = open("/dev/null", O_WRONLY)
-        fcntl(read, F_SETFL, O_NONBLOCK)
-        fcntl(write, F_SETFL, O_NONBLOCK)
+        _ = fcntl(read, F_SETFL, O_NONBLOCK)
+        _ = fcntl(write, F_SETFL, O_NONBLOCK)
         guard read != -1 && write != -1 else {
             throw pipe_errors.unableToCreatePipes
         }
@@ -247,8 +247,8 @@ internal struct ExportedPipe:Hashable {
             case 0:
                 let readFD = fds.pointee
                 let writeFD = fds.successor().pointee
-				fcntl(readFD, F_SETFL, O_NONBLOCK)
-                fcntl(writeFD, F_SETFL, O_NONBLOCK)
+				_ = fcntl(readFD, F_SETFL, O_NONBLOCK)
+                _ = fcntl(writeFD, F_SETFL, O_NONBLOCK)
                 print(Colors.magenta("created for reading [NONBLOCK]: \(readFD)"))
                 print(Colors.magenta("created for writing: \(writeFD)"))
                 return ExportedPipe(r:readFD, w:writeFD)
