@@ -160,7 +160,6 @@ internal class PipeReader {
         }
         
         func flushAll(_ terminatingAction:@escaping() -> Void) {
-            source.cancel()
             internalSync.sync {
                 _flushAll = true
                 if pendingNewLines == false {
@@ -168,6 +167,7 @@ internal class PipeReader {
                 }
                 callbackQueue.async {
                     terminatingAction()
+					source.cancel()
                 }
             }
         }
