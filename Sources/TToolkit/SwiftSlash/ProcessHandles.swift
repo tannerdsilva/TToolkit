@@ -169,7 +169,7 @@ internal class PipeReader {
                     pendingNewLines = true
                 }
                 self.captureQueue.async {
-                	self.callbackQueue.async {
+                	self.callbackQueue.sync {
 						terminatingAction()
 						self.source.cancel()
 					}
