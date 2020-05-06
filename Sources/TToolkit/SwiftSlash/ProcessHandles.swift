@@ -168,12 +168,10 @@ internal class PipeReader {
                 if pendingNewLines == false {
                     pendingNewLines = true
                 }
-                self.captureQueue.async {
-                	self.callbackQueue.sync {
-						terminatingAction()
-						self.source.cancel()
-					}
-                }
+				self.callbackQueue.sync {
+					terminatingAction()
+					self.source.cancel()
+				}
             }
         }
     }
