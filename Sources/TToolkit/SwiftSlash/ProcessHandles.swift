@@ -126,7 +126,6 @@ internal class PipeReader {
             self.source = source
         }
         
-        
         internal func intakeData(_ data:Data) {
             internalSync.sync {
                 self.buffer.append(data)
@@ -168,9 +167,11 @@ internal class PipeReader {
                 if pendingNewLines == false {
                     pendingNewLines = true
                 }
-				self.callbackQueue.sync {
-					terminatingAction()
-					self.source.cancel()
+                self.captureQueue.async {
+					self.callbackQueue.async {
+						terminatingAction()
+						self.source.cancel()
+					}
 				}
             }
         }
