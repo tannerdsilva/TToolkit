@@ -97,22 +97,6 @@ internal class PipeReader {
         private let internalSync:DispatchQueue
         
         //pending new lines
-        private var _flushAll = false
-        private var _pnl:Bool = false
-        var pendingNewLines:Bool {
-            get {
-                return _pnl
-            }
-            set {
-                if _pnl == false && newValue == true {
-                    _pnl = true
-                    scheduleLineCallback()
-                } else if _pnl == true && newValue == false {
-                    _pnl = false
-                }
-            }
-        }
-        
         private var buffer = Data()
         
         private var handler:InteractiveProcess.OutputHandler
@@ -130,19 +114,16 @@ internal class PipeReader {
             internalSync.sync {
                 self.buffer.append(data)
                 data.withUnsafeBytes({ unsafeBuffer in
-                    if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) && self.pendingNewLines == false {
-                        self.pendingNewLines = true
+                    if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
+                        makeLineCallback(flush:false)
                     }
                 })
         	}
         }
         
-        func scheduleLineCallback() {
-            callbackQueue.async {
-                self.internalSync.async {
-                    self.pendingNewLines = false
-                }
-                if let linesToCallback = self.extractLines() {
+        func makeLineCallback(flush:Bool) {
+            callbackQueue.sync {
+                if let linesToCallback = self.extractLines(flush:flush) {
                     for (_, curLine) in linesToCallback.enumerated() {
                         self.handler(curLine)
                     }
@@ -150,28 +131,21 @@ internal class PipeReader {
             }
         }
 
-        func extractLines() -> [Data]? {
-        	return internalSync.sync {
-        		let parseResult = buffer.lineSlice(removeBOM:false, completeLinesOnly:!_flushAll)
-                buffer.removeAll(keepingCapacity: true)
-                if parseResult.remain != nil && parseResult.remain!.count > 0 {
-                    buffer.append(parseResult.remain!)
-                }
-                return parseResult.lines
-        	}
+        func extractLines(flush:Bool) -> [Data]? {
+			let parseResult = buffer.lineSlice(removeBOM:false, completeLinesOnly:!flush)
+			buffer.removeAll(keepingCapacity: true)
+			if parseResult.remain != nil && parseResult.remain!.count > 0 && flush == false {
+				buffer.append(parseResult.remain!)
+			}
+			return parseResult.lines
         }
         
         func flushAll(_ terminatingAction:@escaping() -> Void) {
-            internalSync.sync {
-                _flushAll = true
-                if pendingNewLines == false {
-                    pendingNewLines = true
-                }
-                self.captureQueue.async {
-					self.callbackQueue.async {
-						terminatingAction()
-						self.source.cancel()
-					}
+        	captureQueue.async { [terminatingAction] in
+				self.internalSync.sync { [terminatingAction] in
+					self.makeLineCallback(flush:true)
+					terminatingAction()
+					self.source.cancel()
 				}
             }
         }
