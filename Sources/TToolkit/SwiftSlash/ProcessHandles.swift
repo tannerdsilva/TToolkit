@@ -141,7 +141,7 @@ internal class PipeReader {
         }
         
         func flushAll(_ terminatingAction:@escaping() -> Void) {
-        	captureQueue.async { [terminatingAction] in
+        	captureQueue.sync { [terminatingAction] in
 				self.internalSync.sync { [terminatingAction] in
 					self.makeLineCallback(flush:true)
 					terminatingAction()
