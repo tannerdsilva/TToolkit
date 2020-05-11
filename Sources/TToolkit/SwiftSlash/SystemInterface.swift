@@ -106,6 +106,30 @@ internal struct tt_proc_signature:Hashable {
     }
 }
 
+//extension of tt_spawns process signature structure to allow for convenient waiting of internal IO flushing before notifying the framework user that the process has exited
+extension tt_proc_signature {
+	func waitForExitAndFlush() -> Int32 {
+		//wait for the containing process to exit. the containing process should exit after the working process has completed, and the global process monitor has been notified as such
+		let ec = tt_wait_sync(pid:container)
+		
+		//now we need to wait for the standard io channels to flush to their user instances		
+		if stdin != nil {
+			//stdin not supported yet
+		}
+		
+		if stdout != nil {
+			globalPR.awaitFlush(stdout!.reading)
+            print(Colors.yellow("\(stdout!.reading) has been flushed"))
+		}
+		
+		if stderr != nil {
+			globalPR.awaitFlush(stderr!.reading)
+            print(Colors.yellow("\(stderr!.reading) has been flushed"))
+		}
+        return ec
+	}
+}
+
 let launchSem =  DispatchSemaphore(value:1)
 internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdout:(InteractiveProcess.OutputHandler)?, stderr:(InteractiveProcess.OutputHandler)?, reading:DispatchQueue?, writing:DispatchQueue?) throws -> tt_proc_signature {
     var err_export:ExportedPipe? = nil

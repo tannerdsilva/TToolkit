@@ -89,8 +89,8 @@ internal class ProcessMonitor {
 
 	fileprivate func processExited(mon:pid_t, work:pid_t, code:Int32) {
         internalSync.sync {
-            if let closeHandles = needsClose[mon] {
-                for (_, curHandle) in closeHandles.enumerated() {
+            if let cloHandles = needsClose[mon] {
+                for (_, curHandle) in cloHandles.enumerated() {
 					globalPR.unschedule(curHandle, {
 						file_handle_guard.async {
 							_ = _close(curHandle)

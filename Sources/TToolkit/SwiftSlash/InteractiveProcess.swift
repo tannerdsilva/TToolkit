@@ -192,7 +192,6 @@ public class InteractiveProcess:Hashable {
     public init<C>(command:C, priority:Priority, workingDirectory:URL) throws where C:Command {
         self._priority = priority
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync", target:process_master_queue)
-        let rs = DispatchSemaphore(value:0)
         commandToRun = command
         wd = workingDirectory
         let inputSerial = DispatchQueue(label:"footest", qos:priority.process_async_priority, target:process_master_queue)
@@ -217,10 +216,11 @@ public class InteractiveProcess:Hashable {
     }
     
     public func waitForExitCode() -> Int {
-        let ec = tt_wait_sync(pid: sig!.container)
+        let ec = sig!.waitForExitAndFlush()
         defer {
             pmon.processEnded(self)
         }
+        
         return internalAsync.sync { Int(ec) }
     }
     
