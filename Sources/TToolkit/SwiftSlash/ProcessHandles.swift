@@ -60,7 +60,7 @@ extension IODescriptor {
             bytesCaptured += curData.count
             i += 1
         }
-        print(Colors.Green("Available Data Loop Itterated \(i) times for a cumulative total of \(bytesCaptured) bytes"))
+//        print(Colors.Green("Available Data Loop Itterated \(i) times for a cumulative total of \(bytesCaptured) bytes"))
     }
 }
 
