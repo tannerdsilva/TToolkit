@@ -115,8 +115,10 @@ internal class ProcessMonitor {
 	internal func waitForProcessExitAndFlush(mon:pid_t) {
 		let waitSemaphore:DispatchSemaphore? = internalSync.sync {
 			if let hasSemaphore = self.waitSemaphores[mon] {
+				print("Has a semaphore")
 				return hasSemaphore
 			} else {
+				print("Does not have a semaphore")
 				let newSemaphore = DispatchSemaphore(value:0)
 				self.waitSemaphores[mon] = newSemaphore
 				return newSemaphore
