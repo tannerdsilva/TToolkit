@@ -84,7 +84,7 @@ internal class ProcessMonitor {
 
 	fileprivate func processExited(mon:pid_t, work:pid_t, code:Int32) {
         internalSync.sync {
-			print("process monitor confirmed exit of monitor \(mon) and process \(work) with code \(code)")
+			print("process monitor confirmed exit of monitor \(mon) and process \(work) with code \(code) \(flushReqs[mon])")
 			if let hasSig = flushReqs[mon] {
 				let signalSem = waitSemaphores[mon]
 				if let hasOut = hasSig.stdout {
@@ -136,6 +136,7 @@ internal class ProcessMonitor {
 	
 	internal func registerFlushPrerequisites(_ sig:tt_proc_signature) {
 		internalSync.sync {
+			print(Colors.bgWhite("Registered flush prerequisite for monitor process \(sig.container)"))
 			let monitorID = sig.container
 			flushReqs[monitorID] = sig
 			
