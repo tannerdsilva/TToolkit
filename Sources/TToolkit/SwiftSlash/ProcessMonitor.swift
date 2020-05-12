@@ -100,7 +100,10 @@ internal class ProcessMonitor {
 							_ = _close(curHandle)
 						}
 						if hasSemaphore != nil {
+							print(Colors.bgGreen("SEMAPHORE SIGNALED!"))
 							hasSemaphore!.signal()
+						} else {
+							print(Colors.Red("There was no semaphore to signal")
 						}
 						self.internalSync.async { [self] in
 							self.needsClose[mon] = nil
