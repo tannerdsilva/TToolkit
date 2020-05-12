@@ -87,6 +87,9 @@ internal class ProcessMonitor {
 
     fileprivate func processLaunched(mon:pid_t, work:pid_t, time:Date) {
         print("process monitor confirmed launch of monitor \(mon) and process \(work) at \(time)")
+        internalSync.async {
+        	self.waitSemaphores[mon] = DispatchSemaphore(value:0) 
+        }
 	}
 
 	fileprivate func processExited(mon:pid_t, work:pid_t, code:Int32) {
@@ -122,14 +125,12 @@ internal class ProcessMonitor {
 				return hasSemaphore
 			} else {
 				print("Does not have a semaphore")
-				let newSemaphore = DispatchSemaphore(value:0)
-				self.waitSemaphores[mon] = newSemaphore
-				return newSemaphore
+				return nil
 			}
 		}
 		
 		if let shouldWait = waitSemaphore {
-			print("Waiting for flush")
+			print(Colors.bgYellow("awaiting flush..."))
 			shouldWait.wait()
 		}
 	}
