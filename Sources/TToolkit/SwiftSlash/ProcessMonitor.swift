@@ -87,13 +87,14 @@ internal class ProcessMonitor {
 			print("process monitor confirmed exit of monitor \(mon) and process \(work) with code \(code) \(flushReqs[mon])")
 			if let hasSig = flushReqs[mon] {
 				let signalSem = waitSemaphores[mon]
+				print("SEMAPHORE FOUND \(signalSem)")
 				if let hasOut = hasSig.stdout {
 					globalPR.unschedule(hasOut.reading, { [self] in
 						file_handle_guard.async {
 							_ = _close(hasOut.reading)
 						}
                         if signalSem != nil {
-                            signalSem!.signal()
+//                            signalSem!.signal()
                             print(Colors.bgGreen("Signaled semaphore for stdout"))
                         }
 					})
@@ -104,7 +105,7 @@ internal class ProcessMonitor {
 							_ = _close(hasErr.reading)
 						}
                         if signalSem != nil {
-                            signalSem!.signal()
+//                            signalSem!.signal()
                             print(Colors.bgGreen("Signaled semaphore for stderr"))
                         }
 					})
