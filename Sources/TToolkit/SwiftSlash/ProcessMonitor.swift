@@ -18,6 +18,8 @@ internal class ProcessMonitor {
     let internalSync:DispatchQueue
     
     var needsClose = [pid_t:Set<Int32>]()
+    
+    var waitSemaphores = [pid_t:DispatchSemaphore]()
 
 	private var dataBuffer = Data()
 	private var dataLines = [Data]()
@@ -89,16 +91,41 @@ internal class ProcessMonitor {
 
 	fileprivate func processExited(mon:pid_t, work:pid_t, code:Int32) {
         internalSync.sync {
+			print("process monitor confirmed exit of monitor \(mon) and process \(work) with code \(code)")
             if let closeHandles = needsClose[mon] {
+            	let hasSemaphore = waitSemaphores[mon]
                 for (_, curHandle) in closeHandles.enumerated() {
-					globalPR.unschedule(curHandle, {
+					globalPR.unschedule(curHandle, { [hasSemaphore, self, file_handle_guard] in
 						file_handle_guard.async {
 							_ = _close(curHandle)
 						}
+						if hasSemaphore != nil {
+							hasSemaphore!.signal()
+						}
+						self.internalSync.async { [self] in
+							self.needsClose[mon] = nil
+							self.waitSemaphores[mon] = nil
+						}
 					})
                 }
-                needsClose[mon] = nil
             }
         }
+	}
+	
+	fileprivate func waitForProcessExitAndFlush(mon:pid_t) {
+		let waitSemaphore:DispatchSemaphore? = internalSync.sync {
+			if let hasSemaphore = self.waitSemaphores[mon] {
+				return hasSemaphore
+			} else {
+				let newSemaphore = DispatchSemaphore(value:0)
+				self.waitSemaphores[mon] = newSemaphore
+				return newSemaphore
+			}
+		}
+		
+		if let shouldWait = waitSemaphore {
+			print("Waiting for flush")
+			shouldWait.wait()
+		}
 	}
 }
