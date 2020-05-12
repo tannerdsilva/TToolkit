@@ -127,7 +127,7 @@ internal class PipeReader {
         }
         
         func makeLineCallback(flush:Bool) {
-            callbackQueue.async {
+            callbackQueue.sync {
                 if let linesToCallback = self.extractLines(flush:flush) {
                     for (_, curLine) in linesToCallback.enumerated() {
                         self.handler(curLine)
