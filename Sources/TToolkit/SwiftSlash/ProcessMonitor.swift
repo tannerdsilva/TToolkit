@@ -136,7 +136,7 @@ internal class ProcessMonitor {
 	}
 	
 	internal func registerFlushPrerequisites(_ sig:tt_proc_signature) {
-		internalSync.sync {
+		internalSync.async {
 			print(Colors.bgWhite("Registered flush prerequisite for monitor process \(sig.container)"))
 			let monitorID = sig.container
 			flushReqs[monitorID] = sig
