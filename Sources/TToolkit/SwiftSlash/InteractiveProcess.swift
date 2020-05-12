@@ -217,7 +217,8 @@ public class InteractiveProcess:Hashable {
     }
     
     public func waitForExitCode() -> Int {
-        let ec = tt_wait_sync(pid: sig!.container)
+    	let ec = tt_wait_sync(pid: sig!.container)
+        try! ProcessMonitor.globalMonitor().waitForProcessExitAndFlush(mon:sig!.container)
         defer {
             pmon.processEnded(self)
         }

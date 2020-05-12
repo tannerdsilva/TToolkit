@@ -154,6 +154,16 @@ internal class PipeReader {
 				}
             }
         }
+        
+        func initiateCapture() {
+        	captureQueue.async {
+        		self.handle.availableDataLoop({ (someData) in 
+        			if let realData = someData, realData.count > 0 {
+        				self.intakeData(realData)
+        			}
+        		})
+        	}
+        }
     }
     var accessSync:DispatchQueue
     
@@ -188,6 +198,7 @@ internal class PipeReader {
     
     func unschedule(_ handle:Int32, _ closingWork:@escaping() -> Void) {
         accessSync.async(flags:[.barrier]) { [self, handle, closingWork] in
+        	self.handles[handle]?.initiateCapture()
             self.handles[handle]?.flushAll({ [self, handle, closingWork] in
                 closingWork()
                 self.asyncRemove(handle)

@@ -112,7 +112,7 @@ internal class ProcessMonitor {
         }
 	}
 	
-	fileprivate func waitForProcessExitAndFlush(mon:pid_t) {
+	internal func waitForProcessExitAndFlush(mon:pid_t) {
 		let waitSemaphore:DispatchSemaphore? = internalSync.sync {
 			if let hasSemaphore = self.waitSemaphores[mon] {
 				return hasSemaphore
