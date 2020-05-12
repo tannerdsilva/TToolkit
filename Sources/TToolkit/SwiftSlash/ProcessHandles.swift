@@ -120,7 +120,7 @@ internal class PipeReader {
                 self.buffer.append(data)
                 data.withUnsafeBytes({ unsafeBuffer in
                     if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
-                        makeLineCallback(flush:false)
+                        self.makeLineCallback(flush:false)
                     }
                 })
         	}

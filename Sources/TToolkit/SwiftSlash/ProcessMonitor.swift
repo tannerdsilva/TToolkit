@@ -139,7 +139,7 @@ internal class ProcessMonitor {
 		internalSync.async {
 			print(Colors.bgWhite("Registered flush prerequisite for monitor process \(sig.container)"))
 			let monitorID = sig.container
-			flushReqs[monitorID] = sig
+            self.flushReqs[monitorID] = sig
 			
 			var newGroup = DispatchGroup()
 			if sig.stdout != nil, let readingHandle = sig.stdout?.reading {
