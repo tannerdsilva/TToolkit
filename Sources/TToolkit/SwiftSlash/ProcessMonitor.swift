@@ -17,7 +17,7 @@ internal class ProcessMonitor {
 
     let internalSync:DispatchQueue
         
-    var waitSemaphores = [pid_t:DispatchSemaphore]()
+    var waitGroups = [pid_t:DispatchGroup]()
     var flushReqs = [pid_t:tt_proc_signature]()
 
 	private var dataBuffer = Data()
@@ -86,16 +86,16 @@ internal class ProcessMonitor {
         internalSync.sync {
 			print("process monitor confirmed exit of monitor \(mon) and process \(work) with code \(code) \(flushReqs[mon])")
 			if let hasSig = flushReqs[mon] {
-				let signalSem = waitSemaphores[mon]
-				print("SEMAPHORE FOUND \(signalSem)")
+				let waitGroup = waitGroups[mon]
+				print("GROUP FOUND \(waitGroup)")
 				if let hasOut = hasSig.stdout {
 					globalPR.unschedule(hasOut.reading, { [self] in
 						file_handle_guard.async {
 							_ = _close(hasOut.reading)
 						}
-                        if signalSem != nil {
-//                            signalSem!.signal()
-                            print(Colors.bgGreen("Signaled semaphore for stdout"))
+                        if waitGroup != nil {
+                          	waitGroup!.leave()
+                            print(Colors.bgGreen("signaled stdout to leave group"))
                         }
 					})
 				}
@@ -104,14 +104,14 @@ internal class ProcessMonitor {
 						file_handle_guard.async {
 							_ = _close(hasErr.reading)
 						}
-                        if signalSem != nil {
-//                            signalSem!.signal()
-                            print(Colors.bgGreen("Signaled semaphore for stderr"))
+                        if waitGroup != nil {
+							waitGroup!.leave()
+                            print(Colors.bgGreen("signaled stderr to leave group"))
                         }
 					})
 				}
                 internalSync.async {
-                    self.waitSemaphores[mon] = nil
+                    self.waitGroups[mon] = nil
                     self.flushReqs[mon] = nil
                 }
 			}
@@ -119,12 +119,12 @@ internal class ProcessMonitor {
 	}
 	
 	internal func waitForProcessExitAndFlush(mon:pid_t) {
-		let waitSemaphore:DispatchSemaphore? = internalSync.sync {
-			if let hasSemaphore = self.waitSemaphores[mon] {
-				print("Has a semaphore")
-				return hasSemaphore
+		let waitSemaphore:DispatchGroup? = internalSync.sync {
+			if let hasGroup = self.waitGroups[mon] {
+				print("Has a group")
+				return hasGroup
 			} else {
-				print("Does not have a semaphore")
+				print("Does not have a group")
 				return nil
 			}
 		}
@@ -141,21 +141,17 @@ internal class ProcessMonitor {
 			let monitorID = sig.container
 			flushReqs[monitorID] = sig
 			
-			var valueTarget:Int? = nil
-			if sig.stdout != nil && sig.stderr != nil {
-				print(Colors.dim("Using flush prereq value of -1"))
-				valueTarget = -1
-			} else if sig.stdout != nil {
-				valueTarget = 0
-				print(Colors.dim("Using flush prereq value of 0"))
-			} else if sig.stderr != nil {
-				valueTarget = 0
-				print(Colors.dim("Using flush prereq value of 0"))
+			var newGroup = DispatchGroup()
+			if sig.stdout != nil, let readingHandle = sig.stdout?.reading {
+				print(Colors.bgGreen("++ stdout is entering group"))
+				newGroup.enter()
 			}
-			
-			if valueTarget != nil {
-				self.waitSemaphores[monitorID] = DispatchSemaphore(value:valueTarget!)
+			if sig.stderr != nil, let errorHandle = sig.stderr?.reading {
+				print(Colors.bgGreen("++ stderr is entering group"))
+				newGroup.enter()
 			}
+
+			self.waitGroups[monitorID] = newGroup
 		}
 	}
 }
