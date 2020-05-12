@@ -1,6 +1,6 @@
 import Foundation
 
-//
+
 fileprivate let globalProcessMonitorSync = DispatchQueue(label:"com.tannersilva.global.process.monitor.instance.sync", target:global_lock_queue)
 fileprivate var globalProcessMonitor:ProcessMonitor? = nil
 internal class ProcessMonitor {
@@ -16,10 +16,9 @@ internal class ProcessMonitor {
     let mainPipe:ExportedPipe
 
     let internalSync:DispatchQueue
-    
-    var needsClose = [pid_t:Set<Int32>]()
-    
+        
     var waitSemaphores = [pid_t:DispatchSemaphore]()
+    var flushReqs = [pid_t:tt_proc_signature]()
 
 	private var dataBuffer = Data()
 	private var dataLines = [Data]()
@@ -79,42 +78,42 @@ internal class ProcessMonitor {
 		}
 	}
     
-    func closeHandles(container:pid_t, handles:Set<Int32>) {
-        internalSync.async { [weak self] in
-            self!.needsClose[container] = handles
-        }
-    }
-
     fileprivate func processLaunched(mon:pid_t, work:pid_t, time:Date) {
         print("process monitor confirmed launch of monitor \(mon) and process \(work) at \(time)")
-        internalSync.async {
-        	self.waitSemaphores[mon] = DispatchSemaphore(value:0) 
-        }
 	}
 
 	fileprivate func processExited(mon:pid_t, work:pid_t, code:Int32) {
         internalSync.sync {
 			print("process monitor confirmed exit of monitor \(mon) and process \(work) with code \(code)")
-            if let closeHandles = needsClose[mon] {
-            	let hasSemaphore = waitSemaphores[mon]
-                for (_, curHandle) in closeHandles.enumerated() {
-					globalPR.unschedule(curHandle, { [hasSemaphore, self, file_handle_guard] in
+			if let hasSig = flushReqs[mon] {
+				let signalSem = waitSemaphores[mon]
+				if let hasOut = hasSig.stdout {
+					globalPR.unschedule(hasOut.reading, { [self] in
 						file_handle_guard.async {
-							_ = _close(curHandle)
+							_ = _close(hasOut.reading)
 						}
-						if hasSemaphore != nil {
-							print(Colors.bgGreen("SEMAPHORE SIGNALED!"))
-							hasSemaphore!.signal()
-						} else {
-							print(Colors.Red("There was no semaphore to signal"))
-						}
-						self.internalSync.async { [self] in
-							self.needsClose[mon] = nil
-							self.waitSemaphores[mon] = nil
-						}
+                        if signalSem != nil {
+                            signalSem!.signal()
+                            print(Colors.bgGreen("Signaled semaphore for stdout"))
+                        }
 					})
+				}
+				if let hasErr = hasSig.stderr {
+					globalPR.unschedule(hasErr.reading, { [self] in 
+						file_handle_guard.async {
+							_ = _close(hasErr.reading)
+						}
+                        if signalSem != nil {
+                            signalSem!.signal()
+                            print(Colors.bgGreen("Signaled semaphore for stderr"))
+                        }
+					})
+				}
+                internalSync.async {
+                    self.waitSemaphores[mon] = nil
+                    self.flushReqs[mon] = nil
                 }
-            }
+			}
         }
 	}
 	
@@ -132,6 +131,29 @@ internal class ProcessMonitor {
 		if let shouldWait = waitSemaphore {
 			print(Colors.bgYellow("awaiting flush..."))
 			shouldWait.wait()
+		}
+	}
+	
+	internal func registerFlushPrerequisites(_ sig:tt_proc_signature) {
+		internalSync.sync {
+			let monitorID = sig.container
+			flushReqs[monitorID] = sig
+			
+			var valueTarget:Int? = nil
+			if sig.stdout != nil && sig.stderr != nil {
+				print(Colors.dim("Using flush prereq value of 0"))
+				valueTarget = -1
+			} else if sig.stdout != nil {
+				valueTarget = 0
+				print(Colors.dim("Using flush prereq value of 0"))
+			} else if sig.stderr != nil {
+				valueTarget = 0
+				print(Colors.dim("Using flush prereq value of 0"))
+			}
+			
+			if valueTarget != nil {
+				self.waitSemaphores[monitorID] = DispatchSemaphore(value:valueTarget!)
+			}
 		}
 	}
 }
