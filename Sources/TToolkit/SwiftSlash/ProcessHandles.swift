@@ -53,9 +53,14 @@ extension IODescriptor {
     }
     
     func availableDataLoop(_ outputFunction:(Data?) -> Void) {
+    	var i = 0
+    	var bytesCaptured = 0
         while let curData = self.availableData(), curData.count > 0 {
             outputFunction(curData)
+            bytesCaptured += curData.count
+            i += 1
         }
+        print(Colors.Green("Available Data Loop Itterated \(i) times for a cumulative total of \(bytesCaptured) bytes"))
     }
 }
 
