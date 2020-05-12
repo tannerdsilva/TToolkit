@@ -116,7 +116,7 @@ internal class PipeReader {
         }
         
         internal func intakeData(_ data:Data) {
-            internalSync.async {
+            internalSync.sync {
                 self.buffer.append(data)
                 data.withUnsafeBytes({ unsafeBuffer in
                     if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
@@ -127,7 +127,7 @@ internal class PipeReader {
         }
         
         func makeLineCallback(flush:Bool) {
-            callbackQueue.sync {
+            callbackQueue.async {
                 if let linesToCallback = self.extractLines(flush:flush) {
                     for (_, curLine) in linesToCallback.enumerated() {
                         self.handler(curLine)
