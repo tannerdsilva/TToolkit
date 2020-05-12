@@ -241,10 +241,10 @@ internal struct ExportedPipe:Hashable {
             case 0:
                 let readFD = fds.pointee
                 let writeFD = fds.successor().pointee
-//                if nonblock {
-//					_ = fcntl(readFD, F_SETFL, O_NONBLOCK)
+				if nonblock == false || nonblock == true {
+					_ = fcntl(readFD, F_SETFL, O_NONBLOCK)
 //					_ = fcntl(writeFD, F_SETFL, O_NONBLOCK)
-//                }
+				}
                 print(Colors.magenta("created for reading [NONBLOCK]: \(readFD)"))
                 print(Colors.magenta("created for writing: \(writeFD)"))
                 return ExportedPipe(r:readFD, w:writeFD)
