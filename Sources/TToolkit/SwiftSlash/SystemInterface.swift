@@ -160,6 +160,8 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
             })
         })
     })
+    let globalPM = try! ProcessMonitor.globalMonitor()
+    globalPM.registerFlushPrerequisites(reutnVal)
     return reutnVal
 }
 
@@ -344,9 +346,6 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
                             }
                             if let hasErr = stderr {
                                 idset.insert(hasErr.reading)
-                            }
-                            if idset.count > 0 {
-                                try! ProcessMonitor.globalMonitor().closeHandles(container: forkResult, handles: idset)
                             }
                             sigToReturn.stdin = stdin
                             sigToReturn.stdout = stdout

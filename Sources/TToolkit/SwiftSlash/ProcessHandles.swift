@@ -53,9 +53,14 @@ extension IODescriptor {
     }
     
     func availableDataLoop(_ outputFunction:(Data?) -> Void) {
+    	var i = 0
+    	var bytesCaptured = 0
         while let curData = self.availableData(), curData.count > 0 {
             outputFunction(curData)
+            bytesCaptured += curData.count
+            i += 1
         }
+        print(Colors.Green("Available Data Loop Itterated \(i) times for a cumulative total of \(bytesCaptured) bytes"))
     }
 }
 
@@ -117,7 +122,7 @@ internal class PipeReader {
                 self.buffer.append(data)
                 data.withUnsafeBytes({ unsafeBuffer in
                     if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
-                        makeLineCallback(flush:false)
+                        self.makeLineCallback(flush:false)
                     }
                 })
         	}
@@ -155,6 +160,16 @@ internal class PipeReader {
 				}
             }
         }
+        
+        func initiateCapture() {
+        	captureQueue.async {
+        		self.handle.availableDataLoop({ (someData) in 
+        			if let realData = someData, realData.count > 0 {
+        				self.intakeData(realData)
+        			}
+        		})
+        	}
+        }
     }
     var accessSync:DispatchQueue
     
@@ -190,6 +205,7 @@ internal class PipeReader {
     
     func unschedule(_ handle:Int32, _ closingWork:@escaping() -> Void) {
         accessSync.async(flags:[.barrier]) { [self, handle, closingWork] in
+        	self.handles[handle]?.initiateCapture()
             self.handles[handle]?.flushAll({ [self, handle, closingWork] in
                 closingWork()
                 self.asyncRemove(handle)
@@ -244,10 +260,10 @@ internal struct ExportedPipe:Hashable {
             case 0:
                 let readFD = fds.pointee
                 let writeFD = fds.successor().pointee
-//                if nonblock {
-//					_ = fcntl(readFD, F_SETFL, O_NONBLOCK)
+				if nonblock == false || nonblock == true {
+					_ = fcntl(readFD, F_SETFL, O_NONBLOCK)
 //					_ = fcntl(writeFD, F_SETFL, O_NONBLOCK)
-//                }
+				}
                 print(Colors.magenta("created for reading [NONBLOCK]: \(readFD)"))
                 print(Colors.magenta("created for writing: \(writeFD)"))
                 return ExportedPipe(r:readFD, w:writeFD)
