@@ -143,7 +143,7 @@ internal class ProcessMonitor {
 			
 			var valueTarget:Int? = nil
 			if sig.stdout != nil && sig.stderr != nil {
-				print(Colors.dim("Using flush prereq value of 0"))
+				print(Colors.dim("Using flush prereq value of -1"))
 				valueTarget = -1
 			} else if sig.stdout != nil {
 				valueTarget = 0
