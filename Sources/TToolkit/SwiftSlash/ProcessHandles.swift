@@ -139,10 +139,15 @@ internal class PipeReader {
         }
 
         func extractLines(flush:Bool) -> [Data]? {
-			let parseResult = buffer.lineSlice(removeBOM:false, completeLinesOnly:!flush)
+			let parseResult = buffer.lineSlice(removeBOM:false, completeLinesOnly:false)
 			buffer.removeAll(keepingCapacity: true)
-			if parseResult.remain != nil && parseResult.remain!.count > 0 && flush == false {
-				buffer.append(parseResult.remain!)
+			if parseResult.lines != nil && parseResult.lines!.count > 0 && flush == false {
+                var lineCapture = parseResult.lines!
+				let lastLineCapture = lineCapture.removeLast()
+				if lastLineCapture.count > 0 {
+					buffer.append(lastLineCapture)
+				}
+                return lineCapture
 			}
 			return parseResult.lines
         }
