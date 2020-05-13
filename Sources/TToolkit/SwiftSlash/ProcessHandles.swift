@@ -145,7 +145,11 @@ internal class PipeReader {
 			if flush == false {
 				//add any incomplete lines back into the queue
 				if parseResult.remain != nil {
-					print(Colors.bgRed("THE REMAIN DATA IS: [NOT NULL] { \(parseResult.remain!.count) }"))
+					print(Colors.bgMagenta("THE REMAIN DATA IS: [NOT NULL] { \(parseResult.remain!.count) }"), terminator:"")
+					for (_, curInt) in parseResult.remain!.enumerated() {
+						print(Colors.cyan("|: \(curInt) :|"), terminator:"")
+					}
+					print("\n", terminator:"")
 					if parseResult.remain!.count > 0 {
 						buffer.append(parseResult.remain!)
 					}
