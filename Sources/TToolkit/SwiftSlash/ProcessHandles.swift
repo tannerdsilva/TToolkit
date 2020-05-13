@@ -146,6 +146,8 @@ internal class PipeReader {
 				//add any incomplete lines back into the queue
 				if parseResult.remain != nil && parseResult.remain!.count > 0 {
 					buffer.append(parseResult.remain!)
+				} else {
+					print(Colors.bgMagenta("DID NOT APPEND NONFLUSHED DATA"))
 				}
 			}
 			return parseResult.lines
