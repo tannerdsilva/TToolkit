@@ -147,7 +147,7 @@ internal class PipeReader {
 				if parseResult.remain != nil && parseResult.remain!.count > 0 {
 					buffer.append(parseResult.remain!)
 				} else {
-					print(Colors.bgMagenta("DID NOT APPEND NONFLUSHED DATA \(parseResult.remain?.count) \(parseResult.lines?.count)"))
+					print(Colors.bgMagenta("DID NOT APPEND NONFLUSHED DATA \(parseResult.remain?.count) \(parseResult.lines?.count) \(parseResult.lines?.map({ $0.count }).reduce(0, +))"))
 				}
 			}
 			return parseResult.lines
