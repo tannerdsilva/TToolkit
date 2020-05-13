@@ -120,11 +120,11 @@ internal class PipeReader {
         internal func intakeData(_ data:Data) {
             internalSync.sync {
                 self.buffer.append(data)
-                data.withUnsafeBytes({ unsafeBuffer in
-                    if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
-                        self.makeLineCallback(flush:false)
-                    }
-                })
+//                data.withUnsafeBytes({ unsafeBuffer in
+//                    if unsafeBuffer.contains(where: { $0 == 10 || $0 == 13 }) {
+//                        self.makeLineCallback(flush:false)
+//                    }
+//                })
         	}
         }
         
@@ -139,7 +139,7 @@ internal class PipeReader {
         }
 
         func extractLines(flush:Bool) -> [Data]? {
-			let parseResult = buffer.lineSlice(removeBOM:false, completeLinesOnly:true)
+			let parseResult = buffer.lineSlice(removeBOM:false, completeLinesOnly:!flush)
 			buffer.removeAll(keepingCapacity: true)
 			
 			if flush == false {
