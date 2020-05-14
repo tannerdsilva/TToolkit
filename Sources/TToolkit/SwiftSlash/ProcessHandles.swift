@@ -139,24 +139,14 @@ internal class PipeReader {
         }
 
         func extractLines(flush:Bool) -> [Data]? {
-			let parseResult = buffer.lineSlice(removeBOM:false, completeLinesOnly:!flush)
-			buffer.removeAll(keepingCapacity: true)
-			
+            let parseResult = buffer.cutLines(flush:flush)
 			if flush == false {
-				//add any incomplete lines back into the queue
-				if parseResult.remain != nil {
-					print(Colors.bgMagenta("THE REMAIN DATA IS: [NOT NULL] { \(parseResult.remain!.count) }"), terminator:"")
-					for (_, curInt) in parseResult.remain!.enumerated() {
-						print(Colors.cyan("|: \(curInt) :|"), terminator:"")
-					}
-					print("\n", terminator:"")
-					if parseResult.remain!.count > 0 {
-						buffer.append(parseResult.remain!)
-					}
-				} else {
-					print(Colors.bgGreen("THE REMAIN DATA IS: [NULL]"))
-				}
-			}
+                let cutCapture = buffer[parseResult.cut..<buffer.endIndex]
+                buffer.removeAll(keepingCapacity:true)
+                buffer.append(cutCapture)
+            } else {
+                buffer.removeAll(keepingCapacity:false)
+            }
 			return parseResult.lines
         }
         
