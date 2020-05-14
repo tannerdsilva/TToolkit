@@ -60,7 +60,6 @@ extension IODescriptor {
             bytesCaptured += curData.count
             i += 1
         }
-//        print(Colors.Green("Available Data Loop Itterated \(i) times for a cumulative total of \(bytesCaptured) bytes"))
     }
 }
 
@@ -220,7 +219,6 @@ internal class PipeReader {
     func awaitFlush(_ handle:Int32) {
         let waitSemaphore:DispatchSemaphore? = accessSync.sync { [self, handle] in
     		let returnSem = self.handles[handle]?.flushWait
-    		print(Colors.dim("Returning semaphore for waiting: \(returnSem)"))
     		return returnSem
     	}
     	if waitSemaphore != nil {
@@ -267,8 +265,6 @@ internal struct ExportedPipe:Hashable {
 //					_ = fcntl(readFD, F_SETFL, O_NONBLOCK)
 //					_ = fcntl(writeFD, F_SETFL, O_NONBLOCK)
 				}
-                print(Colors.magenta("created for reading [NONBLOCK]: \(readFD)"))
-                print(Colors.magenta("created for writing: \(writeFD)"))
                 return ExportedPipe(r:readFD, w:writeFD)
             default:
                 throw pipe_errors.unableToCreatePipes

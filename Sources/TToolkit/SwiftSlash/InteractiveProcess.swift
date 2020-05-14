@@ -109,7 +109,6 @@ public class InteractiveProcess:Hashable {
 	I/O events for the interactive process are handled in an asyncronous queue that calls into two secondary syncronous queues (one for internal handling, the other for callback handling
 	*/
     private let internalSync:DispatchQueue
-    private let internalAsync:DispatchQueue
     
 	public enum InteractiveProcessState:UInt8 {
 		case initialized
@@ -194,8 +193,6 @@ public class InteractiveProcess:Hashable {
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync", target:process_master_queue)
         commandToRun = command
         wd = workingDirectory
-        let inputSerial = DispatchQueue(label:"footest", qos:priority.process_async_priority, target:process_master_queue)
-        self.internalAsync = inputSerial
 
 		self._state = .initialized
     }
@@ -222,10 +219,6 @@ public class InteractiveProcess:Hashable {
             pmon.processEnded(self)
         }
         
-        return internalAsync.sync { Int(ec) }
-    }
-    
-    deinit {
-    	print(Colors.yellow("ip was deinit"))
+        return Int(ec)
     }
 }

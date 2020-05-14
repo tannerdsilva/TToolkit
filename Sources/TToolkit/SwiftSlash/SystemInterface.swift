@@ -119,12 +119,10 @@ extension tt_proc_signature {
 		
 		if stdout != nil {
 			globalPR.awaitFlush(stdout!.reading)
-            print(Colors.yellow("\(stdout!.reading) has been flushed"))
 		}
 		
 		if stderr != nil {
 			globalPR.awaitFlush(stderr!.reading)
-            print(Colors.yellow("\(stderr!.reading) has been flushed"))
 		}
         return ec
 	}

@@ -79,15 +79,12 @@ internal class ProcessMonitor {
 	}
     
     fileprivate func processLaunched(mon:pid_t, work:pid_t, time:Date) {
-        print("process monitor confirmed launch of monitor \(mon) and process \(work) at \(time)")
 	}
 
 	fileprivate func processExited(mon:pid_t, work:pid_t, code:Int32) {
         internalSync.sync {
-			print("process monitor confirmed exit of monitor \(mon) and process \(work) with code \(code) \(flushReqs[mon])")
 			if let hasSig = flushReqs[mon] {
 				let waitGroup = waitGroups[mon]
-				print("GROUP FOUND \(waitGroup)")
 				if let hasOut = hasSig.stdout {
 					globalPR.unschedule(hasOut.reading, { [self] in
 						file_handle_guard.async {
@@ -95,7 +92,6 @@ internal class ProcessMonitor {
 						}
                         if waitGroup != nil {
                           	waitGroup!.leave()
-                            print(Colors.bgGreen("signaled stdout to leave group"))
                         }
 					})
 				}
@@ -106,7 +102,6 @@ internal class ProcessMonitor {
 						}
                         if waitGroup != nil {
 							waitGroup!.leave()
-                            print(Colors.bgGreen("signaled stderr to leave group"))
                         }
 					})
 				}
@@ -121,33 +116,27 @@ internal class ProcessMonitor {
 	internal func waitForProcessExitAndFlush(mon:pid_t) {
 		let waitSemaphore:DispatchGroup? = internalSync.sync {
 			if let hasGroup = self.waitGroups[mon] {
-				print("Has a group")
 				return hasGroup
 			} else {
-				print("Does not have a group")
 				return nil
 			}
 		}
 		
 		if let shouldWait = waitSemaphore {
-			print(Colors.bgYellow("awaiting flush..."))
 			shouldWait.wait()
 		}
 	}
 	
 	internal func registerFlushPrerequisites(_ sig:tt_proc_signature) {
 		internalSync.async {
-			print(Colors.bgWhite("Registered flush prerequisite for monitor process \(sig.container)"))
 			let monitorID = sig.container
             self.flushReqs[monitorID] = sig
 			
 			var newGroup = DispatchGroup()
 			if sig.stdout != nil, let readingHandle = sig.stdout?.reading {
-				print(Colors.bgGreen("++ stdout is entering group"))
 				newGroup.enter()
 			}
 			if sig.stderr != nil, let errorHandle = sig.stderr?.reading {
-				print(Colors.bgGreen("++ stderr is entering group"))
 				newGroup.enter()
 			}
 
