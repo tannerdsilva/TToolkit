@@ -80,9 +80,12 @@ internal struct tt_proc_signature:Hashable {
     var worker:pid_t
     var container:pid_t
     
+    var launch_time:Date
+    
     init(container:pid_t, work:pid_t) {
         worker = work
         self.container = container
+        self.launch_time = Date()
     }
     
     static func == (lhs:tt_proc_signature, rhs:tt_proc_signature) -> Bool {

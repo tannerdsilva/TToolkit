@@ -181,6 +181,13 @@ public class InteractiveProcess:Hashable {
 			}
 		}
 	}
+	
+	public var launchDate:Date? {
+		get {
+			return sig?.launch_time
+		}
+	}
+	
     
     internal var commandToRun:Command
     internal var wd:URL

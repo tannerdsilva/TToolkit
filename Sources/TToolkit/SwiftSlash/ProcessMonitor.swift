@@ -79,6 +79,7 @@ internal class ProcessMonitor {
 	}
     
     fileprivate func processLaunched(mon:pid_t, work:pid_t, time:Date) {
+    	print("Process launched")
 	}
 
 	fileprivate func processExited(mon:pid_t, work:pid_t, code:Int32) {
