@@ -111,10 +111,9 @@ internal struct tt_proc_signature:Hashable {
 
 //extension of tt_spawns process signature structure to allow for convenient waiting of internal IO flushing before notifying the framework user that the process has exited
 extension tt_proc_signature {
-	func waitForExitAndFlush() -> Int32 {
+	func waitForExitAndFlush() -> (Int32, Date) {
 		//wait for the containing process to exit. the containing process should exit after the working process has completed, and the global process monitor has been notified as such
-        let ec = try! ProcessMonitor.globalMonitor().waitForProcessExitAndFlush(mon:container)
-        return ec
+        return try! ProcessMonitor.globalMonitor().waitForProcessExitAndFlush(mon:container)
 	}
 }
 

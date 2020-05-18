@@ -187,6 +187,7 @@ public class InteractiveProcess:Hashable {
 			return sig?.launch_time
 		}
 	}
+	public var exitTime:Date? = nil
 	
     
     internal var commandToRun:Command
@@ -220,10 +221,14 @@ public class InteractiveProcess:Hashable {
     }
     
     public func waitForExitCode() -> Int {
-        let ec = sig!.waitForExitAndFlush()
+        let (ec, termDate) = sig!.waitForExitAndFlush()
+        self.internalSync.async { [self, termDate] in
+        	self.exitTime = termDate
+        }
         defer {
             pmon.processEnded(self)
         }
+        print(Colors.dim("Exited after \(termDate.timeIntervalSince(sig!.launch_time))"))
         return Int(ec)
     }
 }

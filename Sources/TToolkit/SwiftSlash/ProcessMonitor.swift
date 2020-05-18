@@ -128,8 +128,9 @@ internal class ProcessMonitor {
         }
 	}
 	
-	internal func waitForProcessExitAndFlush(mon:pid_t) -> Int32 {
+	internal func waitForProcessExitAndFlush(mon:pid_t) -> (Int32, Date) {
         let ec = tt_wait_sync(pid: mon)
+        let exitTime = Date()
 		let waitGroup:DispatchGroup? = internalSync.sync {
 			if let hasGroup = self.waitGroups[mon] {
 				return hasGroup
@@ -142,7 +143,7 @@ internal class ProcessMonitor {
 			shouldWait.wait()
 		}
         
-        return ec
+        return (ec, exitTime)
 	}
 	
 	internal func registerFlushPrerequisites(_ sig:tt_proc_signature) {
