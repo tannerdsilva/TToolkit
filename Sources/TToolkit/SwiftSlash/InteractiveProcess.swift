@@ -5,6 +5,9 @@ fileprivate let tt_spawn_sem = DispatchSemaphore(value:1)
 internal class DebugProcessMonitor {
     let internalSync = DispatchQueue(label:"com.tannersilva.process.monitor.sync", target:process_master_queue)
 	
+	var firstTime:Date? = nil
+	var cumulativeTime:Double = 0
+	
 	var announceTimer:TTimer
 	var processHashes = [InteractiveProcess:Int]()
 	
@@ -55,6 +58,9 @@ internal class DebugProcessMonitor {
                     print(Colors.yellow("\(self.processBytes[curProcess.key])\t"), terminator:"\n")
 				}
 				print(Colors.Blue("There are \(self.processes.count) processes in flight"))
+				if self.processes.count == 0 {
+                    print(Colors.bgBlue("Speedup = \(self.cumulativeTime) -> \(self.firstTime?.timeIntervalSinceNow)"))
+				}
 			}
 		}
 		announceTimer.activate()
@@ -62,13 +68,17 @@ internal class DebugProcessMonitor {
     
 	func processLaunched(_ p:InteractiveProcess) {
 		internalSync.sync {
+			if processes.count == 0 {
+				firstTime = Date()
+			}
 			processes[p] = Date()
             processBytes[p] = 0
 		}
 	}
 	
-	func processEnded(_ p:InteractiveProcess) {
+	func processEnded(_ p:InteractiveProcess, runtime:Double) {
 		internalSync.sync {
+			cumulativeTime += runtime
 			processes[p] = nil
             processBytes[p] = nil
 		}
@@ -226,7 +236,7 @@ public class InteractiveProcess:Hashable {
         	self.exitTime = termDate
         }
         defer {
-            pmon.processEnded(self)
+            pmon.processEnded(self, runtime: termDate.timeIntervalSince(sig!.launch_time))
         }
         print(Colors.dim("Exited after \(termDate.timeIntervalSince(sig!.launch_time))"))
         return Int(ec)

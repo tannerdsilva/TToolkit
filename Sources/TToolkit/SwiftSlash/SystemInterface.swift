@@ -134,7 +134,7 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
 			globalPR.scheduleForReading(err_export!.reading, queue:reading!, handler:stderr!)
 		}
 		if out_export != nil {
-			globalPR.scheduleForReading(out_export!.reading, queue: reading!, handler: stdout!)
+			globalPR.scheduleForReading(out_export!.reading, queue:reading!, handler:stdout!)
 		}
 		launchSem.signal()
 	}
