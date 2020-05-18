@@ -57,10 +57,7 @@ internal class DebugProcessMonitor {
                     print(Colors.green("\(curProcess.key.lines.count)\t"), terminator:"")
                     print(Colors.yellow("\(self.processBytes[curProcess.key])\t"), terminator:"\n")
 				}
-				print(Colors.Blue("There are \(self.processes.count) processes in flight"))
-				if self.processes.count == 0 {
-                    print(Colors.bgBlue("Speedup = \(self.cumulativeTime) -> \(self.firstTime?.timeIntervalSinceNow)"))
-				}
+				print(Colors.bgBlue("Speedup for \(self.processes.count) = \(self.cumulativeTime) -> \(self.firstTime?.timeIntervalSinceNow)"))
 			}
 		}
 		announceTimer.activate()
