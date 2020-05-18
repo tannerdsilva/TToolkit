@@ -113,20 +113,7 @@ internal struct tt_proc_signature:Hashable {
 extension tt_proc_signature {
 	func waitForExitAndFlush() -> Int32 {
 		//wait for the containing process to exit. the containing process should exit after the working process has completed, and the global process monitor has been notified as such
-		let ec = tt_wait_sync(pid:container)
-		
-		//now we need to wait for the standard io channels to flush to their user instances		
-		if stdin != nil {
-			//stdin not supported yet
-		}
-		
-		if stdout != nil {
-			globalPR.awaitFlush(stdout!.reading)
-		}
-		
-		if stderr != nil {
-			globalPR.awaitFlush(stderr!.reading)
-		}
+        let ec = try! ProcessMonitor.globalMonitor().waitForProcessExitAndFlush(mon:container)
         return ec
 	}
 }
@@ -152,6 +139,7 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
 		}
 		launchSem.signal()
 	}
+    
     let reutnVal = try path.path.withCString({ executablePathPointer -> tt_proc_signature in
         var argBuild = [path.path]
         argBuild.append(contentsOf:args)

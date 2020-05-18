@@ -19,6 +19,10 @@ internal class ProcessMonitor {
         
     var waitGroups = [pid_t:DispatchGroup]()
     var flushReqs = [pid_t:tt_proc_signature]()
+    
+    //runtime durations for every executed process. keys are based on monitor process, not working process
+    var processStarts = [pid_t:Date]()
+    var processEnds = [pid_t:Date]()
 
 	private var dataBuffer = Data()
 	private var dataLines = [Data]()
@@ -79,11 +83,18 @@ internal class ProcessMonitor {
 	}
     
     fileprivate func processLaunched(mon:pid_t, work:pid_t, time:Date) {
-    	print("Process launched")
+    	//record the launch time of the process
+    	let captureDate = Date()
+    	internalSync.async { [self, captureDate] in
+    		self.processStarts[mon] = captureDate
+			self.processEnds[mon] = nil
+    	}
 	}
 
 	fileprivate func processExited(mon:pid_t, work:pid_t, code:Int32) {
-        internalSync.sync {
+		let captureDate = Date()
+        internalSync.sync { [weak self, captureDate] in
+        	processEnds[mon] = captureDate
 			if let hasSig = flushReqs[mon] {
 				let waitGroup = waitGroups[mon]
 				if let hasOut = hasSig.stdout {
@@ -107,6 +118,9 @@ internal class ProcessMonitor {
 					})
 				}
                 internalSync.async {
+                	guard let self = self else {
+                		return
+                	}
                     self.waitGroups[mon] = nil
                     self.flushReqs[mon] = nil
                 }
@@ -114,8 +128,9 @@ internal class ProcessMonitor {
         }
 	}
 	
-	internal func waitForProcessExitAndFlush(mon:pid_t) {
-		let waitSemaphore:DispatchGroup? = internalSync.sync {
+	internal func waitForProcessExitAndFlush(mon:pid_t) -> Int32 {
+        let ec = tt_wait_sync(pid: mon)
+		let waitGroup:DispatchGroup? = internalSync.sync {
 			if let hasGroup = self.waitGroups[mon] {
 				return hasGroup
 			} else {
@@ -123,9 +138,11 @@ internal class ProcessMonitor {
 			}
 		}
 		
-		if let shouldWait = waitSemaphore {
+		if let shouldWait = waitGroup {
 			shouldWait.wait()
 		}
+        
+        return ec
 	}
 	
 	internal func registerFlushPrerequisites(_ sig:tt_proc_signature) {
@@ -133,11 +150,11 @@ internal class ProcessMonitor {
 			let monitorID = sig.container
             self.flushReqs[monitorID] = sig
 			
-			var newGroup = DispatchGroup()
-			if sig.stdout != nil, let readingHandle = sig.stdout?.reading {
+			let newGroup = DispatchGroup()
+            if sig.stdout != nil, sig.stdout?.reading != nil {
 				newGroup.enter()
 			}
-			if sig.stderr != nil, let errorHandle = sig.stderr?.reading {
+			if sig.stderr != nil, sig.stderr?.reading != nil {
 				newGroup.enter()
 			}
 

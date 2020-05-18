@@ -104,16 +104,17 @@ internal class PipeReader {
         private var handler:InteractiveProcess.OutputHandler
         
         //related to flushing the final io after a process exits
-        var flushWait:DispatchSemaphore
+        var flushGroup:DispatchGroup
         
-        init(handle:Int32, callback:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler), source:DispatchSourceProtocol, capture:DispatchQueue, flush:DispatchSemaphore) {
+        init(handle:Int32, callback:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler), source:DispatchSourceProtocol, capture:DispatchQueue, flush:DispatchGroup) {
             self.handle = handle
             self.captureQueue = capture
             internalSync = DispatchQueue(label:"com.tannersilva.instance.pipe.read.internal.sync")
             callbackQueue = DispatchQueue(label:"com.tannersilva.instance.pipe.read.callback-target.serial", target:callback)
             self.handler = handler
             self.source = source
-            self.flushWait = flush
+            self.flushGroup = flush
+            self.flushGroup.enter()
         }
         
         internal func intakeData(_ data:Data) {
@@ -158,7 +159,7 @@ internal class PipeReader {
 					self.source.cancel()
 					
 					//signal the flush semaphore, if one exists
-					self.flushWait.signal()
+					self.flushGroup.leave()
 				}
             }
         }
@@ -184,7 +185,7 @@ internal class PipeReader {
 	func scheduleForReading(_ handle:Int32, queue:DispatchQueue, handler:@escaping(InteractiveProcess.OutputHandler)) {
         let intakeQueue = DispatchQueue(label:"com.tannersilva.instance.pipe.handle.read.capture", target:global_pipe_read)
         let newSource = DispatchSource.makeReadSource(fileDescriptor:handle, queue:intakeQueue)
-        let flushSemaphore = DispatchSemaphore(value:0)
+        let flushSemaphore = DispatchGroup()
         let newHandleState = PipeReader.HandleState(handle:handle, callback: queue, handler:handler, source: newSource, capture: intakeQueue, flush:flushSemaphore)
         newSource.setEventHandler(handler: { [handle, newHandleState] in
             handle.availableDataLoop({ [newHandleState] (someData) in
@@ -217,8 +218,8 @@ internal class PipeReader {
     
     //this is used by the user instances immediately after waitpid to ensure that io has flushed properly after a process has finished running
     func awaitFlush(_ handle:Int32) {
-        let waitSemaphore:DispatchSemaphore? = accessSync.sync { [self, handle] in
-    		let returnSem = self.handles[handle]?.flushWait
+        let waitSemaphore:DispatchGroup? = accessSync.sync { [self, handle] in
+    		let returnSem = self.handles[handle]?.flushGroup
     		return returnSem
     	}
     	if waitSemaphore != nil {
