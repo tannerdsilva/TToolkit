@@ -1,8 +1,9 @@
 import Foundation
 
-
 fileprivate let globalProcessMonitorSync = DispatchQueue(label:"com.tannersilva.global.process.monitor.instance.sync", target:global_lock_queue)
 fileprivate var globalProcessMonitor:ProcessMonitor? = nil
+
+//this is an internal class tha monitors the state of processes that are in flight
 internal class ProcessMonitor {
     class func globalMonitor() throws -> ProcessMonitor {
         return try globalProcessMonitorSync.sync {
@@ -39,6 +40,7 @@ internal class ProcessMonitor {
         })
 	}
 
+	//created a new processHandle that is ready to write into the reading end of self's internal pipe
     func newNotifyWriter() throws -> ProcessHandle {
         return ProcessHandle(fd:mainPipe.writing.fileDescriptor)
     }

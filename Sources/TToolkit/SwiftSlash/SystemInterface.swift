@@ -61,6 +61,7 @@ extension Dictionary where Key == String, Value == String {
     }
 }
 
+//waits for a process to exit
 internal func tt_wait_sync(pid:pid_t) -> Int32 {
     var waitResult:Int32 = 0
     var exitCode:Int32 = 0
@@ -72,6 +73,7 @@ internal func tt_wait_sync(pid:pid_t) -> Int32 {
     return exitCode
 }
 
+//this is the structure that is used to capture all relevant information about a process that is in flight
 internal struct tt_proc_signature:Hashable {
     var stdin:ExportedPipe? = nil
     var stdout:ExportedPipe? = nil
@@ -117,6 +119,8 @@ extension tt_proc_signature {
 	}
 }
 
+//this is the wrapping function for tt_spawn. this function can be used with swift objects rather than c pointers that are required for the base tt_spawn command
+//before calling the base `tt_spawn` command, this function will prepare the global pipe readers for any spawns that are configured for stdout and stderr capture
 let launchSem =  DispatchSemaphore(value:1)
 internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdout:(InteractiveProcess.OutputHandler)?, stderr:(InteractiveProcess.OutputHandler)?, reading:DispatchQueue?, writing:DispatchQueue?) throws -> tt_proc_signature {
     var err_export:ExportedPipe? = nil
@@ -347,6 +351,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
     }
 }
 
+//check if a path is executable
 internal func tt_execute_check(url:URL) -> Bool {
 	let urlPath = url.path
 	return urlPath.withCString { cstrBuff in
@@ -354,6 +359,7 @@ internal func tt_execute_check(url:URL) -> Bool {
 	}
 }
 
+//check if a path is a directory
 internal func tt_directory_check(url:URL) -> Bool {
 	let urlPath = url.path
 	return urlPath.withCString { cstrBuff in
