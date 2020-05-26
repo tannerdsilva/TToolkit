@@ -2,6 +2,8 @@ import Foundation
 
 fileprivate let tt_spawn_sem = DispatchSemaphore(value:1)
 
+//this class is only to be used when in debug mode. this will periodically output any processes that are in-flight and any relevant information about the process. relevant information include lines captured by the global readers and elapsed runtime thus far.
+#if DEBUG
 internal class DebugProcessMonitor {
     let internalSync = DispatchQueue(label:"com.tannersilva.process.monitor.sync", target:process_master_queue)
 	
@@ -82,6 +84,7 @@ internal class DebugProcessMonitor {
 	}
 }
 internal let pmon = DebugProcessMonitor()
+#endif
 
 public class InteractiveProcess:Hashable {
     private var _priority:Priority
@@ -143,6 +146,7 @@ public class InteractiveProcess:Hashable {
 		}
 	}
 
+	//what are the standard inputs and outputs that are being used to capture this process?
 	internal var stdin:Int32? = nil
 	internal var stdout:Int32? = nil
 	internal var stderr:Int32? = nil
@@ -221,7 +225,11 @@ public class InteractiveProcess:Hashable {
 				self.lines.append(someData)
 				self._stderrHandler?(someData)
 			}, reading:internalSync, writing:nil)
+			
+#if DEBUG
 			pmon.processLaunched(self)
+#endif
+
 			print(Colors.Green("launched \(launchedProcess.worker)"))
 			self.sig = launchedProcess
 		}
@@ -232,9 +240,13 @@ public class InteractiveProcess:Hashable {
         self.internalSync.async { [self, termDate] in
         	self.exitTime = termDate
         }
+        
+#if DEBUG
         defer {
             pmon.processEnded(self, runtime: termDate.timeIntervalSince(sig!.launch_time))
         }
+#endif
+
         print(Colors.dim("Exited after \(termDate.timeIntervalSince(sig!.launch_time))"))
         return Int(ec)
     }
