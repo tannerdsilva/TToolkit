@@ -27,7 +27,6 @@ internal class ProcessMonitor {
     var processStarts = [pid_t:Date]()
     var processEnds = [pid_t:Date]()
 
-	private var dataBuffer = Data()
 	private var dataLines = [Data]()
 
 	init() throws {
