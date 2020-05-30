@@ -41,13 +41,13 @@ internal class DebugProcessMonitor {
 					let hash = 0
 					if let hasHash = self.processHashes[curProcess.key] {
 						if hasHash != hash {
-							print(Colors.green("\(curProcess.key.dhash)\t"), terminator:"")
+//							print(Colors.green("\(curProcess.key.dhash)\t"), terminator:"")
 						} else {
-							print(Colors.dim("\(curProcess.key.dhash)\t"), terminator:"")
+//							print(Colors.dim("\(curProcess.key.dhash)\t"), terminator:"")
 						}
 						self.processHashes[curProcess.key] = hash
 					} else {
-						print(Colors.red("\(curProcess.key.dhash)\t"), terminator:"")
+//						print(Colors.red("\(curProcess.key.dhash)\t"), terminator:"")
 						self.processHashes[curProcess.key] = hash					
 					}
 					let pid = curProcess.key.processIdentifier
