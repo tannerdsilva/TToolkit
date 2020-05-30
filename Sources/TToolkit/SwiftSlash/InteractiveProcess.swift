@@ -87,13 +87,13 @@ internal let pmon = DebugProcessMonitor()
 #endif
 
 public class InteractiveProcess:Hashable {
-    private var _priority:Priority
 	private var _id = UUID()
 	internal var _uniqueID:String {
 		get {
 			return _id.uuidString
 		}
 	}
+
 	internal var processIdentifier:Int32 {
 		get {
 			return internalSync.sync {
@@ -101,9 +101,9 @@ public class InteractiveProcess:Hashable {
 			}
 		}
 	}
-	
+
 	internal var dhash:Int = 0
-	
+
 	public func hash(into hasher:inout Hasher) {
 		hasher.combine(_uniqueID)
 	}
@@ -119,7 +119,6 @@ public class InteractiveProcess:Hashable {
 	I/O events for the interactive process are handled in an asyncronous queue that calls into two secondary syncronous queues (one for internal handling, the other for callback handling
 	*/
     private let internalSync:DispatchQueue
-    
 	public enum InteractiveProcessState:UInt8 {
 		case initialized
 		case running
@@ -207,8 +206,7 @@ public class InteractiveProcess:Hashable {
     
     var lines = [Data]() 
 	
-    public init<C>(command:C, priority:Priority, workingDirectory:URL) throws where C:Command {
-        self._priority = priority
+    public init<C>(command:C, workingDirectory:URL) throws where C:Command {
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync", target:process_master_queue)
         commandToRun = command
         wd = workingDirectory
@@ -225,7 +223,7 @@ public class InteractiveProcess:Hashable {
 				self.lines.append(someData)
 				self._stderrHandler?(someData)
 			}, reading:internalSync, writing:nil)
-			
+
 #if DEBUG
 			pmon.processLaunched(self)
 #endif
@@ -240,7 +238,7 @@ public class InteractiveProcess:Hashable {
         self.internalSync.async { [self, termDate] in
         	self.exitTime = termDate
         }
-        
+
 #if DEBUG
         defer {
             pmon.processEnded(self, runtime: termDate.timeIntervalSince(sig!.launch_time))

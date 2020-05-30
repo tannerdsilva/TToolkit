@@ -1,5 +1,6 @@
 import Foundation
 
+//these are the system calls that are required to help facilitate the tt_spawn functions
 #if canImport(Darwin)
 	import Darwin
 	internal let _read = Darwin.read(_:_:_:)
@@ -30,6 +31,7 @@ fileprivate func WIFSIGNALED(_ status:Int32) -> Bool {
 }
 
 extension Array where Element == String {
+	//will convert a swift array of execution arguments to a buffer pointer that tt_spawn can use at a lower levels
     internal func with_spawn_ready_arguments<R>(_ work:@escaping(UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>) throws -> R) rethrows -> R {
         let argC = self.withUnsafeBufferPointer { (pointer) -> UnsafeMutablePointer<UnsafeMutablePointer<Int8>?> in
             let arr:UnsafeBufferPointer<String> = pointer
@@ -50,7 +52,6 @@ extension Array where Element == String {
 
 extension Dictionary where Key == String, Value == String {
     internal func with_spawn_ready_environment<R>(_ work:@escaping([UnsafeMutablePointer<Int8>]) throws -> R) rethrows -> R {
-        //convert the environment variables to C compatible variables
         let cEnv = self.compactMap { strdup("\($0)=\($1)") }
         defer {
             for (_, curPtr) in cEnv.enumerated() {

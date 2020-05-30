@@ -14,10 +14,12 @@ internal class ProcessMonitor {
         }
     }
 
+	//this is the primary pipe that the spawned processes will use to channel data to the global process monitor
     let mainPipe:ExportedPipe
 
     let internalSync:DispatchQueue
-        
+    
+    
     var waitGroups = [pid_t:DispatchGroup]()
     var flushReqs = [pid_t:tt_proc_signature]()
     

@@ -262,10 +262,10 @@ internal struct ExportedPipe:Hashable {
             case 0:
                 let readFD = fds.pointee
                 let writeFD = fds.successor().pointee
-				if nonblock == false || nonblock == true {
+//				if nonblock == false || nonblock == true {
 //					_ = fcntl(readFD, F_SETFL, O_NONBLOCK)
 //					_ = fcntl(writeFD, F_SETFL, O_NONBLOCK)
-				}
+//				}
                 return ExportedPipe(r:readFD, w:writeFD)
             default:
                 throw pipe_errors.unableToCreatePipes
