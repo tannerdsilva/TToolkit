@@ -19,7 +19,6 @@ internal class ProcessMonitor {
 
     let internalSync:DispatchQueue
     
-    
     var waitGroups = [pid_t:DispatchGroup]()
     var flushReqs = [pid_t:tt_proc_signature]()
     
