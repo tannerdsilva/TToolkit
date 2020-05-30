@@ -57,7 +57,7 @@ extension Collection {
         }
         
         let enumerateQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:_explodeGlobal)
-        let iterator = self.makeIterator()
+        var iterator = self.makeIterator()
         func getNext() -> Self.Element? {
         	return enumerateQueue.sync {
         		return iterator.next()
@@ -80,7 +80,7 @@ extension Collection {
         
         //pre-processing access
         let enumerateQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:_explodeGlobal)
-        let iterator = self.makeIterator()
+        var iterator = self.makeIterator()
         func getNext() -> Self.Element? {
         	return enumerateQueue.sync {
         		return iterator.next()
@@ -106,12 +106,12 @@ extension Collection {
     //explode a collection - returns a set of hashable objects
     public func explode<T>(using thisFunction:@escaping (Int, Element) throws -> T?) -> Set<T> where T:Hashable {
         guard count > 0 else {
-        	return
+        	return Set<T>()
         }
         
         //pre-processing access
         let enumerateQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:_explodeGlobal)
-        let iterator = self.makeIterator()
+        var iterator = self.makeIterator()
         func getNext() -> Self.Element? {
         	return enumerateQueue.sync {
         		return iterator.next()
@@ -124,11 +124,8 @@ extension Collection {
         
         //process
         DispatchQueue.concurrentPerform(iterations:count) { n in
-        	guard let thisItem = getNext() else {
-        		return
-        	}
-        	if let returnedValue = try? thisFunction(n, thisItem) {
-        		returnQueue.sync {
+        	if let thisItem = getNext(), let returnedValue = try? thisFunction(n, thisItem) {
+        		buildQueue.sync {
         			buildData.update(with:returnedValue)
         		}
         	}
@@ -140,12 +137,12 @@ extension Collection {
     //explode a collection - returns a dictionary
     public func explode<T, U>(using thisFunction:@escaping (Int, Element) throws -> (key:T, value:U)) -> [T:U] where T:Hashable {
         guard count > 0 else {
-        	return
+        	return [T:U]()
         }
         
         //pre-processing access
         let enumerateQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:_explodeGlobal)
-        let iterator = self.makeIterator()
+        var iterator = self.makeIterator()
         func getNext() -> Self.Element? {
         	return enumerateQueue.sync {
         		return iterator.next()
@@ -154,16 +151,13 @@ extension Collection {
         
         //post-process merging
         let buildQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:_explodeGlobal)
-        var buildData = Set<T>()
+        var buildData = [T:U]()
         
         //process
         DispatchQueue.concurrentPerform(iterations:count) { n in
-        	guard let thisItem = getNext() else {
-        		return
-        	}
-        	if let returnedValue = try? thisFunction(n, thisItem) {
-        		returnQueue.sync {
-        			buildData.update(with:returnedValue)
+        	if let thisItem = getNext(), let returnedValue = try? thisFunction(n, thisItem), returnedValue.value != nil {
+        		buildQueue.sync {
+        			buildData[returnedValue.key] = returnedValue.value
         		}
         	}
         }
