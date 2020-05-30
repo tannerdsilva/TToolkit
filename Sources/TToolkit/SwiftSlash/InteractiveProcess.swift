@@ -35,10 +35,10 @@ internal class DebugProcessMonitor {
 			self.internalSync.sync {
 				let sortedProcs = self.sortedProcesses
 				for (_, curProcess) in sortedProcs.enumerated() {
-					print(Colors.Cyan("\(curProcess.key._uniqueID)\t\t"), terminator:"")
+//					print(Colors.Cyan("\(curProcess.key._uniqueID)\t\t"), terminator:"")
 					print(Colors.blue("\(curProcess.key.processIdentifier)\t\t"), terminator:"")
 					print(Colors.yellow("\(curProcess.value.timeIntervalSinceNow)\t"), terminator:"")
-					let hash = curProcess.key.dhash
+					let hash = 0
 					if let hasHash = self.processHashes[curProcess.key] {
 						if hasHash != hash {
 							print(Colors.green("\(curProcess.key.dhash)\t"), terminator:"")
@@ -101,8 +101,6 @@ public class InteractiveProcess:Hashable {
 			}
 		}
 	}
-
-	internal var dhash:Int = 0
 
 	public func hash(into hasher:inout Hasher) {
 		hasher.combine(_uniqueID)
@@ -228,7 +226,6 @@ public class InteractiveProcess:Hashable {
 			pmon.processLaunched(self)
 #endif
 
-			print(Colors.Green("launched \(launchedProcess.worker)"))
 			self.sig = launchedProcess
 		}
     }
@@ -245,7 +242,6 @@ public class InteractiveProcess:Hashable {
         }
 #endif
 
-        print(Colors.dim("Exited after \(termDate.timeIntervalSince(sig!.launch_time))"))
         return Int(ec)
     }
 }

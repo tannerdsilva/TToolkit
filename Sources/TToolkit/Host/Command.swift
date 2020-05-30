@@ -90,14 +90,13 @@ extension Context {
         var errorLines = [Data]()
         
         let process = try InteractiveProcess(command:commandToRun, workingDirectory: self.workingDirectory)
-//        process.workingDirectory = self.workingDirectory
-        try process.run()
         process.stdoutHandler = { someData in
             outputLines.append(someData)
         }
         process.stderrHandler = { someData in
             errorLines.append(someData)
         }
+		try process.run()
         let exitCode = process.waitForExitCode()
         let result = CommandResult(exitCode: exitCode, stdout: outputLines, stderr: errorLines)
    		return result
