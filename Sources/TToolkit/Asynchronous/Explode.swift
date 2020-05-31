@@ -8,7 +8,7 @@
 import Foundation
 
 //explosions allow for multi-threaded collection mapping
-fileprivate let _explodeGlobal = DispatchQueue(label:"com.tannerdsilva.global.function.explode", attributes:[.concurrent])
+fileprivate let explodeGlobal = DispatchQueue(label:"com.tannerdsilva.global.function.explode", attributes:[.concurrent])
 
 extension Collection {
 	//explode a collection - no return values
@@ -17,7 +17,7 @@ extension Collection {
         	return
         }
         
-        let enumerateQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:_explodeGlobal)
+        let enumerateQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:explodeGlobal)
         var iterator = self.makeIterator()
         func getNext() -> Self.Element? {
         	return enumerateQueue.sync {
@@ -40,7 +40,7 @@ extension Collection {
         }
         
         //pre-processing access
-        let enumerateQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:_explodeGlobal)
+        let enumerateQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:explodeGlobal)
         var iterator = self.makeIterator()
         func getNext() -> Self.Element? {
         	return enumerateQueue.sync {
@@ -49,7 +49,7 @@ extension Collection {
         }
         
         //post-process merging
-        let returnQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:_explodeGlobal)
+        let returnQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:explodeGlobal)
         
         //process
         DispatchQueue.concurrentPerform(iterations:count) { n in
@@ -71,7 +71,7 @@ extension Collection {
         }
         
         //pre-processing access
-        let enumerateQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:_explodeGlobal)
+        let enumerateQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:explodeGlobal)
         var iterator = self.makeIterator()
         func getNext() -> Self.Element? {
         	return enumerateQueue.sync {
@@ -80,7 +80,7 @@ extension Collection {
         }
         
         //post-process merging
-        let buildQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:_explodeGlobal)
+        let buildQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:explodeGlobal)
         var buildData = Set<T>()
         
         //process
@@ -102,7 +102,7 @@ extension Collection {
         }
         
         //pre-processing access
-        let enumerateQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:_explodeGlobal)
+        let enumerateQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:explodeGlobal)
         var iterator = self.makeIterator()
         func getNext() -> Self.Element? {
         	return enumerateQueue.sync {
@@ -111,7 +111,7 @@ extension Collection {
         }
         
         //post-process merging
-        let buildQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:_explodeGlobal)
+        let buildQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:explodeGlobal)
         var buildData = [T:U]()
         
         //process
