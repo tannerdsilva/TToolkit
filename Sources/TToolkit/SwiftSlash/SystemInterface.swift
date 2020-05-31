@@ -246,7 +246,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
         }
         
         //access checks
-    	guard tt_directory_check(ptr:wd) == true && tt_execute_check(ptr:path) == true && chdir(wd) == else {
+    	guard tt_directory_check(ptr:wd) == true && tt_execute_check(ptr:path) == true && chdir(wd) == 0 else {
     		notifyAccess(internalNotify.writing)
     	}
         
