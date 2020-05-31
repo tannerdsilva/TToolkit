@@ -24,6 +24,16 @@ extension Int32:IODescriptor {
     }
 }
 extension IODescriptor {
+	func write(_ stringToWrite:String) throws {
+		try write(stringToWrite.safeData(using:.utf8))
+	}
+
+	func write(_ dataObj:Data) {
+		dataObj.withUnsafeBytes({
+			_write(_fd, $0.baseAddress, dataObj.count)
+		})
+	}
+	
     func availableData() -> Data? {
         var statbuf = stat()
         if fstat(_fd, &statbuf) < 0 {
