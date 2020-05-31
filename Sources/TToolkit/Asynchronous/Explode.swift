@@ -9,7 +9,7 @@ import Foundation
 
 //explosions allow for multi-threaded collection mapping
 fileprivate let explodeGlobal = DispatchQueue(label:"com.tannerdsilva.global.function.explode", attributes:[.concurrent])
-fileprivate associatedtype CounterType = Int64
+fileprivate typealias CounterType = Int64
 extension Collection {
 	//explode a collection - no return values
     public func explode(using thisFunction:@escaping (Int, Element) throws -> Void) {
