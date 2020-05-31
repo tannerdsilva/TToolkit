@@ -149,7 +149,10 @@ internal class ProcessMonitor {
 	}
 	
 	internal func registerFlushPrerequisites(_ sig:tt_proc_signature) {
-		internalSync.async {
+		internalSync.async { [sig, weak self] in
+			guard let self = self else {
+				return
+			}
 			let monitorID = sig.container
             self.flushReqs[monitorID] = sig
 			

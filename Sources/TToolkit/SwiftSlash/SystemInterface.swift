@@ -21,7 +21,6 @@ import Foundation
 	internal let _chdir = Glibc.chdir(_:)
 #endif
 
-
 fileprivate func _WSTATUS(_ status:Int32) -> Int32 {
     return status & 0x7f
 }
@@ -137,13 +136,13 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
         out_export = try ExportedPipe.rw()
     }
 	defer {
+		launchSem.signal()
 		if err_export != nil {
 			globalPR.scheduleForReading(err_export!.reading, queue:reading!, handler:stderr!)
 		}
 		if out_export != nil {
 			globalPR.scheduleForReading(out_export!.reading, queue:reading!, handler:stdout!)
 		}
-		launchSem.signal()
 	}
     
     let reutnVal = try path.path.withCString({ executablePathPointer -> tt_proc_signature in
