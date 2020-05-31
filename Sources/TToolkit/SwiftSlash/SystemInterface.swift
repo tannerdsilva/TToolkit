@@ -165,6 +165,7 @@ internal enum tt_spawn_error:Error {
     case systemForkErrorno(Int32)
 }
 
+
 //spawns two processes. first process is responsible for executing the actual command. second process is responsible for watching the executing process, and notifying the parent about the status of the executing process. This "monitor process" is also responsible for closing the standard inputs and outputs so that they do not get mixed in with the parents standard file descriptors
 //the primary means of I/O for the monitor process is the file descriptor passed to this function `notify`. This file descriptor acts as the activity log for the monitor process.
 //three types of monitor process events, launch event, exit event, and fatal event
@@ -172,9 +173,9 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
     _ = try ProcessMonitor.globalMonitor() //test that the process monitor has been initialized before forking
     
     //used internally for this function to determine when the forked process has successfully initialized
-    let internalNotify = try ExportedPipe.rw(nonblock:true)
+    let internalNotify = try ExportedPipe.rw()
 
-    let forkResult = fork()
+    let forkResult = fork()	//spawn the container process
     
     func executeProcessWork() {
         Glibc.execvp(path, args)
@@ -350,6 +351,8 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
     }
 }
 
+
+//MARK: Small Helpers
 //check if a path is executable
 internal func tt_execute_check(url:URL) -> Bool {
 	let urlPath = url.path
@@ -366,6 +369,7 @@ internal func tt_directory_check(url:URL) -> Bool {
 	}
 }
 
+//check if a directory can be accessed
 internal func tt_directory_check(ptr:UnsafePointer<Int8>) -> Bool {
 	var statInfo = stat()
 	guard stat(ptr, &statInfo) == 0, statInfo.st_mode & S_IFMT == S_IFDIR else {
@@ -377,6 +381,7 @@ internal func tt_directory_check(ptr:UnsafePointer<Int8>) -> Bool {
 	return true
 }
 
+//check if a path can be executed
 internal func tt_execute_check(ptr:UnsafePointer<Int8>) -> Bool {
 	var statInfo = stat()
 	guard stat(ptr, &statInfo) == 0, statInfo.st_mode & S_IFMT == S_IFREG else {
