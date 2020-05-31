@@ -9,7 +9,7 @@ import Foundation
 
 //explosions allow for multi-threaded collection mapping
 fileprivate let explodeGlobal = DispatchQueue(label:"com.tannerdsilva.global.function.explode", attributes:[.concurrent])
-
+fileprivate associatedtype CounterType = Int64
 extension Collection {
 	//explode a collection - no return values
     public func explode(using thisFunction:@escaping (Int, Element) throws -> Void) {
@@ -19,17 +19,22 @@ extension Collection {
         
         let enumerateQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:explodeGlobal)
         var iterator = self.makeIterator()
-        func getNext() -> Self.Element? {
+        var i:CounterType = 0
+        func getNext() -> (CounterType, Self.Element?) {
         	return enumerateQueue.sync {
-        		return iterator.next()
+        		defer {
+        			i += 1
+        		}
+        		return (i, iterator.next())
         	}
         }
         
-        DispatchQueue.concurrentPerform(iterations:count) { n in
-        	guard let thisItem = getNext() else {
-        		return
+        DispatchQueue.concurrentPerform(iterations:count) { _ in
+        	let iteratorFetch = getNext()
+        	let n = iteratorFetch.0
+        	if let thisItem = iteratorFetch.1 {
+        		try? thisFunction(n, thisItem)
         	}
-        	try? thisFunction(n, thisItem)
         }
     }
     
@@ -42,9 +47,13 @@ extension Collection {
         //pre-processing access
         let enumerateQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:explodeGlobal)
         var iterator = self.makeIterator()
-        func getNext() -> Self.Element? {
+        var i:CounterType = 0
+        func getNext() -> (CounterType, Self.Element?) {
         	return enumerateQueue.sync {
-        		return iterator.next()
+        		defer {
+        			i += 1
+        		}
+        		return (i, iterator.next())
         	}
         }
         
@@ -52,11 +61,10 @@ extension Collection {
         let returnQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:explodeGlobal)
         
         //process
-        DispatchQueue.concurrentPerform(iterations:count) { n in
-        	guard let thisItem = getNext() else {
-        		return
-        	}
-        	if let returnedValue = try? thisFunction(n, thisItem) {
+        DispatchQueue.concurrentPerform(iterations:count) { _ in
+        	let iteratorFetch = getNext()
+        	let n = iteratorFetch.0
+        	if let thisItem = iteratorFetch.1, let returnedValue = try? thisFunction(n, thisItem) {
         		returnQueue.sync {
         			try? mergeFunction(n, returnedValue)
         		}
@@ -73,9 +81,13 @@ extension Collection {
         //pre-processing access
         let enumerateQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:explodeGlobal)
         var iterator = self.makeIterator()
-        func getNext() -> Self.Element? {
+        var i:CounterType = 0
+        func getNext() -> (CounterType, Self.Element?) {
         	return enumerateQueue.sync {
-        		return iterator.next()
+        		defer {
+        			i += 1
+        		}
+        		return (i, iterator.next())
         	}
         }
         
@@ -84,8 +96,10 @@ extension Collection {
         var buildData = Set<T>()
         
         //process
-        DispatchQueue.concurrentPerform(iterations:count) { n in
-        	if let thisItem = getNext(), let returnedValue = try? thisFunction(n, thisItem) {
+        DispatchQueue.concurrentPerform(iterations:count) { _ in
+        	let iteratorFetch = getNext()
+        	let n = iteratorFetch.0
+        	if let thisItem = iteratorFetch.1, let returnedValue = try? thisFunction(n, thisItem) {
         		buildQueue.sync {
         			buildData.update(with:returnedValue)
         		}
@@ -104,9 +118,13 @@ extension Collection {
         //pre-processing access
         let enumerateQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:explodeGlobal)
         var iterator = self.makeIterator()
-        func getNext() -> Self.Element? {
+        var i:CounterType = 0
+        func getNext() -> (CounterType, Self.Element?) {
         	return enumerateQueue.sync {
-        		return iterator.next()
+        		defer {
+        			i += 1
+        		}
+        		return (i, iterator.next())
         	}
         }
         
@@ -115,8 +133,10 @@ extension Collection {
         var buildData = [T:U]()
         
         //process
-        DispatchQueue.concurrentPerform(iterations:count) { n in
-        	if let thisItem = getNext(), let returnedValue = try? thisFunction(n, thisItem), returnedValue.value != nil {
+        DispatchQueue.concurrentPerform(iterations:count) { _ in
+        	let iteratorFetch = getNext()
+        	let n = iteratorFetch.0
+        	if let thisItem = iteratorFetch.1, let returnedValue = try? thisFunction(n, thisItem), returnedValue.value != nil {
         		buildQueue.sync {
         			buildData[returnedValue.key] = returnedValue.value
         		}
