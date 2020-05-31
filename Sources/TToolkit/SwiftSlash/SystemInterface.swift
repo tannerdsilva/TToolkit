@@ -9,6 +9,7 @@ import Foundation
 	internal let o_cloexec = Darwin.O_CLOEXEC
 	internal let _pipe = Darwin.pipe(_:)
 	internal let _dup2 = Darwin.dup2(_:_:)
+	internal let _chdir = Darwin.chdir(_:)
 #elseif canImport(Glibc)
 	import Glibc
 	internal let _read = Glibc.read(_:_:_:)
@@ -17,6 +18,7 @@ import Foundation
 	internal let o_cloexec = Glibc.O_CLOEXEC
 	internal let _pipe = Glibc.pipe(_:)
 	internal let _dup2 = Glibc.dup2(_:_:)
+	internal let _chdir = Glibc.chdir(_:)
 #endif
 
 
@@ -172,7 +174,6 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
     
     //used internally for this function to determine when the forked process has successfully initialized
     let internalNotify = try ExportedPipe.rw(nonblock:true)
-    
 
     let forkResult = fork()
     
@@ -181,18 +182,17 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
         _exit(0)
 	}
 	
-	func notifyFatal(_ ph:ProcessHandle) -> Never {
+	func notifyFatal(_ ph:IODescriptor) -> Never {
 		try! ph.write("x\n\n")
 		_exit(-1)
 	}
 	
-	func notifyAccess(_ ph:ProcessHandle) -> Never {
+	func notifyAccess(_ ph:IODescriptor) -> Never {
 		try! ph.write("a\n\n")
 		_exit(-1)
 	}
 	
     func processMonitor() throws -> Never {
-        let launchWriter = ProcessHandle(fd:internalNotify.writing)
         _close(internalNotify.reading)
         do {
             func bindingStdout() throws -> ExportedPipe {
@@ -220,7 +220,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
             //assign stdout to the writing end of the file descriptor
             var hasStdout:ExportedPipe = try bindingStdout()
             guard _dup2(hasStdout.writing, STDOUT_FILENO) >= 0 else {
-                notifyFatal(launchWriter)
+                notifyFatal(internalNotify.writing)
             }
             _ = _close(hasStdout.writing)
             _ = _close(hasStdout.reading)
@@ -229,7 +229,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
             //assign stderr to the writing end of the file descriptor
             var hasStderr:ExportedPipe = try bindingStderr()
             guard _dup2(hasStderr.writing, STDERR_FILENO) >= 0 else {
-                notifyFatal(launchWriter)
+                notifyFatal(internalNotify.writing)
             }
             _ = _close(hasStderr.writing)
             _ = _close(hasStderr.reading)
@@ -237,32 +237,32 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
             //assign stdin to the writing end of the file descriptor
             var hasStdin:ExportedPipe = try bindingStdin()
             guard _dup2(hasStdin.reading, STDIN_FILENO) >= 0 else {
-                notifyFatal(launchWriter)
+                notifyFatal(internalNotify.writing)
             }
             _ = _close(hasStdin.writing)
             _ = _close(hasStdin.reading)
         } catch _ {
-            notifyFatal(launchWriter)
+            notifyFatal(internalNotify.writing)
         }
         
         //access checks
-    	guard tt_directory_check(ptr:wd) == true && tt_execute_check(ptr:path) == true else {
-    		notifyAccess(launchWriter)
+    	guard tt_directory_check(ptr:wd) == true && tt_execute_check(ptr:path) == true && chdir(wd) == else {
+    		notifyAccess(internalNotify.writing)
     	}
         
        	let processForkResult = fork()
         
 		switch processForkResult {
 			case -1:
-				notifyFatal(launchWriter)
+				notifyFatal(internalNotify.writing)
 				
 			case 0:
 				//in child: success
                 executeProcessWork()
 				
 			default:
-                try! launchWriter.write("\(processForkResult)\n\n")
-                _ = _close(launchWriter.fileDescriptor)
+                try! internalNotify.writing.write("\(processForkResult)\n\n")
+                _ = _close(internalNotify.writing)
                 _ = _close(STDIN_FILENO)
                 _ = _close(STDERR_FILENO)
                 _ = _close(STDOUT_FILENO)
@@ -312,10 +312,9 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
             stdout?.closeWriting()
             internalNotify.closeWriting()
             
-            let launchReader = ProcessHandle(fd:internalNotify.reading)
             var incomingData:Data? = nil
             while incomingData == nil || incomingData!.count == 0 {
-                incomingData = launchReader.availableData()
+                incomingData = internalNotify.reading.availableData()
             }
             
             internalNotify.closeReading()
