@@ -213,20 +213,31 @@ public class InteractiveProcess:Hashable {
     }
     
     public func run() throws {
-		try self.internalSync.sync {
-			let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdout:{ someData in
-				self.lines.append(someData)
-				self._stdoutHandler?(someData)
-			}, stderr: { someData in
-				self.lines.append(someData)
-				self._stderrHandler?(someData)
-			}, reading:internalSync, writing:nil)
+    	do {
+			try self.internalSync.sync {
+				let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdout:{ someData in
+					self.lines.append(someData)
+					self._stdoutHandler?(someData)
+				}, stderr: { someData in
+					self.lines.append(someData)
+					self._stderrHandler?(someData)
+				}, reading:internalSync, writing:nil)
 
-#if DEBUG
-			pmon.processLaunched(self)
-#endif
-
-			self.sig = launchedProcess
+	#if DEBUG
+				pmon.processLaunched(self)
+	#endif
+				self._state = .running
+				self.sig = launchedProcess
+			}
+		} catch let error {
+			//assign state failed
+			self.internalSync.async { [weak self] in
+				guard let self = self else {
+					return
+				}
+				self._state = .failed
+			}
+			throw error
 		}
     }
     

@@ -96,7 +96,7 @@ internal class ProcessMonitor {
 	fileprivate func processExited(mon:pid_t, work:pid_t, code:Int32) {
 		let captureDate = Date()
         internalSync.sync { [weak self, captureDate] in
-        	processEnds[mon] = captureDate
+        	processEnds[mon] = captureDate	//record the end time of the process
 			if let hasSig = flushReqs[mon] {
 				let waitGroup = waitGroups[mon]
 				if let hasOut = hasSig.stdout {
