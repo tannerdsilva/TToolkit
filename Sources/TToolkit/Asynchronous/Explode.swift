@@ -10,45 +10,6 @@ import Foundation
 //explosions allow for multi-threaded collection mapping
 fileprivate let _explodeGlobal = DispatchQueue(label:"com.tannerdsilva.global.function.explode", attributes:[.concurrent])
 
-//extension Collection {
-//    fileprivate func sequenceBuffer<R>(_ work:@escaping(UnsafeBufferPointer<Element>) throws -> R) rethrows -> R {
-//		let buffer = UnsafeMutableBufferPointer<Element>.allocate(capacity: self.count)
-//        _ = buffer.initialize(from: self)
-//		defer {
-//			buffer.deallocate()
-//		}
-//		return try work(UnsafeBufferPointer(buffer))
-//	}
-//
-//	public func explode(using thisFunction:@escaping (Int, Element) throws -> Void) {
-//		self.sequenceBuffer { unsafeBuff in
-//			print("O? \(unsafeBuff.count)")
-//			unsafeBuff._explode_v(using:thisFunction)
-//		}
-//	}
-//	
-//	public func explode<T>(using thisFunction:@escaping (Int, Element) -> T?, merge mergeFunction:@escaping (Int, T) -> Void) {
-//		self.sequenceBuffer { unsafeBuff in
-//			print("O? \(unsafeBuff.count)")
-//			unsafeBuff._explode_v_merge(using:thisFunction, merge:mergeFunction)
-//		}
-//	}
-//	
-//	public func explode<T>(using thisFunction:@escaping (Int, Element) -> T?) -> Set<T> where T:Hashable {
-//		return self.sequenceBuffer { unsafeBuff in
-//			print("O? \(unsafeBuff.count)")
-//			return unsafeBuff._explode_r_set(using:thisFunction)
-//		} ?? Set<T>()
-//	}
-//	
-//	public func explode<T, U>(using thisFunction:@escaping (Int, Element) -> (key:T, value:U)) -> [T:U] where T:Hashable {
-//		return self.sequenceBuffer { unsafeBuff in
-//			print("O? \(unsafeBuff.count)" )
-//			return unsafeBuff._explode_r_dict(using:thisFunction)
-//		} ?? [T:U]()
-//	}
-//}
-
 extension Collection {
 	//explode a collection - no return values
     public func explode(using thisFunction:@escaping (Int, Element) throws -> Void) {
