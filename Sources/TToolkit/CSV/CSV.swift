@@ -94,37 +94,43 @@ extension Dictionary:CSVEncodable where Key == String, Value == String {
     }
 }
 
-public func readCSV(_ inputFile:URL) throws -> [[String:String]] {
-    enum CSVReadingError: Error {
-        case unableToConvertToString
-        case noHeaderFound
-        case inconsistentData
-        case headerLineSkipped
-    }
-    let inputFileData = try Data(contentsOf:inputFile)
+extension Data {
+	public func parseCSV() throws -> [[String:String]] {
+	    enum CSVReadingError: Error {
+			case unableToConvertToString
+			case noHeaderFound
+			case inconsistentData
+			case headerLineSkipped
+		}
 
-    let inputLinesData = inputFileData.lineParse() ?? [Data]()
-    let inputFileLines = inputLinesData.compactMap { String(data:$0, encoding:.utf8) }
+		let inputLinesData = self.lineParse() ?? [Data]()
+		let inputFileLines = inputLinesData.compactMap { String(data:$0, encoding:.utf8) }
 
-    guard inputFileLines.count > 0 else {
-        throw CSVReadingError.noHeaderFound
-    }
+		guard inputFileLines.count > 0 else {
+			throw CSVReadingError.noHeaderFound
+		}
 
-    let csvHeader = csvBreakdown(line:inputFileLines[0])
-    var parsedLines = [[String:String]]()
-    for (n, curLine) in inputFileLines.enumerated() {
-		if n != 0 {
-			let parsedLine = csvBreakdown(line:curLine).map({ String($0) })
-			var thisLine = [String:String]()
-			for (nn, lineItem) in parsedLine.enumerated() {
-				if (nn < csvHeader.count) {
-					thisLine[csvHeader[nn]] = lineItem
+		let csvHeader = csvBreakdown(line:inputFileLines[0])
+		var parsedLines = [[String:String]]()
+		for (n, curLine) in inputFileLines.enumerated() {
+			if n != 0 {
+				let parsedLine = csvBreakdown(line:curLine).map({ String($0) })
+				var thisLine = [String:String]()
+				for (nn, lineItem) in parsedLine.enumerated() {
+					if (nn < csvHeader.count) {
+						thisLine[csvHeader[nn]] = lineItem
+					}
 				}
+				parsedLines.append(thisLine)
 			}
-			parsedLines.append(thisLine)
-    	}
-    }
-    return parsedLines
+		}
+		return parsedLines
+
+	}
+}
+
+public func readCSV(_ inputFile:URL) throws -> [[String:String]] {
+    return try Data(contentsOf:inputFile).parseCSV()
 }
 
 extension String {
