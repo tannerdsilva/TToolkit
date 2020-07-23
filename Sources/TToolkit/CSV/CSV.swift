@@ -141,7 +141,7 @@ extension String {
 
 extension Collection where Element: CSVEncodable {
     //export a CSV with the option of some added computational *firepower*
-    public func toCSV() throws -> Data {
+    public func toCSV(explode:Bool = true) throws -> Data {
     	//enumerate over self to collect all of the keys for every child
         var buildAllColumns = Set<String>()
         for (_, row) in self.enumerated() {
@@ -173,5 +173,13 @@ extension Collection where Element: CSVEncodable {
     public func writeCSV(to fileDestination:URL) throws {
     	let csvData = try self.toCSV()
     	try csvData.write(to:fileDestination)
+    }
+    
+    
+    //append a set of lines to a csv file using a collection of CSVEncodable conformant elements
+    public func appendCSV(to fileToAppend:URL) throws {
+    	var parsedData = try readCSV(fileToAppend)
+    	parsedData.append(contentsOf:self.compactMap({ $0.csvDictionary() }))
+    	try parsedData.toCSV().write(to:fileToAppend)
     }
 }
