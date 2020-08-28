@@ -27,7 +27,7 @@ public struct JournalFrame: Comparable, Hashable {
 	public let directory:URL
 	public let precision:TimePrecision
 	
-	fileprivate init(time:TimeStruct, journal:Journal) {
+	public init(time:TimeStruct, journal:Journal) {
 		self.time = time
 		self.directory = time.theoreticalTimePath(precision:journal.precision, for:journal.directory)
 		self.precision = journal.precision
