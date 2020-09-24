@@ -77,18 +77,16 @@ internal func tt_wait_sync(pid:pid_t) -> Int32 {
 
 //this is the structure that is used to capture all relevant information about a process that is in flight
 internal struct tt_proc_signature:Hashable {
-    var stdin:ExportedPipe? = nil
-    var stdout:ExportedPipe? = nil
-    var stderr:ExportedPipe? = nil
+    var stdin:PosixPipe
+    var stdout:PosixPipe
+    var stderr:PosixPipe
     
     var worker:pid_t
-    var container:pid_t
     
     var launch_time:Date
     
-    init(container:pid_t, work:pid_t) {
+    init(work:pid_t) {
         worker = work
-        self.container = container
         self.launch_time = Date()
     }
     
@@ -97,55 +95,70 @@ internal struct tt_proc_signature:Hashable {
     }
     
     func hash(into hasher:inout Hasher) {
-        if let haserr = stderr {
-            hasher.combine(haserr.writing)
-            hasher.combine(haserr.reading)
-        }
-        if let hasout = stdout {
+    	//standard input channel is always going to be utilized
+		hasher.combine(haserr.writing)
+		hasher.combine(haserr.reading)
+		
+        if stdout.isNullValued == false  {
             hasher.combine(hasout.writing)
             hasher.combine(hasout.reading)
         }
-        if let hasin = stdin {
+        if stderr.isNullValued == false {
             hasher.combine(hasin.writing)
             hasher.combine(hasin.reading)
         }
+        
         hasher.combine(worker)
+        hasher.combine(launch_time)
     }
-}
-
-//extension of tt_spawns process signature structure to allow for convenient waiting of internal IO flushing before notifying the framework user that the process has exited
-extension tt_proc_signature {
-	func waitForExitAndFlush() -> (Int32, Date) {
-		//wait for the containing process to exit. the containing process should exit after the working process has completed, and the global process monitor has been notified as such
-        return try! ProcessMonitor.globalMonitor().waitForProcessExitAndFlush(mon:container)
-	}
 }
 
 //this is the wrapping function for tt_spawn. this function can be used with swift objects rather than c pointers that are required for the base tt_spawn command
 //before calling the base `tt_spawn` command, this function will prepare the global pipe readers for any spawns that are configured for stdout and stderr capture
-let launchSem =  DispatchSemaphore(value:1)
-internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdout:(InteractiveProcess.OutputHandler)?, stderr:(InteractiveProcess.OutputHandler)?, reading:DispatchQueue?, writing:DispatchQueue?) throws -> tt_proc_signature {
-    var err_export:ExportedPipe? = nil
-    var out_export:ExportedPipe? = nil
-	launchSem.wait()
-    if stderr != nil, reading != nil {
-        err_export = try ExportedPipe.rw()
-    }
-    
-    if stdout != nil, reading != nil {
-        out_export = try ExportedPipe.rw()
-    }
-	defer {
-		launchSem.signal()
-		if err_export != nil {
-			globalPR.scheduleForReading(err_export!.reading, queue:reading!, handler:stderr!)
+internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdout:@escaping(DataChannelMonitor.InboundDataHandler)?, stderr:@escaping(DataChannelMonitor.InboundDataHandler)?, exitHandler:@escaping(Int32) -> Void) throws -> tt_proc_signature {
+	let stdoutPipe:PosixPipe
+	let stderrPipe:PosixPipe
+	var handlesOfInterest = Set<Int32>()
+	let stdinPipe = PosixPipe(nonblockingReads:true, nonblockingWrites:true)
+	
+	//configure for a standard output handler if the user passed a handler block
+	if stdout != nil {
+		stdoutPipe = PosixPipe(nonblockingReads:true, nonblockingWrites:true)
+		guard stdoutPipe.isNullValued == false else {
+			throw tt_spawn_error.pipeError
 		}
-		if out_export != nil {
-			globalPR.scheduleForReading(out_export!.reading, queue:reading!, handler:stdout!)
-		}
+		handlesOfInterest.update(with:stdoutPipe.reading)
+		try globalChannelMonitor.registerInboundDataChannel(fh:stdoutPipe.reading, mode:.lineBreaks, dataHandler:stdout!, terminationHandler:{ return })
+	} else {
+		stdoutPipe = PosixPipe(reading:-1, writing:-1)
 	}
+	
+	//configure for a standard error handler if the user passed a handler block
+	if stderr != nil {
+		stderrPipe = PosixPipe(nonblockingReads:true, nonblockingWrites:true)
+		guard stderrPipe.isNullValued == false else {
+			throw tt_spawn_error.pipeError
+		}
+		handlesOfInterest.update(with:stderrPipe.reading)
+		try globalChannelMonitor.registerInboundDataChannel(fh:stderrPipe.reading, mode:.lineBreaks, dataHandler:stderr!, terminationHandler:{ return })
+	} else {
+		stderrPipe = PosixPipe(reading:-1, writing:-1)
+	}
+	
+	//bind the standard input handler. this is always configured because it is our primary means of determining when a process exits
+	guard stdinPipe.reading != -1 && stdinPipe.writing != -1 else {
+		throw tt_spawn_error.pipeError
+	}
+	handlesOfInterest.update(with:stdinPipe.writing)
+	try globalChannelMonitor.registerOutboundDataChannel(fh:stdinPipe.writing, initialData:nil, terminationhandler: { return })
+
+	//create a termination group that can be associated with the launched pid
+	let terminationGroup = globalChannelMonitor.registerTerminationGroup(fhs:handlesOfInterest, handler: { [exitHandler] exitPid in
+		exitHandler(tt_wait_sync(pid:exitPid))
+	})
     
-    let reutnVal = try path.path.withCString({ executablePathPointer -> tt_proc_signature in
+    //launch the process
+    let returnVal = try path.path.withCString({ executablePathPointer -> tt_proc_signature in
         var argBuild = [path.path]
         argBuild.append(contentsOf:args)
         return try argBuild.with_spawn_ready_arguments({ argumentsToSpawn in
@@ -154,8 +167,9 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
             })
         })
     })
-    let globalPM = try! ProcessMonitor.globalMonitor()
-    globalPM.registerFlushPrerequisites(reutnVal)
+    
+    //associate the launched pid with the newly created termination group
+    terminationGroup.setAssociatedPid(returnVal.worker)
     return reutnVal
 }
 
@@ -163,190 +177,177 @@ internal enum tt_spawn_error:Error {
     case badAccess
     case internalError
     case systemForkErrorno(Int32)
+    case pipeError
 }
-
-
 //spawns two processes. first process is responsible for executing the actual command. second process is responsible for watching the executing process, and notifying the parent about the status of the executing process. This "monitor process" is also responsible for closing the standard inputs and outputs so that they do not get mixed in with the parents standard file descriptors
 //the primary means of I/O for the monitor process is the file descriptor passed to this function `notify`. This file descriptor acts as the activity log for the monitor process.
 //three types of monitor process events, launch event, exit event, and fatal event
-fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>, wd:UnsafePointer<Int8>, env:[String:String], stdin:ExportedPipe?, stdout:ExportedPipe?, stderr:ExportedPipe?) throws -> tt_proc_signature {
-    _ = try ProcessMonitor.globalMonitor() //test that the process monitor has been initialized before forking
-    
+//BEHAVIOR UNDEFINED if a null valued standard input pipe is passed to this function
+fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>, wd:UnsafePointer<Int8>, env:[String:String], stdin:PosixPipe, stdout:PosixPipe, stderr:PosixPipe) throws -> tt_proc_signature {
     //used internally for this function to determine when the forked process has successfully initialized
-    let internalNotify = try ExportedPipe.rw()
-
+    let internalNotify = PosixPipe(nonblockingReads:false, nonblockingWrites:true)
+	guard internalNotify.isNullValued == false else {
+		throw tt_spawn_error.pipeError
+	}
+	
+	guard tt_directory_check(ptr:wd) == true && tt_execute_check(ptr:path) == true else {
+		throw tt_spawn_error.badAccess
+	}
+	
     let forkResult = fork()	//spawn the container process
     
-    func executeProcessWork() {
+    func executeProcessWork() -> Never {
         Glibc.execvp(path, args)
         _exit(0)
 	}
-	
-	func notifyFatal(_ ph:IODescriptor) -> Never {
-		try! ph.write("x\n\n")
-		_exit(-1)
-	}
-	
-	func notifyAccess(_ ph:IODescriptor) -> Never {
-		try! ph.write("a\n\n")
-		_exit(-1)
-	}
-	
-    func processMonitor() throws -> Never {
-        _close(internalNotify.reading)
+		
+    func processMonitor() -> Never {
+    	//close the reading end of the pipe immediately
+        _ = _close(internalNotify.reading)
+        
+        //bind the IO to the standard inputs and outputs.
         do {
-            func bindingStdout() throws -> ExportedPipe {
-                if stdout == nil {
-                    return try ExportedPipe.nullPipe()
+            func bindingStdout() throws -> PosixPipe {
+                if stdout.isNullValued == true {
+                    return try PosixPipe.createNullPipe()
                 } else {
-                    return stdout!
+                    return stdout
                 }
             }
-            func bindingStderr() throws -> ExportedPipe {
-                if stderr == nil {
-                    return try ExportedPipe.nullPipe()
+            func bindingStderr() throws -> PosixPipe {
+                if stderr.isNullValued == true {
+                    return try PosixPipe.createNullPipe()
                 } else {
-                    return stderr!
-                }
-            }
-            func bindingStdin() throws -> ExportedPipe {
-                if stdin == nil {
-                    return try ExportedPipe.nullPipe()
-                } else {
-                    return stdin!
+                    return stderr
                 }
             }
 
             //assign stdout to the writing end of the file descriptor
-            var hasStdout:ExportedPipe = try bindingStdout()
-            guard _dup2(hasStdout.writing, STDOUT_FILENO) >= 0 else {
-                notifyFatal(internalNotify.writing)
+            var hasStdout:PosixPipe = try bindingStdout()
+            defer {
+            	if (hasStdout.isNullValued == false) {
+					_ = _close(hasStdout.writing)
+					_ = _close(hasStdout.reading)
+            	}
             }
-            _ = _close(hasStdout.writing)
-            _ = _close(hasStdout.reading)
-            
+            guard _dup2(hasStdout.writing, STDOUT_FILENO) >= 0 else {
+                exit(-1)
+            }
             
             //assign stderr to the writing end of the file descriptor
-            var hasStderr:ExportedPipe = try bindingStderr()
-            guard _dup2(hasStderr.writing, STDERR_FILENO) >= 0 else {
-                notifyFatal(internalNotify.writing)
+            var hasStderr:PosixPipe = try bindingStderr()
+            defer {
+            	if (hasStderr.isNullValued == false) {
+					_ = _close(hasStderr.writing)
+					_ = _close(hasStderr.reading)
+            	}
             }
-            _ = _close(hasStderr.writing)
-            _ = _close(hasStderr.reading)
+            guard _dup2(hasStderr.writing, STDERR_FILENO) >= 0 else {
+                exit(-1)
+            }
 
             //assign stdin to the writing end of the file descriptor
-            var hasStdin:ExportedPipe = try bindingStdin()
-            guard _dup2(hasStdin.reading, STDIN_FILENO) >= 0 else {
-                notifyFatal(internalNotify.writing)
+            let hasStdin:PosixPipe = stdin
+            defer {
+				_ = _close(hasStdin.writing)
+				_ = _close(hasStdin.reading)
             }
-            _ = _close(hasStdin.writing)
-            _ = _close(hasStdin.reading)
+            guard _dup2(stdin.reading, STDIN_FILENO) >= 0 else {
+                exit(-1)
+            }
         } catch _ {
-            notifyFatal(internalNotify.writing)
+            _exit(-1)
         }
         
-        //access checks
-    	guard tt_directory_check(ptr:wd) == true && tt_execute_check(ptr:path) == true && chdir(wd) == 0 else {
-    		notifyAccess(internalNotify.writing)
-    	}
+        //change the active directory
+		guard chdir(wd) == 0 else {
+			_exit(-1)
+		}
         
        	let processForkResult = fork()
         
 		switch processForkResult {
 			case -1:
-				notifyFatal(internalNotify.writing)
+				exit(-3)
 				
 			case 0:
 				//in child: success
                 executeProcessWork()
 				
 			default:
-                try! internalNotify.writing.write("\(processForkResult)\n\n")
-                _ = _close(internalNotify.writing)
-                _ = _close(STDIN_FILENO)
+				_ = _close(STDIN_FILENO)
                 _ = _close(STDERR_FILENO)
                 _ = _close(STDOUT_FILENO)
-                
-                let notifyHandle = try! ProcessMonitor.globalMonitor().newNotifyWriter()
-                
-				//detach from the executing process's standard inputs and outputs
-				//notify the process monitor of the newly launched worker process
-				let processIDEventMapping = "\(getpid()) -> \(processForkResult)"
-				let launchEvent = "l" + processIDEventMapping + "\n\n"
 				do {
-					try notifyHandle.write(launchEvent)
+					try internalNotify.writing.writeFileHandle("\(processForkResult)\n")
 				} catch _ {
-                    notifyFatal(notifyHandle)
+					exit(-2)
 				}
-                
-                
-                
-				//wait for the worker process to exit
-                let exitCode = tt_wait_sync(pid:processForkResult)
-				
-				//notify the process monitor about the exit of the executing process
-				let exitEvent = "e" + processIDEventMapping + " -> \(exitCode)" + "\n\n"
-				do {
-					try notifyHandle.write(exitEvent)
-				} catch _ {
-                    notifyFatal(notifyHandle)
-				}
+                _ = _close(internalNotify.writing)
                 _exit(0)
         }
-       _exit(0)
     }
     
-    
+    //handle the result of the first fork call
     switch forkResult {
         case -1:
             //in parent, error
             throw tt_spawn_error.systemForkErrorno(errno)
         case 0:
             //in child: success
-            try processMonitor()
+            processMonitor()
         
         default:
             //in parent, success
-            stdin?.closeReading()
-            stderr?.closeWriting()
-            stdout?.closeWriting()
-            internalNotify.closeWriting()
             
-            var incomingData:Data? = nil
-            while incomingData == nil || incomingData!.count == 0 {
-                incomingData = internalNotify.reading.availableData()
+            //configure the file handles for the context of the parent process synchronously
+            self.fileHandleQueue.sync {
+				close(internalNotify.writing)
+            	close(stdin.reading)
+            	close(stderr.writing)
+            	close(stdout.writing)
+            }
+			
+			//wait for the container process to exit
+			let containerExitCode = tt_wait_sync(pid:forkResult) 
+			guard containerExitCode == 0 else {
+				print("ERROR: CONTAINER PROCESS EXITED WITH NONZERO RESULT. \(containerExitCode)")
+				throw tt_spawn_error.internalError
+			}
+			
+            //wait for data to appear in the internalNotify pipe
+            var shouldLoop = false
+            var triggerData = Data()
+            repeat {
+            	do {
+            		try triggerData.append(contentsOf:internalNotify.reading.readFileHandle())
+            		shouldLoop = false
+            	} catch FileHandleError.error_again {
+            		shouldLoop = true
+            	} catch FileHandleError.error_wouldblock {
+            		shouldLoop = true
+            	} catch _ {
+            		shouldLoop = false
+            	}
+            } while shouldLoop == true
+            //close the internal notify switch in the background
+            fileHandleQueue.async { [closeHandle = internalNotify.reading] in
+            	close(closeHandle)
             }
             
-            internalNotify.closeReading()
-            if let message = String(data:incomingData!.lineSlice(removeBOM: false).first!, encoding:.utf8) {
-                if let firstChar = message.first {
-                    switch firstChar {
-                    case "a":
-                        throw tt_spawn_error.badAccess
-                    case "x":
-                        print("FATAL")
-                        throw tt_spawn_error.internalError
-                    default:
-                        if let messagePid = pid_t(message) {
-                            var sigToReturn = tt_proc_signature(container:forkResult, work:messagePid)
-                            var idset = Set<Int32>()
-                            if let hasIn = stdin {
-                                idset.insert(hasIn.writing)
-                            }
-                            if let hasOut = stdout {
-                                idset.insert(hasOut.reading)
-                            }
-                            if let hasErr = stderr {
-                                idset.insert(hasErr.reading)
-                            }
-                            sigToReturn.stdin = stdin
-                            sigToReturn.stdout = stdout
-                            sigToReturn.stderr = stderr
-                            return sigToReturn
-                        }
-                    }
-                }
+            //parse the data that was received in the internalNotify pipe
+            guard triggerData.count > 0 else {
+            	print("ERROR: Internal notify handle didn't get any data")
+            	throw tt_spawn_error.internalError
             }
+            guard let notifyString = String(data:triggerData, encoding:.utf8), let messagePid = pid_t(notifyString) {
+            	throw tt_spawn_error.internalError
+            }
+            var sigToReturn = tt_proc_signature(work:messagePid)
+            sigToReturn.stdin = stdin
+            sigToReturn.stdout = stdout
+            sigToReturn.stderr = stderr
+            
             throw tt_spawn_error.internalError
     }
 }
