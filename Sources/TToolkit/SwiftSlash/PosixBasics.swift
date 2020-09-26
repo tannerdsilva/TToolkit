@@ -76,7 +76,7 @@ internal struct PosixPipe:Hashable {
 		self.writing = writing
 	}
 	
-	class func createNullPipe() throws -> PosixPipe {
+	static func createNullPipe() throws -> PosixPipe {
 		return try fileHandleQueue.sync {
 			let read = open("/dev/null", O_RDWR)
 			let write = open("/dev/null", O_WRONLY)
