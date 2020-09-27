@@ -23,7 +23,7 @@ internal class DataChannelMonitor:FileHandleOwner {
 	
 	private class IncomingDataChannel {
 		/*TriggerMode: how is the incoming data from a given data channel to be passed into the incoming data handler block?*/
-		enum TriggerMode {
+		internal enum TriggerMode {
 			case lineBreaks
 			case immediate
 		}
@@ -207,7 +207,7 @@ internal class DataChannelMonitor:FileHandleOwner {
 		let epollStructure:epoll_event
 		weak let manager:FileHandleOwner
 		
-		init(fh:Int32, terminationHandler:DataChannelTerminationHandler, manager:FileHandleOwner) {
+		init(fh:Int32, terminationHandler:@escaping(DataChannelTerminationHandler), manager:FileHandleOwner) {
 			self.fh = fh
 			self.terminationHandler = terminationHandler
 			

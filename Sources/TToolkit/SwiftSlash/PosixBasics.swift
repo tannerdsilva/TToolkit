@@ -44,7 +44,7 @@ internal struct PosixPipe:Hashable {
 		defer {
 			fds.deallocate()
 		}
-		fileHandleQueue.sync {
+		file_handle_guard.sync {
 			//assign the new file handles
 			switch pipe(fds) {
 				case 0:
@@ -74,7 +74,7 @@ internal struct PosixPipe:Hashable {
 	}
 	
 	static func createNullPipe() throws -> PosixPipe {
-		return try fileHandleQueue.sync {
+		return try file_handle_guard.sync {
 			let read = open("/dev/null", O_RDWR)
 			let write = open("/dev/null", O_WRONLY)
 			_ = fcntl(read, F_SETFL, O_NONBLOCK)
