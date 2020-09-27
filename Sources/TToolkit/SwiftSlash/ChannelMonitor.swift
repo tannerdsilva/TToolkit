@@ -356,8 +356,9 @@ internal class DataChannelMonitor:FileHandleOwner {
 	
 		private var associatedPid:pid_t? = nil
 	
-		init(fhs:Set<Int32>, terminationHandler:@escaping((pid_t) -> Void))) {
+		init(fhs:Set<Int32>, terminationHandler:@escaping((pid_t) -> Void)) {
 			self.fileHandles = fhs
+			self.terminationHandler = terminationHandler
 		}
 	
 		func removeHandle(fh:Int32) {
