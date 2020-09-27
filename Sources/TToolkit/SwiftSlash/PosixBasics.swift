@@ -22,9 +22,6 @@ internal enum FileHandleError:Error {
 	case error_pipe;
 }
 
-fileprivate let _read = Glibc.read(_:_:_:)
-fileprivate let _write = Glibc.write(_:_:_:)
-
 internal struct PosixPipe:Hashable {
 	var reading:Int32
 	var writing:Int32
@@ -96,7 +93,7 @@ internal struct PosixPipe:Hashable {
 	}
 	
 	static func == (lhs:PosixPipe, rhs:PosixPipe) -> Bool {
-		if (lhs.reading == rhs.reading) && (rhs.writing == rhs.writing)
+		return (lhs.reading == rhs.reading) && (rhs.writing == rhs.writing)
 	}
 }
 

@@ -96,16 +96,16 @@ internal struct tt_proc_signature:Hashable {
     
     func hash(into hasher:inout Hasher) {
     	//standard input channel is always going to be utilized
-		hasher.combine(haserr.writing)
-		hasher.combine(haserr.reading)
+		hasher.combine(hasin.writing)
+		hasher.combine(hasin.reading)
 		
         if stdout.isNullValued == false  {
             hasher.combine(hasout.writing)
             hasher.combine(hasout.reading)
         }
         if stderr.isNullValued == false {
-            hasher.combine(hasin.writing)
-            hasher.combine(hasin.reading)
+            hasher.combine(haserr.writing)
+            hasher.combine(haserr.reading)
         }
         
         hasher.combine(worker)
