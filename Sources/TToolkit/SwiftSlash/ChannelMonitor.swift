@@ -202,12 +202,12 @@ internal class DataChannelMonitor:FileHandleOwner {
 		var handleIsWritable = false
 		var remainingData = Data()
 		
-		let terminationHandler:TerminationHandler
+		let terminationHandler:DataChannelTerminationHandler
 		
 		let epollStructure:epoll_event
 		weak let manager:FileHandleOwner
 		
-		init(fh:Int32, terminationHandler:TerminationHandler, manager:FileHandleOwner) {
+		init(fh:Int32, terminationHandler:DataChannelTerminationHandler, manager:FileHandleOwner) {
 			self.fh = fh
 			self.terminationHandler = terminationHandler
 			
