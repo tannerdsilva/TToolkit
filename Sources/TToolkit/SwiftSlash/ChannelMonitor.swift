@@ -363,8 +363,8 @@ internal class DataChannelMonitor:FileHandleOwner {
 		func removeHandle(fh:Int32) {
 			internalSync.sync {
 				fileHandles.remove(fh)
-				if (fileHandles.count == 0 && associatedPid != nil) {
-					terminationHandler(associatedPid!)
+				if (self.fileHandles.count == 0 && associatedPid != nil) {
+					self.terminationHandler(associatedPid!)
 				}
 			}
 		}
@@ -374,8 +374,8 @@ internal class DataChannelMonitor:FileHandleOwner {
 				guard let self = self else {
 					return
 				}
-				if (fileHandles.count == 0) {
-					terminationHandler(inputPid)
+				if (self.fileHandles.count == 0) {
+					self.terminationHandler(inputPid)
 				} else {
 					self.associatedPid = inputPid
 				}
@@ -431,10 +431,10 @@ internal class DataChannelMonitor:FileHandleOwner {
 	creating an inbound data channel that is to have its data captured
 	*/
 	func registerInboundDataChannel(fh:Int32, mode:IncomingDataChannel.TriggerMode, dataHandler:@escaping(InboundDataHandler), terminationHandler:@escaping(DataChannelTerminationHander)) throws {
-		let newChannel = IncommingDataChannel(fh:fh, triggerMode;mode, dataHandler:dataHandler, terminationHandler:terminationHandler, manager:self)
+		let newChannel = IncomingDataChannel(fh:fh, triggerMode:mode, dataHandler:dataHandler, terminationHandler:terminationHandler, manager:self)
 		
 		var epollStructure = newChannel.epollStructure
-		guard epoll_ctl(epoll, EPOLL_CTL_ADD, fd, &epollStructure) == 0 else {
+		guard epoll_ctl(epoll, EPOLL_CTL_ADD, fh, &epollStructure) == 0 else {
 			print("EPOLL ERROR")
 			throw DataChannelMonitorError.epollError
 		}
@@ -468,7 +468,7 @@ internal class DataChannelMonitor:FileHandleOwner {
 		}
 		
 		var epollStructure = newChannel.epollStructure
-		guard epoll_ctl(epoll, EPOLL_CTL_ADD, fd, &epollStructure) == 0 else {
+		guard epoll_ctl(epoll, EPOLL_CTL_ADD, fh, &epollStructure) == 0 else {
 			print("EPOLL ERROR")
 			throw DataChannelMonitorError.epollError
 		}
@@ -562,6 +562,12 @@ internal class DataChannelMonitor:FileHandleOwner {
 	main loop function.
 	*/
 	fileprivate func mainLoop() {
+		enum EventMode {
+			case readableEvent
+			case writableEvent
+			case readingClosed
+			case writingClosed
+		}
 		var handleEvents = [Int32:EventMode]()
 		while true {
 			/*
