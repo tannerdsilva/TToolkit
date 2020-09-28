@@ -34,7 +34,7 @@ internal class DataChannelMonitor:FileHandleOwner {
 		let fh:Int32
 		let triggerMode:TriggerMode
 		let epollStructure:epoll_event
-		weak let manager:FileHandleOwner
+		weak var manager:FileHandleOwner
 
 		private var asyncCallbackScheduled = false
 		private var callbackFires = [Data]()
@@ -205,7 +205,7 @@ internal class DataChannelMonitor:FileHandleOwner {
 		let terminationHandler:DataChannelTerminationHandler
 		
 		let epollStructure:epoll_event
-		weak let manager:FileHandleOwner
+		weak var manager:FileHandleOwner
 		
 		init(fh:Int32, terminationHandler:@escaping(DataChannelTerminationHandler), manager:FileHandleOwner) {
 			self.fh = fh
