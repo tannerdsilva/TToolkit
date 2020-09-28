@@ -219,6 +219,14 @@ internal class DataChannelMonitor:FileHandleOwner {
 			self.manager = manager
 		}
 		
+		func hash(into hasher:inout Hasher) {
+			hasher.combine(self.fh)
+		}
+		
+		static func == (lhs:OutgoingDataChannel, rhs:OutgoingDataChannel) {
+			return lhs.fh == rhs.fh
+		}
+		
 		func prepareForTermination() {
 			flightGroup.enter()
 			writingQueue.async { [weak self] in
