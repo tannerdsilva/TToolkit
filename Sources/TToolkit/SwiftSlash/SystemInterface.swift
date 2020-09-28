@@ -115,7 +115,7 @@ internal struct tt_proc_signature:Hashable {
 
 //this is the wrapping function for tt_spawn. this function can be used with swift objects rather than c pointers that are required for the base tt_spawn command
 //before calling the base `tt_spawn` command, this function will prepare the global pipe readers for any spawns that are configured for stdout and stderr capture
-internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdout:@escaping(DataChannelMonitor.InboundDataHandler)?, stderr:@escaping(DataChannelMonitor.InboundDataHandler)?, exitHandler:@escaping((Int32) -> Void)) throws -> tt_proc_signature {
+internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdout:@escaping(DataChannelMonitor.InboundDataHandler?), stderr:@escaping(DataChannelMonitor.InboundDataHandler?), exitHandler:@escaping((Int32) -> Void)) throws -> tt_proc_signature {
 	let stdoutPipe:PosixPipe
 	let stderrPipe:PosixPipe
 	var handlesOfInterest = Set<Int32>()
