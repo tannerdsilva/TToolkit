@@ -76,7 +76,7 @@ internal func tt_wait_sync(pid:pid_t) -> Int32 {
 }
 
 //this is the structure that is used to capture all relevant information about a process that is in flight
-internal struct tt_proc_signature:Hashable {
+internal struct tt_proc_signature:Hashable, Comparable {
     var stdin:PosixPipe
     var stdout:PosixPipe
     var stderr:PosixPipe
@@ -85,15 +85,18 @@ internal struct tt_proc_signature:Hashable {
     
     var launch_time:Date
     
+    //initialize
     init(work:pid_t) {
         worker = work
         self.launch_time = Date()
     }
     
+    //comparable
     static func == (lhs:tt_proc_signature, rhs:tt_proc_signature) -> Bool {
         return lhs.stderr == rhs.stderr && lhs.stdout == rhs.stdout && lhs.stdin == rhs.stdin && lhs.worker == rhs.worker
     }
     
+    //hashable
     func hash(into hasher:inout Hasher) {
     	//standard input channel is always going to be utilized
 		hasher.combine(hasin.writing)
@@ -163,7 +166,7 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
         argBuild.append(contentsOf:args)
         return try argBuild.with_spawn_ready_arguments({ argumentsToSpawn in
             return try wd.path.withCString({ workingDirectoryPath in
-                return try tt_spawn(path:executablePathPointer, args:argumentsToSpawn, wd:workingDirectoryPath, env:env, stdin:nil, stdout:out_export, stderr:err_export)
+                return try tt_spawn(path:executablePathPointer, args:argumentsToSpawn, wd:workingDirectoryPath, env:env, stdin:stdinPipe, stdout:stdoutPipe, stderr:stderrPipe)
             })
         })
     })
@@ -343,12 +346,11 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
             guard let notifyString = String(data:triggerData, encoding:.utf8), let messagePid = pid_t(notifyString) {
             	throw tt_spawn_error.internalError
             }
-            var sigToReturn = tt_proc_signature(work:messagePid)
+            var sigToReturn = tt_proc_signature(work:messagePid, flight:globalExitStore.launched(pid:messagePid))
             sigToReturn.stdin = stdin
             sigToReturn.stdout = stdout
             sigToReturn.stderr = stderr
-            
-            throw tt_spawn_error.internalError
+            return sigToReturn
     }
 }
 

@@ -21,7 +21,7 @@ internal class DataChannelMonitor:FileHandleOwner {
 	static let dataCaptureQueue = DispatchQueue(label:"com.swiftslash.global.data-channel-monitor.reading", attributes:[.concurrent], target:swiftslashCaptainQueue)
 	static let dataBroadcastQueue = DispatchQueue(label:"com.swiftslash.global.data-channel-monitor.writing", attributes:[.concurrent], target:swiftslashCaptainQueue)
 	
-	private class IncomingDataChannel {
+	internal class IncomingDataChannel {
 		/*TriggerMode: how is the incoming data from a given data channel to be passed into the incoming data handler block?*/
 		internal enum TriggerMode {
 			case lineBreaks
@@ -96,12 +96,7 @@ internal class DataChannelMonitor:FileHandleOwner {
 								}
 								i = i + 1;
 							}
-							
-							if (terminate == true) {
-								return true
-							} else {
-								return false
-							}
+							return terminate
 						}
 						
 						switch shouldParse {
