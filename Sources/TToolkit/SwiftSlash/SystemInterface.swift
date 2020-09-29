@@ -77,7 +77,7 @@ internal func tt_wait_sync(pid:pid_t) -> Int32 {
 
 //this is the structure that is used to capture all relevant information about a process that is in flight
 internal struct tt_proc_signature:Hashable {
-    var stdin:PosixPipe
+    let stdin:PosixPipe
     var stdout:PosixPipe
     var stderr:PosixPipe
     
@@ -86,9 +86,13 @@ internal struct tt_proc_signature:Hashable {
     var launch_time:Date
     
     //initialize
-    init(work:pid_t) {
-        worker = work
+    init(work:pid_t, stdin:PosixPipe, stdout:PosixPipe, stderr:PosixPipe) {
+        self.worker = work
         self.launch_time = Date()
+        
+		self.stdin = stdin
+		self.stderr = stderr
+		self.stdout = stdout
     }
     
     //comparable
@@ -349,10 +353,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
             	print(Colors.Red("Error trying to parse the received PID from the forked child process."))
             	throw tt_spawn_error.internalError
             }
-            var sigToReturn = tt_proc_signature(work:messagePid)
-            sigToReturn.stdin = stdin
-            sigToReturn.stdout = stdout
-            sigToReturn.stderr = stderr
+            var sigToReturn = tt_proc_signature(work:messagePid, stdin:stdin, stdout:stdout, stderr:stderr)
             return sigToReturn
     }
 }
