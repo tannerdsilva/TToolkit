@@ -349,7 +349,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
             	print(Colors.Red("Error trying to parse the received PID from the forked child process."))
             	throw tt_spawn_error.internalError
             }
-            var sigToReturn = tt_proc_signature(work:messagePid, flight:globalExitStore.launched(pid:messagePid))
+            var sigToReturn = tt_proc_signature(work:messagePid)
             sigToReturn.stdin = stdin
             sigToReturn.stdout = stdout
             sigToReturn.stderr = stderr
