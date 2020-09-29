@@ -124,11 +124,11 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
 	let stdoutPipe:PosixPipe
 	let stderrPipe:PosixPipe
 	var handlesOfInterest = Set<Int32>()
-	let stdinPipe = PosixPipe(nonblockingReads:true, nonblockingWrites:true)
+	let stdinPipe = try PosixPipe(nonblockingReads:true, nonblockingWrites:true)
 	
 	//configure for a standard output handler if the user passed a handler block
 	if stdout != nil {
-		stdoutPipe = PosixPipe(nonblockingReads:true, nonblockingWrites:true)
+		stdoutPipe = try PosixPipe(nonblockingReads:true, nonblockingWrites:true)
 		guard stdoutPipe.isNullValued == false else {
 			throw tt_spawn_error.pipeError
 		}
@@ -140,7 +140,7 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
 	
 	//configure for a standard error handler if the user passed a handler block
 	if stderr != nil {
-		stderrPipe = PosixPipe(nonblockingReads:true, nonblockingWrites:true)
+		stderrPipe = try PosixPipe(nonblockingReads:true, nonblockingWrites:true)
 		guard stderrPipe.isNullValued == false else {
 			throw tt_spawn_error.pipeError
 		}
@@ -155,7 +155,7 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
 		throw tt_spawn_error.pipeError
 	}
 	handlesOfInterest.update(with:stdinPipe.writing)
-	try globalChannelMonitor.registerOutboundDataChannel(fh:stdinPipe.writing, initialData:nil, terminationhandler: { return })
+	try globalChannelMonitor.registerOutboundDataChannel(fh:stdinPipe.writing, initialData:nil, terminationHandler: { return })
 
 	//create a termination group that can be associated with the launched pid
 	let terminationGroup = globalChannelMonitor.registerTerminationGroup(fhs:handlesOfInterest, handler: { [exitHandler] exitPid in
@@ -175,7 +175,7 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
     
     //associate the launched pid with the newly created termination group
     terminationGroup.setAssociatedPid(returnVal.worker)
-    return reutnVal
+    return returnVal
 }
 
 internal enum tt_spawn_error:Error {

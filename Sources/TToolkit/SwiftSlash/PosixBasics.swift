@@ -44,7 +44,7 @@ internal struct PosixPipe:Hashable {
 		defer {
 			fds.deallocate()
 		}
-		file_handle_guard.sync {
+		try file_handle_guard.sync {
 			//assign the new file handles
 			switch pipe(fds) {
 				case 0:
