@@ -3,12 +3,7 @@ import Cepoll
 
 let globalChannelMonitor = DataChannelMonitor()
 
-internal protocol FileHandleOwner {
-	func handleEndedLifecycle(reader:Int32)
-	func handleEndedLifecycle(writer:Int32)
-}
-
-internal class DataChannelMonitor:FileHandleOwner {
+internal class DataChannelMonitor {
 	enum DataChannelMonitorError:Error {
 		case invalidFileHandle
 		case epollError
@@ -34,7 +29,7 @@ internal class DataChannelMonitor:FileHandleOwner {
 		let fh:Int32
 		let triggerMode:TriggerMode
 		let epollStructure:epoll_event
-		weak var manager:FileHandleOwner?
+		weak var manager:DataChannelMonitor?
 
 		private var asyncCallbackScheduled = false
 		private var callbackFires = [Data]()
@@ -45,7 +40,7 @@ internal class DataChannelMonitor:FileHandleOwner {
 		private let callbackQueue = DispatchQueue(label:"com.swiftslash.instance.incoming-data-channel.callback", target:dataCaptureQueue)
 		private let flightGroup = DispatchGroup();
 		
-		init(fh:Int32, triggerMode:TriggerMode, dataHandler:@escaping(InboundDataHandler), terminationHandler:@escaping(DataChannelTerminationHander), manager:FileHandleOwner) {
+		init(fh:Int32, triggerMode:TriggerMode, dataHandler:@escaping(InboundDataHandler), terminationHandler:@escaping(DataChannelTerminationHander), manager:DataChannelMonitor) {
 			self.fh = fh
 			
 			var buildEpoll = epoll_event()
@@ -201,9 +196,9 @@ internal class DataChannelMonitor:FileHandleOwner {
 		let terminationHandler:DataChannelTerminationHandler
 		
 		let epollStructure:epoll_event
-		weak var manager:FileHandleOwner?
+		weak var manager:DataChannelMonitor?
 		
-		init(fh:Int32, terminationHandler:@escaping(DataChannelTerminationHandler), manager:FileHandleOwner) {
+		init(fh:Int32, terminationHandler:@escaping(DataChannelTerminationHandler), manager:DataChannelMonitor) {
 			self.fh = fh
 			self.terminationHandler = terminationHandler
 			
