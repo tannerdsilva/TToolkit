@@ -221,7 +221,9 @@ public class InteractiveProcess:Hashable {
 				}, stderr: { someData in
 					self.lines.append(someData)
 					self._stderrHandler?(someData)
-				}, reading:internalSync, writing:nil)
+				}, exitHandler: { exitCode in
+					print("The process has exited with exit code \(exitCode)")
+				})
 
 	#if DEBUG
 				pmon.processLaunched(self)
