@@ -120,7 +120,7 @@ internal struct tt_proc_signature:Hashable {
 //before calling the base `tt_spawn` command, this function will prepare the global pipe readers for any spawns that are configured for stdout and stderr capture
 internal typealias TTSpawnReadingHandler = DataChannelMonitor.InboundDataHandler?
 internal typealias TTSpawnTerminationHandler = (Int32) -> Void
-internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdoutTTSpawnReadingHandler, stderr:TTSpawnReadingHandler, exitHandler:@escaping(TTSpawnTerminationHandler)) throws -> tt_proc_signature {
+internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdout:TTSpawnReadingHandler, stderr:TTSpawnReadingHandler, exitHandler:@escaping(TTSpawnTerminationHandler)) throws -> tt_proc_signature {
 	let stdoutPipe:PosixPipe
 	let stderrPipe:PosixPipe
 	var handlesOfInterest = Set<Int32>()
