@@ -76,7 +76,7 @@ internal func tt_wait_sync(pid:pid_t) -> Int32 {
 }
 
 //this is the structure that is used to capture all relevant information about a process that is in flight
-internal struct tt_proc_signature:Hashable, Comparable {
+internal struct tt_proc_signature:Hashable {
     var stdin:PosixPipe
     var stdout:PosixPipe
     var stderr:PosixPipe
@@ -99,16 +99,16 @@ internal struct tt_proc_signature:Hashable, Comparable {
     //hashable
     func hash(into hasher:inout Hasher) {
     	//standard input channel is always going to be utilized
-		hasher.combine(hasin.writing)
-		hasher.combine(hasin.reading)
+		hasher.combine(stdin.writing)
+		hasher.combine(stdin.reading)
 		
         if stdout.isNullValued == false  {
-            hasher.combine(hasout.writing)
-            hasher.combine(hasout.reading)
+            hasher.combine(stdout.writing)
+            hasher.combine(stdout.reading)
         }
         if stderr.isNullValued == false {
-            hasher.combine(haserr.writing)
-            hasher.combine(haserr.reading)
+            hasher.combine(stderr.writing)
+            hasher.combine(stderr.reading)
         }
         
         hasher.combine(worker)
@@ -118,7 +118,9 @@ internal struct tt_proc_signature:Hashable, Comparable {
 
 //this is the wrapping function for tt_spawn. this function can be used with swift objects rather than c pointers that are required for the base tt_spawn command
 //before calling the base `tt_spawn` command, this function will prepare the global pipe readers for any spawns that are configured for stdout and stderr capture
-internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdout:@escaping(DataChannelMonitor.InboundDataHandler?), stderr:@escaping(DataChannelMonitor.InboundDataHandler?), exitHandler:@escaping((Int32) -> Void)) throws -> tt_proc_signature {
+internal typealias TTSpawnReadingHandler = DataChannelMonitor.InboundDataHandler?
+internal typealias TTSpawnTerminationHandler = (Int32) -> Void
+internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], stdout:@escaping(TTSpawnReadingHandler), stderr:@escaping(TTSpawnReadingHandler), exitHandler:@escaping(TTSpawnTerminationHandler)) throws -> tt_proc_signature {
 	let stdoutPipe:PosixPipe
 	let stderrPipe:PosixPipe
 	var handlesOfInterest = Set<Int32>()
@@ -343,7 +345,8 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
             	print("ERROR: Internal notify handle didn't get any data")
             	throw tt_spawn_error.internalError
             }
-            guard let notifyString = String(data:triggerData, encoding:.utf8), let messagePid = pid_t(notifyString) {
+            guard let notifyString = String(data:triggerData, encoding:.utf8), let messagePid = pid_t(notifyString) else {
+            	print(Colors.Red("Error trying to parse the received PID from the forked child process."))
             	throw tt_spawn_error.internalError
             }
             var sigToReturn = tt_proc_signature(work:messagePid, flight:globalExitStore.launched(pid:messagePid))
@@ -373,7 +376,7 @@ internal func tt_directory_check(url:URL) -> Bool {
 }
 
 //check if a directory can be accessed
-internal func tt_directory_check(ptr:UnsafePointer<Int8>) -> Bool {
+fileprivate func tt_directory_check(ptr:UnsafePointer<Int8>) -> Bool {
 	var statInfo = stat()
 	guard stat(ptr, &statInfo) == 0, statInfo.st_mode & S_IFMT == S_IFDIR else {
 		return false
