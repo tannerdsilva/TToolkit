@@ -238,7 +238,7 @@ internal class DataChannelMonitor:FileHandleOwner {
 		}
 
 		func scheduleDataForWriting(_ inputData:Data) {
-			let shouldSchedule = self.internalSync.sync { [inputData] -> Bool in
+			let shouldSchedule = self.internalSync.sync {
 				self.remainingData.append(inputData)
 				if handleIsWritable == true && self.dataWriteScheduled == false {
 					self.dataWriteScheduled = true

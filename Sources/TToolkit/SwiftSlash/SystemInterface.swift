@@ -190,7 +190,7 @@ internal enum tt_spawn_error:Error {
 //BEHAVIOR UNDEFINED if a null valued standard input pipe is passed to this function
 fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>, wd:UnsafePointer<Int8>, env:[String:String], stdin:PosixPipe, stdout:PosixPipe, stderr:PosixPipe) throws -> tt_proc_signature {
     //used internally for this function to determine when the forked process has successfully initialized
-    let internalNotify = PosixPipe(nonblockingReads:false, nonblockingWrites:true)
+    let internalNotify = try PosixPipe(nonblockingReads:false, nonblockingWrites:true)
 	guard internalNotify.isNullValued == false else {
 		throw tt_spawn_error.pipeError
 	}
