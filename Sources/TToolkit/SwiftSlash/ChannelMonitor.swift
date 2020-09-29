@@ -25,7 +25,7 @@ internal class DataChannelMonitor {
 		
 		//constant variables that are defined on initialization
 		private let inboundHandler:InboundDataHandler
-		private let terminationHandler:DataChannelTerminationHander
+		private let terminationHandler:DataChannelMonitor.DataChannelTerminationHander
 		let fh:Int32
 		let triggerMode:TriggerMode
 		let epollStructure:epoll_event
@@ -193,12 +193,12 @@ internal class DataChannelMonitor {
 		var handleIsWritable = false
 		var remainingData = Data()
 		
-		let terminationHandler:DataChannelTerminationHandler
+		let terminationHandler:DataChannelMonitor.DataChannelTerminationHander
 		
 		let epollStructure:epoll_event
 		weak var manager:DataChannelMonitor?
 		
-		init(fh:Int32, terminationHandler:@escaping(DataChannelTerminationHandler), manager:DataChannelMonitor) {
+		init(fh:Int32, terminationHandler:@escaping(DataChannelMonitor.DataChannelTerminationHander), manager:DataChannelMonitor) {
 			self.fh = fh
 			self.terminationHandler = terminationHandler
 			
@@ -394,7 +394,7 @@ internal class DataChannelMonitor {
 	let mainQueue = DispatchQueue(label:"com.swiftslash.data-channel-monitor.main.sync", target:process_master_queue)
 	var mainLoopLaunched = false
 	
-	let internalSync = DispatchQueue(label:"com.swiftslash.data-channel-monitor.global-instance.sync", target:process_master_queue, attributes:[.concurrent])
+	let internalSync = DispatchQueue(label:"com.swiftslash.data-channel-monitor.global-instance.sync", attributes:[.concurrent], target:process_master_queue)
 	var currentAllocationSize = 32
 	var targetAllocationSize = 32
 	var currentAllocation = UnsafeMutablePointer<epoll_event>.allocate(capacity:32)
