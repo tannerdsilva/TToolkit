@@ -631,7 +631,7 @@ internal class DataChannelMonitor:FileHandleOwner {
 						returnClear = true
 					}
 				}
-				if (targetAllocationSize != currentAllocationSize {
+				if (targetAllocationSize != currentAllocationSize) {
 					currentAllocation.deallocate()
 					currentAllocation = UnsafeMutablePointer<epoll_event>.allocate(capacity:targetAllocationSize)
 					currentAllocationSize = targetAllocationSize
