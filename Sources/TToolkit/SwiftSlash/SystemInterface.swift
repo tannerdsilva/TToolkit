@@ -158,7 +158,7 @@ internal func tt_spawn(path:URL, args:[String], wd:URL, env:[String:String], std
 	try globalChannelMonitor.registerOutboundDataChannel(fh:stdinPipe.writing, initialData:nil, terminationHandler: { return })
 
 	//create a termination group that can be associated with the launched pid
-	let terminationGroup = globalChannelMonitor.registerTerminationGroup(fhs:handlesOfInterest, handler: { [exitHandler] exitPid in
+	let terminationGroup = try globalChannelMonitor.registerTerminationGroup(fhs:handlesOfInterest, handler: { [exitHandler] exitPid in
 		exitHandler(tt_wait_sync(pid:exitPid))
 	})
     
@@ -306,7 +306,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
             //in parent, success
             
             //configure the file handles for the context of the parent process synchronously
-            self.fileHandleQueue.sync {
+            file_handle_guard.sync {
 				close(internalNotify.writing)
             	close(stdin.reading)
             	close(stderr.writing)
@@ -336,7 +336,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
             	}
             } while shouldLoop == true
             //close the internal notify switch in the background
-            fileHandleQueue.async { [closeHandle = internalNotify.reading] in
+            file_handle_guard.async { [closeHandle = internalNotify.reading] in
             	close(closeHandle)
             }
             
