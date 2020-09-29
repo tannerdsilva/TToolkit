@@ -75,7 +75,8 @@ internal class DataChannelMonitor:FileHandleOwner {
 					while true {
 						try self.dataBuffer.append(contentsOf:self.fh.readFileHandle())
 					}
-				} catch FileHandleError.error_again, FileHandleError.error_wouldblock {
+				} catch FileHandleError.error_again {
+				} catch FileHandleError.error_wouldblock {
 				} catch FileHandleError.error_pipe {
 					if (terminate == false) {
 						print(Colors.Red("[\(self.fh)] ERROR PIPE"))
@@ -218,7 +219,7 @@ internal class DataChannelMonitor:FileHandleOwner {
 			hasher.combine(self.fh)
 		}
 		
-		static func == (lhs:OutgoingDataChannel, rhs:OutgoingDataChannel) {
+		static func == (lhs:OutgoingDataChannel, rhs:OutgoingDataChannel) -> Bool {
 			return lhs.fh == rhs.fh
 		}
 		
@@ -395,15 +396,15 @@ internal class DataChannelMonitor:FileHandleOwner {
 
 	let epoll = epoll_create1(0);
 	
-	let mainQueue = DispatchQueue(label:"com.swiftslash.data-channel-monitor.main.sync", target:swiftslashCaptainQueue)
+	let mainQueue = DispatchQueue(label:"com.swiftslash.data-channel-monitor.main.sync", target:process_master_queue)
 	var mainLoopLaunched = false
 	
-	let internalSync = DispatchQueue(label:"com.swiftslash.data-channel-monitor.global-instance.sync", target:swiftslashCaptainQueue, attributes:[.concurrent])
+	let internalSync = DispatchQueue(label:"com.swiftslash.data-channel-monitor.global-instance.sync", target:process_master_queue, attributes:[.concurrent])
 	var currentAllocationSize = 32
 	var targetAllocationSize = 32
 	var currentAllocation = UnsafeMutablePointer<epoll_event>.allocate(capacity:32)
 	var readers = [Int32:IncomingDataChannel]()
-	var writers = [Int32:OutgoingDataHandler]()
+	var writers = [Int32:OutgoingDataChannel]()
 	
 	/*
 	TERMINATION GROUPS
@@ -411,14 +412,18 @@ internal class DataChannelMonitor:FileHandleOwner {
 	var exitSync = DispatchQueue(label:"com.swiftslash.data-channel-monitor.exit.sync", target:swiftslashCaptainQueue)
 	var terminationGroups = [Int32:TerminationGroup]()
 	func registerTerminationGroup(fhs:Set<Int32>, handler:@escaping((pid_t) -> Void)) throws -> TerminationGroup {
-		return self.exitSync.sync { [fhs, handler] in
-			let newTerminationGroup = TerminationGroup(fhs:fhs, terminationHandler:handler)
-			for (_, curFH) in fhs.enumerated() {
+		let newTerminationGroup = TerminationGroup(fhs:fhs, terminationHandler:handler)
+		self.exitSync.async { [weak self, newTerminationGroup, fhs] in
+			guard let self = self else {
+				return
+			}
+			for(_, curFH) in fhs.enumerated() {
 				self.terminationGroups[curFH] = newTerminationGroup
 			}
-			return newTerminationGroup
 		}
+		return newTerminationGroup
 	}
+	
 	fileprivate func removeFromTerminationGroups(fh:Int32) { 
 		self.exitSync.async { [weak self, fh] in
 			guard let self = self else {
