@@ -593,7 +593,7 @@ internal class DataChannelMonitor:FileHandleOwner {
 				Phase 2: (unsynchronized)
 					Phase to consists of calling `epoll_wait()` and parsing the results of the call
 			*/
-			let (readAllocation, allocationSize, shouldClear) = internalSync.sync { () -> (UnsafeMutablePointer<epoll_event>, Int) in
+			let (readAllocation, allocationSize, shouldClear) = internalSync.sync { () -> (UnsafeMutablePointer<epoll_event>, Int, Bool) in
 				var returnClear = false
 				for (_, curEvent) in handleEvents.enumerated() {
 					switch curEvent.value {
