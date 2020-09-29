@@ -310,7 +310,7 @@ internal class DataChannelMonitor:FileHandleOwner {
 						}
 					} catch FileHandleError.error_wouldblock {
 						wouldBlock = true
-					} catch , FileHandleError.error_again {
+					} catch FileHandleError.error_again {
 						wouldBlock = true
 					} catch _ {
 					}
