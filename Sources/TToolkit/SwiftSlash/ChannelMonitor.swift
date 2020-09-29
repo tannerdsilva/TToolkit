@@ -13,8 +13,8 @@ internal class DataChannelMonitor {
 	typealias OutboundDataHandler = () -> Data
 	typealias DataChannelTerminationHander = () -> Void
 	
-	static let dataCaptureQueue = DispatchQueue(label:"com.swiftslash.global.data-channel-monitor.reading", attributes:[.concurrent], target:swiftslashCaptainQueue)
-	static let dataBroadcastQueue = DispatchQueue(label:"com.swiftslash.global.data-channel-monitor.writing", attributes:[.concurrent], target:swiftslashCaptainQueue)
+	static let dataCaptureQueue = DispatchQueue(label:"com.swiftslash.global.data-channel-monitor.reading", attributes:[.concurrent], target:process_master_queue)
+	static let dataBroadcastQueue = DispatchQueue(label:"com.swiftslash.global.data-channel-monitor.writing", attributes:[.concurrent], target:process_master_queue)
 	
 	internal class IncomingDataChannel {
 		/*TriggerMode: how is the incoming data from a given data channel to be passed into the incoming data handler block?*/
@@ -25,7 +25,7 @@ internal class DataChannelMonitor {
 		
 		//constant variables that are defined on initialization
 		private let inboundHandler:InboundDataHandler
-		private let terminationHandler:DataChannelTerminationHandler
+		private let terminationHandler:DataChannelTerminationHander
 		let fh:Int32
 		let triggerMode:TriggerMode
 		let epollStructure:epoll_event
