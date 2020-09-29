@@ -36,7 +36,7 @@ internal struct PosixPipe:Hashable {
 		}
 	}
 	
-	init(nonblockingReads:Bool = false, nonblockingWrites:Bool = false) {
+	init(nonblockingReads:Bool = false, nonblockingWrites:Bool = false) throws {
 		var readingValue:Int32 = -1
 		var writingValue:Int32 = -1
 		
@@ -82,7 +82,7 @@ internal struct PosixPipe:Hashable {
 			guard read != -1 && write != -1 else {
 				throw FileHandleError.pipeOpenError
 			}
-			return PosixPipe(reading:read, writing:write)
+			return try PosixPipe(reading:read, writing:write)
 		}
 	}
 	
