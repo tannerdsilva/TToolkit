@@ -329,9 +329,9 @@ internal class DataChannelMonitor {
 						}
 						
 						//refresh the local data buffer and loop again if there is more data to write and the file handle has not been flagged as unwritable
-						if self.handleIsWritable == true && self.availableData.count > 0 {
-							remainingData = self.availableData
-							self.availableData.removeAll(keepingCapacity:true)
+						if self.handleIsWritable == true && self.remainingData.count > 0 {
+							remainingData = self.remainingData
+							self.reminingData.removeAll(keepingCapacity:true)
 							return true
 						} else {
 							self.dataWriteScheduled = false
@@ -524,13 +524,13 @@ internal class DataChannelMonitor {
 				return
 			}
 			var epollCapture = itemCapture!.epollStructure
-			guard epoll_ctl(self.epoll, EPOLL_CTL_DEL, &epollCapture) == 0 else {
+			guard epoll_ctl(self.epoll, EPOLL_CTL_DEL, reader, &epollCapture) == 0 else {
 				print(Colors.Red("ERROR: UNABLE TO CALL EPOLL_CTL_DEL ON FILE HANDLE \(reader)"))
 				return
 			}
 			print(Colors.dim("\(reader) has reached end of lifecycle"))
 			self.removeFromTerminationGroups(fh:reader)
-			fileHandleQueue.async { [reader] in
+			file_handle_guard.async { [reader] in
 				_close(reader)
 			}
 		}
@@ -550,13 +550,13 @@ internal class DataChannelMonitor {
 				return
 			}
 			var epollCapture = itemCapture!.epollStructure
-			guard epoll_ctl(self.epoll, EPOLL_CTL_DEL, &epollCapture) == 0 else {
+			guard epoll_ctl(self.epoll, EPOLL_CTL_DEL, writer, &epollCapture) == 0 else {
 				print(Colors.Red("ERROR: UNABLE TO CALL EPOLL-CTL-DEL ON FILE HANDLE \(writer)"))
 				return
 			}
 			print(Colors.dim("\(writer) has reached end of lifecycle"))
 			self.removeFromTerminationGroups(fh:writer)
-			fileHandleQueue.async { [writer] in
+			file_handle_guard.async { [writer] in
 				_close(writer)
 			}
 		}
@@ -594,7 +594,7 @@ internal class DataChannelMonitor {
 					switch curEvent.value {
 						case .readableEvent:
 							if readers[curEvent.key] != nil {
-								readers[curEvent.key]!.readIncomingData(flushMode:false) 
+								readers[curEvent.key]!.initiateDataCaptureIteration(terminate:false) 
 							} else {
 								print(Colors.Red("`epoll_wait()` received an event for a file handle not stored in this instance."))
 							}
@@ -608,7 +608,7 @@ internal class DataChannelMonitor {
 							break;
 						case .readingClosed:
 							if readers[curEvent.key] != nil {
-								readers[curEvent.key]!.readIncomingData(flushMode:true)
+								readers[curEvent.key]!.initiateDataCaptureIteration(terminate:true)
 							} else {
 								print(Colors.Red("`epoll_wait()` received an event for a file handle not stored in this instance."))
 							}
@@ -628,7 +628,7 @@ internal class DataChannelMonitor {
 				}
 				if (targetAllocationSize != currentAllocationSize) {
 					currentAllocation.deallocate()
-					currentAllocation = UnsafeMutablePointer<epoll_event>.allocate(capacity:targetAllocationSize)
+					currentAllocation = UnsafeMutablePointer<epoll_event>.allocate(capacity:Int(targetAllocationSize))
 					currentAllocationSize = targetAllocationSize
 					return (currentAllocation, currentAllocationSize, returnClear)
 				} else {
