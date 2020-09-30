@@ -650,7 +650,7 @@ internal class DataChannelMonitor {
 				var i:Int = 0
 				while (i < pollResult) {
 					let currentEvent = readAllocation[i]
-					if ((currentEvent.events & UInt32(EPOLLIN.rawValue) != 0) {
+					if ((currentEvent.events & UInt32(EPOLLIN.rawValue)) != 0) {
 						//read data available
 						handleEvents[currentEvent.data.fd] = .readableEvent
 					} else if (currentEvent.events & UInt32(POLLHUP.rawValue) != 0) {
