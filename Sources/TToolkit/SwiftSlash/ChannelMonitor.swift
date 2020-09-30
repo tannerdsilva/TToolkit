@@ -653,7 +653,7 @@ internal class DataChannelMonitor {
 					let pollin = currentEvent.events & UInt32(EPOLLIN.rawValue)
 					let pollhup = currentEvent.events & UInt32(EPOLLHUP.rawValue)
 					let pollout = currentEvent.events & UInt32(EPOLLOUT.rawValue)
-					let pollerr = currentEvent.events. & UInt32(EPOLLERR.rawValue)
+					let pollerr = currentEvent.events & UInt32(EPOLLERR.rawValue)
 					
 					
 					if ((currentEvent.events & UInt32(EPOLLIN.rawValue)) != 0) {
