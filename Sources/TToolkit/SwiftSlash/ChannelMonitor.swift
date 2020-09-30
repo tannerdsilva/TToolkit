@@ -653,13 +653,13 @@ internal class DataChannelMonitor {
 					if ((currentEvent.events & UInt32(EPOLLIN.rawValue)) != 0) {
 						//read data available
 						handleEvents[currentEvent.data.fd] = .readableEvent
-					} else if (currentEvent.events & UInt32(POLLHUP.rawValue) != 0) {
+					} else if ((currentEvent.events & UInt32(POLLHUP.rawValue)) != 0) {
 						//reading handle closed
 						handleEvents[currentEvent.data.fd] = .readingClosed
-					} else if (currentEvent.events & UInt32(EPOLLOUT.rawValue) != 0) {
+					} else if ((currentEvent.events & UInt32(EPOLLOUT.rawValue)) != 0) {
 						//writing available
 						handleEvents[currentEvent.data.fd] = .writableEvent
-					} else if (currentEvent.events & UInt32(EPOLLERR.rawValue) != 0) {
+					} else if ((currentEvent.events & UInt32(EPOLLERR.rawValue)) != 0) {
 						//writing handle closed
 						handleEvents[currentEvent.data.fd] = .writingClosed
 					}
