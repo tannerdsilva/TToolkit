@@ -424,7 +424,7 @@ internal class DataChannelMonitor {
 			guard let self = self else {
 				return
 			}
-			let removeCapture = terminationGroups.removeValue(forKey:fh)
+			let removeCapture = self.terminationGroups.removeValue(forKey:fh)
 			if (removeCapture != nil) {
 				removeCapture!.removeHandle(fh:fh)
 			}
@@ -650,6 +650,12 @@ internal class DataChannelMonitor {
 				var i:Int = 0
 				while (i < pollResult) {
 					let currentEvent = readAllocation[i]
+					let pollin = currentEvent.events & UInt32(EPOLLIN.rawValue)
+					let pollhup = currentEvent.events & UInt32(EPOLLHUP.rawValue)
+					let pollout = currentEvent.events & UInt32(EPOLLOUT.rawValue)
+					let pollerr = currentEvent.events. & UInt32(EPOLLERR.rawValue)
+					
+					
 					if ((currentEvent.events & UInt32(EPOLLIN.rawValue)) != 0) {
 						//read data available
 						handleEvents[currentEvent.data.fd] = .readableEvent
