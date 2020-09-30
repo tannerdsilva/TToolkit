@@ -81,7 +81,7 @@ internal class DataChannelMonitor {
 				}
 				
 				//parse the data based on the triggering mode
-				switch triggerMode {
+				switch self.triggerMode {
 					case .lineBreaks:
 						//scan the captured data buffer to determine if it should be parsed for new lines
 						var shouldParse = self.dataBuffer.withUnsafeBytes { unsafeBuffer in
