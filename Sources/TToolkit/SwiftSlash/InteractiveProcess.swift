@@ -244,17 +244,19 @@ public class InteractiveProcess:Hashable {
     }
     
     public func waitForExitCode() -> Int {
-        let (ec, termDate) = sig!.waitForExitAndFlush()
-        self.internalSync.async { [self, termDate] in
-        	self.exitTime = termDate
-        }
-
-#if DEBUG
-        defer {
-            pmon.processEnded(self, runtime: termDate.timeIntervalSince(sig!.launch_time))
-        }
-#endif
-
-        return Int(ec)
+    	sleep(5)
+    	return 5
+//        let (ec, termDate) = sig!.waitForExitAndFlush()
+//        self.internalSync.async { [self, termDate] in
+//        	self.exitTime = termDate
+//        }
+//
+//#if DEBUG
+//        defer {
+//            pmon.processEnded(self, runtime: termDate.timeIntervalSince(sig!.launch_time))
+//        }
+//#endif
+//
+//        return Int(ec)
     }
 }

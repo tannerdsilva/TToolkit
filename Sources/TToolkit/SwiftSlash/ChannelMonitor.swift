@@ -404,7 +404,7 @@ internal class DataChannelMonitor {
 	/*
 	TERMINATION GROUPS
 	*/
-	var exitSync = DispatchQueue(label:"com.swiftslash.data-channel-monitor.exit.sync", target:swiftslashCaptainQueue)
+	var exitSync = DispatchQueue(label:"com.swiftslash.data-channel-monitor.exit.sync", target:process_master_queue)
 	var terminationGroups = [Int32:TerminationGroup]()
 	func registerTerminationGroup(fhs:Set<Int32>, handler:@escaping((pid_t) -> Void)) throws -> TerminationGroup {
 		let newTerminationGroup = TerminationGroup(fhs:fhs, terminationHandler:handler)
