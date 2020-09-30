@@ -119,7 +119,7 @@ internal class DataChannelMonitor {
 						self.internalSync.sync {
 							self.callbackFires.append(self.dataBuffer)
 							self.dataBuffer.removeAll(keepingCapacity:true)
-							if asyncCallbackScheduled == false {
+							if self.asyncCallbackScheduled == false {
 								self.asyncCallbackScheduled = true
 								self.scheduleAsyncCallback()
 							}
@@ -153,7 +153,7 @@ internal class DataChannelMonitor {
 				}
 				
 				//capture the data that needs to fire against the incoming data handler
-				var dataForCallback = internalSync.sync { () -> [Data] in
+				var dataForCallback = self.internalSync.sync { () -> [Data] in
 					defer {
 						self.asyncCallbackScheduled = false
 						self.callbackFires.removeAll(keepingCapacity:true)
@@ -162,9 +162,9 @@ internal class DataChannelMonitor {
 				}
 				
 				//if trigger mode is immediate (unparsed), collapse the callback fires into a single fire with all the data appended
-				if triggerMode == .immediate {
+				if self.triggerMode == .immediate {
 					var singleData = Data()
-					for (_, curData) in dataForCallback.enumerated() {
+					for (_, curData) in self.dataForCallback.enumerated() {
 						singleData.append(curData)
 					}
 					dataForCallback = [singleData]
