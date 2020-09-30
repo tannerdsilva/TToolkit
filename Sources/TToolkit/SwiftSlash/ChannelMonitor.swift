@@ -395,8 +395,8 @@ internal class DataChannelMonitor {
 	var mainLoopLaunched = false
 	
 	let internalSync = DispatchQueue(label:"com.swiftslash.data-channel-monitor.global-instance.sync", attributes:[.concurrent], target:process_master_queue)
-	var currentAllocationSize = 32
-	var targetAllocationSize = 32
+	var currentAllocationSize:Int32 = 32
+	var targetAllocationSize:Int32 = 32
 	var currentAllocation = UnsafeMutablePointer<epoll_event>.allocate(capacity:32)
 	var readers = [Int32:IncomingDataChannel]()
 	var writers = [Int32:OutgoingDataChannel]()
@@ -588,7 +588,7 @@ internal class DataChannelMonitor {
 				Phase 2: (unsynchronized)
 					Phase to consists of calling `epoll_wait()` and parsing the results of the call
 			*/
-			let (readAllocation, allocationSize, shouldClear) = internalSync.sync { () -> (UnsafeMutablePointer<epoll_event>, Int, Bool) in
+			let (readAllocation, allocationSize, shouldClear) = internalSync.sync { () -> (UnsafeMutablePointer<epoll_event>, Int32, Bool) in
 				var returnClear = false
 				for (_, curEvent) in handleEvents.enumerated() {
 					switch curEvent.value {
