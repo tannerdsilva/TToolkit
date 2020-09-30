@@ -84,7 +84,7 @@ internal class DataChannelMonitor {
 				switch self.triggerMode {
 					case .lineBreaks:
 						//scan the captured data buffer to determine if it should be parsed for new lines
-						var shouldParse = self.dataBuffer.withUnsafeBytes { unsafeBuffer in
+						var shouldParse = self.dataBuffer.withUnsafeBytes { unsafeBuffer -> Bool in
 							var i = 0
 							while (i < self.dataBuffer.count) { 
 								if (unsafeBuffer[i] == 10 || unsafeBuffer[i] == 13) {
@@ -101,11 +101,11 @@ internal class DataChannelMonitor {
 								let parsedLines = self.dataBuffer.cutLines(flush:terminate)
 								if parsedLines.lines != nil && parsedLines.lines!.count != 0 {
 									//synchronize and determine if a callback has already been scheduled
-									internalSync.sync {
+									self.internalSync.sync {
 										self.dataBuffer = self.dataBuffer.suffix(from:parsedLines.cut)
 										self.callbackFires.append(contentsOf:parsedLines.lines!) //the parsed lines need to be fired against the data handler
-										if asyncCallbackScheduled == false {
-											asyncCallbackScheduled = true
+										if self.asyncCallbackScheduled == false {
+											self.asyncCallbackScheduled = true
 											self.scheduleAsyncCallback()
 										}
 									}
@@ -116,11 +116,11 @@ internal class DataChannelMonitor {
 						}
 					case .immediate:
 						//synchronize and determine if a callback has already been scheduled
-						internalSync.sync {
+						self.internalSync.sync {
 							self.callbackFires.append(self.dataBuffer)
 							self.dataBuffer.removeAll(keepingCapacity:true)
 							if asyncCallbackScheduled == false {
-								asyncCallbackScheduled = true
+								self.asyncCallbackScheduled = true
 								self.scheduleAsyncCallback()
 							}
 						}
@@ -153,7 +153,7 @@ internal class DataChannelMonitor {
 				}
 				
 				//capture the data that needs to fire against the incoming data handler
-				var dataForCallback = internalSync.sync {
+				var dataForCallback = internalSync.sync { () -> [Data] in
 					defer {
 						self.asyncCallbackScheduled = false
 						self.callbackFires.removeAll(keepingCapacity:true)
@@ -647,7 +647,7 @@ internal class DataChannelMonitor {
 				usleep(50000) //0.05 seconds
 			} else {
 				//there was no error...run it
-				var i:Int32 = 0
+				var i:Int = 0
 				while (i < pollResult) {
 					let currentEvent = readAllocation[i]
 					if (currentEvent.events & UInt32(EPOLLIN.rawValue) != 0) {
