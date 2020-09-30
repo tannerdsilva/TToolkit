@@ -679,7 +679,7 @@ internal class DataChannelMonitor {
 		if (((self.readers.count + self.writers.count) * 2) > targetAllocationSize) {
 			targetAllocationSize = currentAllocationSize * 2
 		} else if (Int(ceil(Double(targetAllocationSize)*0.20)) > (self.readers.count + self.writers.count)) {
-			targetAllocationSize = Int(ceil(Double(currentAllocationSize)*0.5))
+			targetAllocationSize = Int32(ceil(Double(currentAllocationSize)*0.5))
 		}
 		
 		if targetAllocationSize < 32 {
