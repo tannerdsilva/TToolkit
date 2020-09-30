@@ -164,7 +164,7 @@ internal class DataChannelMonitor {
 				//if trigger mode is immediate (unparsed), collapse the callback fires into a single fire with all the data appended
 				if self.triggerMode == .immediate {
 					var singleData = Data()
-					for (_, curData) in self.dataForCallback.enumerated() {
+					for (_, curData) in dataForCallback.enumerated() {
 						singleData.append(curData)
 					}
 					dataForCallback = [singleData]
@@ -233,7 +233,7 @@ internal class DataChannelMonitor {
 		}
 
 		func scheduleDataForWriting(_ inputData:Data) {
-			let shouldSchedule = self.internalSync.sync {
+			let shouldSchedule:Bool = self.internalSync.sync { () -> Bool in
 				self.remainingData.append(inputData)
 				if handleIsWritable == true && self.dataWriteScheduled == false {
 					self.dataWriteScheduled = true
@@ -251,7 +251,7 @@ internal class DataChannelMonitor {
 		}
 				
 		func handleIsAvailableForWriting() {
-			let (shouldSchedule) = internalSync.sync {
+			let shouldSchedule:Bool = internalSync.sync { () -> Bool
 				if (handleIsWritable == false) {
 					handleIsWritable = true
 				}
@@ -291,9 +291,9 @@ internal class DataChannelMonitor {
 				//capture the data buffer within `internalSync`
 				var remainingData = self.internalSync.sync {
 					defer {
-						self.availableData.removeAll(keepingCapacity:true)
+						self.remainingData.removeAll(keepingCapacity:true)
 					}
-					return self.availableData
+					return self.remainingData
 				}
 				
 				repeat {
