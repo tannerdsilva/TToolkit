@@ -251,7 +251,7 @@ internal class DataChannelMonitor {
 		}
 				
 		func handleIsAvailableForWriting() {
-			let shouldSchedule:Bool = internalSync.sync { () -> Bool
+			let shouldSchedule:Bool = internalSync.sync { () -> Bool in
 				if (handleIsWritable == false) {
 					handleIsWritable = true
 				}
@@ -289,7 +289,7 @@ internal class DataChannelMonitor {
 				
 				var shouldLoop = false
 				//capture the data buffer within `internalSync`
-				var remainingData = self.internalSync.sync {
+				var remainingData:Data = self.internalSync.sync { () -> Data in
 					defer {
 						self.remainingData.removeAll(keepingCapacity:true)
 					}
@@ -319,7 +319,7 @@ internal class DataChannelMonitor {
 								self.remainingData.append(remainingData)
 								self.remainingData.append(currentData)
 							} else {
-								self.availableData.append(remainingData)
+								self.remainingData.append(remainingData)
 							}
 						}
 						
@@ -650,7 +650,7 @@ internal class DataChannelMonitor {
 				var i:Int = 0
 				while (i < pollResult) {
 					let currentEvent = readAllocation[i]
-					if (currentEvent.events & UInt32(EPOLLIN.rawValue) != 0) {
+					if ((currentEvent.events & UInt32(EPOLLIN.rawValue) != 0) {
 						//read data available
 						handleEvents[currentEvent.data.fd] = .readableEvent
 					} else if (currentEvent.events & UInt32(POLLHUP.rawValue) != 0) {
