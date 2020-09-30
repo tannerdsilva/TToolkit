@@ -313,11 +313,11 @@ internal class DataChannelMonitor {
 					shouldLoop = self.internalSync.sync {
 						//insert the data back into the main buffer
 						if (remainingData.count > 0) {
-							if (self.availableData.count > 0) {
-								let currentData = self.availableData
-								self.availableData.removeAll(keepingCapacity:true)
-								self.availableData.append(remainingData)
-								self.availableData.append(currentData)
+							if (self.remainingData.count > 0) {
+								let currentData = self.remainingData
+								self.remainingData.removeAll(keepingCapacity:true)
+								self.remainingData.append(remainingData)
+								self.remainingData.append(currentData)
 							} else {
 								self.availableData.append(remainingData)
 							}
