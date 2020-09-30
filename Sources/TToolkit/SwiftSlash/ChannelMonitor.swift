@@ -331,7 +331,7 @@ internal class DataChannelMonitor {
 						//refresh the local data buffer and loop again if there is more data to write and the file handle has not been flagged as unwritable
 						if self.handleIsWritable == true && self.remainingData.count > 0 {
 							remainingData = self.remainingData
-							self.reminingData.removeAll(keepingCapacity:true)
+							self.remainingData.removeAll(keepingCapacity:true)
 							return true
 						} else {
 							self.dataWriteScheduled = false
