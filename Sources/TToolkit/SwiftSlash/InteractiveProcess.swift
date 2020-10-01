@@ -255,7 +255,7 @@ public class InteractiveProcess:Hashable {
 		}
     }
     
-    public func waitForExitCode() -> Int {
+    public func waitForExitCode() -> Int32 {
 		self.runGroup.wait()
 		return self.internalSync.sync {
 			return self.exitCode
