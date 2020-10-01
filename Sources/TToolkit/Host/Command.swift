@@ -98,7 +98,7 @@ extension Context {
         }
 		try process.run()
         let exitCode = process.waitForExitCode()
-        let result = CommandResult(exitCode: exitCode, stdout: outputLines, stderr: errorLines)
+        let result = CommandResult(exitCode:Int(exitCode), stdout: outputLines, stderr: errorLines)
    		return result
     }
     	    
