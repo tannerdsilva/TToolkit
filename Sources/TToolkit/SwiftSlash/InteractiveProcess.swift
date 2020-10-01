@@ -203,6 +203,9 @@ public class InteractiveProcess:Hashable {
     internal var sig:tt_proc_signature? = nil
     
     var lines = [Data]() 
+    
+    let runGroup = DispatchGroup()
+    var exitCode:Int32 = 0
 	
     public init<C>(command:C, workingDirectory:URL) throws where C:Command {
         self.internalSync = DispatchQueue(label:"com.tannersilva.instance.process.sync", target:process_master_queue)
@@ -214,6 +217,7 @@ public class InteractiveProcess:Hashable {
     
     public func run() throws {
     	do {
+			runGroup.enter()
 			try self.internalSync.sync {
 				let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdout:{ someData in
 					self.lines.append(someData)
@@ -222,7 +226,14 @@ public class InteractiveProcess:Hashable {
 					self.lines.append(someData)
 					self._stderrHandler?(someData)
 				}, exitHandler: { exitCode in
+					self.internalSync.async { [weak self, exitCode] in
+						guard let self = self else {
+							return
+						}
+						self.exitCode = exitCode
+					}
 					print("The process has exited with exit code \(exitCode)")
+					self.runGroup.leave()
 				})
 
 	#if DEBUG
@@ -233,6 +244,7 @@ public class InteractiveProcess:Hashable {
 			}
 		} catch let error {
 			//assign state failed
+			runGroup.leave()
 			self.internalSync.async { [weak self] in
 				guard let self = self else {
 					return
@@ -244,19 +256,7 @@ public class InteractiveProcess:Hashable {
     }
     
     public func waitForExitCode() -> Int {
-    	sleep(5)
-    	return 5
-//        let (ec, termDate) = sig!.waitForExitAndFlush()
-//        self.internalSync.async { [self, termDate] in
-//        	self.exitTime = termDate
-//        }
-//
-//#if DEBUG
-//        defer {
-//            pmon.processEnded(self, runtime: termDate.timeIntervalSince(sig!.launch_time))
-//        }
-//#endif
-//
-//        return Int(ec)
+		self.runGroup.wait()
+		return     
     }
 }
