@@ -52,6 +52,7 @@ internal class DataChannelMonitor {
 			self.terminationHandler = terminationHandler
 			
 			self.manager = manager
+			self.triggerMode = triggerMode
 		}
 		
 		//FileHandleOwner will call this function when the relevant file handle has become available for reading
