@@ -655,21 +655,19 @@ internal class DataChannelMonitor {
 					let pollout = currentEvent.events & UInt32(EPOLLOUT.rawValue)
 					let pollerr = currentEvent.events & UInt32(EPOLLERR.rawValue)
 					
-					
-					if ((currentEvent.events & UInt32(EPOLLIN.rawValue)) != 0) {
+					if (pollin != 0) {
 						//read data available
 						handleEvents[currentEvent.data.fd] = .readableEvent
-					} else if ((currentEvent.events & UInt32(POLLHUP.rawValue)) != 0) {
+					} else if (pollhup != 0) {
 						//reading handle closed
 						handleEvents[currentEvent.data.fd] = .readingClosed
-					} else if ((currentEvent.events & UInt32(EPOLLOUT.rawValue)) != 0) {
+					} else if (pollout != 0) {
 						//writing available
 						handleEvents[currentEvent.data.fd] = .writableEvent
-					} else if ((currentEvent.events & UInt32(EPOLLERR.rawValue)) != 0) {
+					} else if (pollerr != 0) {
 						//writing handle closed
 						handleEvents[currentEvent.data.fd] = .writingClosed
 					}
-				
 					i = i + 1;
 				}
 			}
