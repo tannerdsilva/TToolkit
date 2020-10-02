@@ -288,7 +288,7 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
                 _ = _close(STDERR_FILENO)
                 _ = _close(STDOUT_FILENO)
 				do {
-					try internalNotify.writing.writeFileHandle("\(processForkResult)\n")
+					try internalNotify.writing.writeFileHandle("\(processForkResult)")
 				} catch _ {
 					exit(-2)
 				}
