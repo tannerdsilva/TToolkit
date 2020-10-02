@@ -59,6 +59,7 @@ internal class DataChannelMonitor {
 		private var dataBuffer = Data()	//used exclusively in this function
 		func initiateDataCaptureIteration(terminate:Bool) {
 			self.flightGroup.enter();
+			print(Colors.dim("-> [\(self.fh)]"))
 			captureQueue.async { [weak self] in
 				guard let self = self else {
 					return
