@@ -75,7 +75,7 @@ internal class DataChannelMonitor {
 					while true {
 						let capturedData = try self.fh.readFileHandle()
 						self.dataBuffer.append(contentsOf:capturedData)
-						print("(C) [\(capturedData.count)]")
+						print("(C){\(self.fh)} [\(capturedData.count)]")
 					}
 				} catch FileHandleError.error_again {
 				} catch FileHandleError.error_wouldblock {
