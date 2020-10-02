@@ -63,6 +63,9 @@ internal class DataChannelMonitor {
 				guard let self = self else {
 					return
 				}
+				if terminate {
+					print(Colors.Yellow("[\(self.fh)] TERMINATE"))
+				}
 				defer {
 					self.flightGroup.leave()
 				}
