@@ -220,7 +220,9 @@ public class InteractiveProcess:Hashable {
 			runGroup.enter()
 			try self.internalSync.sync {
 				let launchedProcess = try tt_spawn(path:self.commandToRun.executable, args: self.commandToRun.arguments, wd:self.wd, env: self.commandToRun.environment, stdout:{ someData in
-					print("Standard output got a line")
+					print("Standard output got a line ", terminator:"")
+					let stringData = String(data:someData, encoding:.utf8)
+					print(Colors.cyan("\(stringData)"))
 					self.lines.append(someData)
 					self._stdoutHandler?(someData)
 				}, stderr: { someData in
