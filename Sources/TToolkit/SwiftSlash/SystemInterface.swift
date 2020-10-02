@@ -349,8 +349,13 @@ fileprivate func tt_spawn(path:UnsafePointer<Int8>, args:UnsafeMutablePointer<Un
             	print("ERROR: Internal notify handle didn't get any data")
             	throw tt_spawn_error.internalError
             }
-            guard let notifyString = String(data:triggerData, encoding:.utf8), let messagePid = pid_t(notifyString) else {
-            	print(Colors.Red("Error trying to parse the received PID from the forked child process."))
+            guard let notifyString = String(data:triggerData, encoding:.utf8) else {
+            	print(Colors.Red("Error trying to parse the received PID from the forked child process. The notify string could not be created"))
+            	throw tt_spawn_error.internalError
+            }
+            
+            guard let messagePid = pid_t(notifyString) else {
+            	print(Colors.Red("error trying to parse the message Pid. got string '\(notifyString)'"))
             	throw tt_spawn_error.internalError
             }
             var sigToReturn = tt_proc_signature(work:messagePid, stdin:stdin, stdout:stdout, stderr:stderr)
