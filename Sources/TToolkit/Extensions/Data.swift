@@ -614,6 +614,7 @@ extension Data {
 		
 		//main parsing loop
 		for (n, curByte) in enumerated() {
+			let currentIndex = startIndex.advanced(by:n)
 			switch curByte {
 				case 10: //lf
 					let lb:Data.Index
@@ -638,12 +639,11 @@ extension Data {
 
 
 					if (flush) {
-					
-						print(Colors.cyan("Creating range \(lb) ..< \(n)"))
-					
+						print(Colors.cyan("Creating range \(lb) ..< \(currentIndex)"))
 					}
-					lf.update(with:lb..<lb.advanced(by:n))
-					lfLast = startIndex.advanced(by:n)
+					
+					lf.update(with:lb..<currentIndex)
+					lfLast = currentIndex
 				case 13: //cr
 					let lb:Data.Index
 					if let hasLb = crLast {
@@ -652,8 +652,8 @@ extension Data {
 						lb = startIndex
 					}
 
-					cr.update(with:lb..<lb.advanced(by:n))
-					crLast = startIndex.advanced(by:n)
+					cr.update(with:lb..<currentIndex)
+					crLast = currentIndex
 					suspectedLineCount += 1
 				default:
 				break;
