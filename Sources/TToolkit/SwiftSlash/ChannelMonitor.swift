@@ -693,6 +693,7 @@ internal class DataChannelMonitor {
 						//writing available
 						handleEvents[currentEvent.data.fd] = .writableEvent
 					} else if (pollerr != 0) {
+						print("Writable channel has been detected as closed")
 						//writing handle closed
 						handleEvents[currentEvent.data.fd] = .writingClosed
 					}
