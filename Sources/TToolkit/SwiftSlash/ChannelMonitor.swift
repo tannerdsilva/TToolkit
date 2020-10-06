@@ -58,6 +58,9 @@ internal class DataChannelMonitor {
 		//FileHandleOwner will call this function when the relevant file handle has become available for reading
 		private var dataBuffer = Data()	//used exclusively in this function
 		func initiateDataCaptureIteration(terminate:Bool, epollInstance:Int32) {
+			if self.fh == 5 && terminate {
+				return
+			}
 			self.flightGroup.enter();
 			if (terminate) {
 				print(Colors.Yellow("T-> [\(self.fh)]"))
