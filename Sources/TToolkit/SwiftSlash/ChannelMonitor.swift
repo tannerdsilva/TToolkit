@@ -79,9 +79,9 @@ internal class DataChannelMonitor {
 						print("(C){\(self.fh)} [\(capturedData.count)]")
 					}
 				} catch FileHandleError.error_again {
-					print(Colord.dim("[\(self.fh)] ! DONE !"))
+					print(Colors.dim("[\(self.fh)] ! DONE !"))
 				} catch FileHandleError.error_wouldblock {
-					print(Colord.dim("[\(self.fh)] ! DONE !"))
+					print(Colors.dim("[\(self.fh)] ! DONE !"))
 				} catch FileHandleError.error_pipe {
 					if (terminate == false) {
 						print(Colors.Red("[\(self.fh)] ERROR PIPE (captured \(self.dataBuffer.count) bytes in this iteration)"))
