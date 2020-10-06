@@ -601,9 +601,6 @@ extension Data {
 	}
 	
     func cutLines(flush:Bool) -> (lines:[Data]?, cut:Data.Index) {
-    	if (flush) {
-			print("CL CALLED \(self.count)")
-		}
 		//itterate to find the line breaks
 		var lf = Set<Range<Self.Index>>()
 		var lfLast:Self.Index? = nil
@@ -626,14 +623,8 @@ extension Data {
 					
 					//was last character cr?
 					if (crLast != nil && crLast! == n-1) {
-						if (flush) {
-							print("last character was a cr")
-						}
 						crlf.update(with:lb..<crLast!)
 					} else {
-						if (flush) {
-							print("last character was not a cr")
-						}
 						suspectedLineCount += 1
 					}
 
@@ -672,7 +663,6 @@ extension Data {
 		}
 	
 		func returnValueForLines(_ linesIn:[Range<Self.Index>]) -> (lines:[Data]?, cut:Self.Index) {
-			print("OK FUCKING COOL THE THING IS BEING CALLED")
 			if linesIn.count <= 1 && flush == false {
 				return (lines:nil, cut:startIndex)
 			} else if flush == false {
