@@ -602,7 +602,7 @@ extension Data {
 	
     func cutLines(flush:Bool) -> (lines:[Data]?, cut:Data.Index) {
     	if (flush) {
-			print("CL CALLED")
+			print("CL CALLED \(self.count)")
 		}
 		//itterate to find the line breaks
 		var lf = Set<Range<Self.Index>>()
