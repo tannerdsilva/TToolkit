@@ -632,6 +632,7 @@ internal class DataChannelMonitor {
 							}
 							break;
 						case .readingClosed:
+							print(Colors.red("[\(curEvent.key)] CLOSED AS READER"))
 							if readers[curEvent.key] != nil {
 								readers[curEvent.key]!.initiateDataCaptureIteration(terminate:true, epollInstance:self.epoll)
 							} else {
@@ -639,6 +640,7 @@ internal class DataChannelMonitor {
 							}
 							break;
 						case .writingClosed:
+							print(Colors.red("[\(curEvent.key)] CLOSED AS WRITER"))
 							if writers[curEvent.key] != nil {
 								writers[curEvent.key]!.prepareForTermination()
 							} else {
