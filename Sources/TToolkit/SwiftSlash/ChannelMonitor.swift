@@ -625,6 +625,7 @@ internal class DataChannelMonitor {
 							}
 							break;
 						case .writableEvent:
+							print(Colors.cyan("[\(curEvent.key)] IS WRITABLE YAY"))
 							if writers[curEvent.key] != nil {
 								writers[curEvent.key]!.handleIsAvailableForWriting()
 							} else {
