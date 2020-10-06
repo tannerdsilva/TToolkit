@@ -57,12 +57,12 @@ internal class DataChannelMonitor {
 		
 		//FileHandleOwner will call this function when the relevant file handle has become available for reading
 		private var dataBuffer = Data()	//used exclusively in this function
-		func initiateDataCaptureIteration(terminate:Bool) {
+		func initiateDataCaptureIteration(terminate:Bool, epollInstance:Int32) {
 			self.flightGroup.enter();
 			if (terminate) {
 				print(Colors.Yellow("T-> [\(self.fh)]"))
 			} else {
-				print(Colors.dim("-> [\(self.fh)]"))
+				print(Colors.dim("C-> [\(self.fh)]"))
 			}
 			captureQueue.async { [weak self] in
 				guard let self = self else {
@@ -89,6 +89,12 @@ internal class DataChannelMonitor {
 				} catch let error {
 					print(Colors.Red("IO ERROR: \(error)"))
 				}
+				guard epoll_ctl(epollInstance, EPOLL_CTL_MOD, self.fh, &epollStructure) == 0 else {
+					print("UNABLE TO REARM \(self.fh)")
+					return
+				}
+
+				
 				
 				//parse the data based on the triggering mode
 				switch self.triggerMode {
