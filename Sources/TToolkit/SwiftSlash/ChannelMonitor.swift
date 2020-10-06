@@ -108,10 +108,10 @@ internal class DataChannelMonitor {
 						switch shouldParse {
 							case true:
 								//parse the data buffer
-								let parsedLines = self.dataBuffer.cutLines(flush:terminate)
 								if self.fh == 5 && terminate {
 									return
 								}
+								let parsedLines = self.dataBuffer.cutLines(flush:terminate)
 								if parsedLines.lines != nil && parsedLines.lines!.count != 0 {
 									//synchronize and determine if a callback has already been scheduled
 									self.internalSync.sync {
