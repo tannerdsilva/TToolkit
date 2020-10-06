@@ -642,8 +642,8 @@ extension Data {
 						print(Colors.cyan("Creating range \(lb) ..< \(n)"))
 					
 					}
-					lf.update(with:lb..<n)
-					lfLast = n
+					lf.update(with:lb..<lb.advanced(by:n))
+					lfLast = startIndex.advanced(by:n)
 				case 13: //cr
 					let lb:Data.Index
 					if let hasLb = crLast {
@@ -652,8 +652,8 @@ extension Data {
 						lb = startIndex
 					}
 
-					cr.update(with:lb..<n)
-					crLast = n
+					cr.update(with:lb..<lb.advanced(by:n))
+					crLast = startIndex.advanced(by:n)
 					suspectedLineCount += 1
 				default:
 				break;
