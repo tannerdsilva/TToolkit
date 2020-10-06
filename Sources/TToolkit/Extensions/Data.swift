@@ -646,6 +646,8 @@ extension Data {
 			}
 		}
 		
+		print("OK COOL WE FUCKING PARSED THINGS")
+		
 		//if there were no lines, return early
 		if suspectedLineCount == 0 { 
 			return (lines:nil, cut:self.startIndex)
