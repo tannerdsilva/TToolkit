@@ -683,19 +683,19 @@ internal class DataChannelMonitor {
 					let pollout = currentEvent.events & UInt32(EPOLLOUT.rawValue)
 					let pollerr = currentEvent.events & UInt32(EPOLLERR.rawValue)
 					
-					if (pollin != 0) {
-						//read data available
-						handleEvents[currentEvent.data.fd] = .readableEvent
-					} else if (pollhup != 0) {
+					if (pollhup != 0) {
 						//reading handle closed
 						handleEvents[currentEvent.data.fd] = .readingClosed
-					} else if (pollout != 0) {
-						//writing available
-						handleEvents[currentEvent.data.fd] = .writableEvent
 					} else if (pollerr != 0) {
 						print("Writable channel has been detected as closed")
 						//writing handle closed
 						handleEvents[currentEvent.data.fd] = .writingClosed
+					} else if (pollin != 0) {
+						//read data available
+						handleEvents[currentEvent.data.fd] = .readableEvent
+					} else if (pollout != 0) {
+						//writing available
+						handleEvents[currentEvent.data.fd] = .writableEvent
 					}
 					i = i + 1;
 				}
