@@ -625,11 +625,23 @@ extension Data {
 					
 					//was last character cr?
 					if (crLast != nil && crLast! == n-1) {
+						if (flush) {
+							print("last character was a cr")
+						}
 						crlf.update(with:lb..<crLast!)
 					} else {
+						if (flush) {
+							print("last character was not a cr")
+						}
 						suspectedLineCount += 1
 					}
 
+
+					if (flush) {
+					
+						print(Colors.cyan("Creating range \(lb) ..< \(n)"))
+					
+					}
 					lf.update(with:lb..<n)
 					lfLast = n
 				case 13: //cr
