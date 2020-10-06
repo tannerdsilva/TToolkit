@@ -89,7 +89,7 @@ internal class DataChannelMonitor {
 				} catch let error {
 					print(Colors.Red("IO ERROR: \(error)"))
 				}
-				let eps = self.epollStructure
+				var eps = self.epollStructure
 				guard epoll_ctl(epollInstance, EPOLL_CTL_MOD, self.fh, &eps) == 0 else {
 					print("UNABLE TO REARM \(self.fh)")
 					return
