@@ -601,7 +601,9 @@ extension Data {
 	}
 	
     func cutLines(flush:Bool) -> (lines:[Data]?, cut:Data.Index) {
-    	print("CL CALLED")
+    	if (flush) {
+			print("CL CALLED")
+		}
 		//itterate to find the line breaks
 		var lf = Set<Range<Self.Index>>()
 		var lfLast:Self.Index? = nil
@@ -646,8 +648,9 @@ extension Data {
 			}
 		}
 		
-		print("OK COOL WE FUCKING PARSED THINGS")
-		
+		if (flush) {
+			print("OK COOL WE FUCKING PARSED THINGS")
+		}
 		//if there were no lines, return early
 		if suspectedLineCount == 0 { 
 			return (lines:nil, cut:self.startIndex)
