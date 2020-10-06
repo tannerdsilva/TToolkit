@@ -45,7 +45,7 @@ internal class DataChannelMonitor {
 			
 			var buildEpoll = epoll_event()
 			buildEpoll.data.fd = fh
-			buildEpoll.events = UInt32(EPOLLIN.rawValue) | UInt32(EPOLLERR.rawValue) | UInt32(EPOLLHUP.rawValue) | UInt32(EPOLLET.rawValue)
+			buildEpoll.events = UInt32(EPOLLIN.rawValue) | UInt32(EPOLLERR.rawValue) | UInt32(EPOLLHUP.rawValue) | UInt32(EPOLLET.rawValue) | UInt32(EPOLLONESHOT.rawValue)
 			self.epollStructure = buildEpoll
 			
 			self.inboundHandler = dataHandler
