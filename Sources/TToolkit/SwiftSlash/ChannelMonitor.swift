@@ -109,17 +109,6 @@ internal class DataChannelMonitor {
 							case true:
 								//parse the data buffer
 								let parsedLines = self.dataBuffer.cutLines(flush:terminate)
-								if (terminate) {
-									print(parsedLines)
-								}
-//								if self.fh == 5 && terminate {
-//									if let terminateString = String(data:self.dataBuffer, encoding:.utf8) {
-//										print(Colors.magenta("the data buffer has \(self.dataBuffer.count) bytes waiting to be parsed '\(terminateString)'"))
-//									} else {
-//										print(Colors.magenta("something went really wrong"))
-//									}	
-//									return
-//								}
 								if parsedLines.lines != nil && parsedLines.lines!.count != 0 {
 									//synchronize and determine if a callback has already been scheduled
 									self.internalSync.sync {
@@ -436,6 +425,11 @@ internal class DataChannelMonitor {
 	var exitSync = DispatchQueue(label:"com.swiftslash.data-channel-monitor.exit.sync", target:process_master_queue)
 	var terminationGroups = [Int32:TerminationGroup]()
 	func registerTerminationGroup(fhs:Set<Int32>, handler:@escaping((pid_t) -> Void)) throws -> TerminationGroup {
+		print(Colors.Green("New Termination Group is being registered"), terminator:"")
+		for (_, curItem) in fhs.enumerated() {
+			print(Colors.green(" \(curItem)"), terminator:"")
+		}
+		print("\n")
 		let newTerminationGroup = TerminationGroup(fhs:fhs, terminationHandler:handler)
 		self.exitSync.async { [weak self, newTerminationGroup, fhs] in
 			guard let self = self else {
@@ -464,6 +458,7 @@ internal class DataChannelMonitor {
 	creating an inbound data channel that is to have its data captured
 	*/
 	func registerInboundDataChannel(fh:Int32, mode:IncomingDataChannel.TriggerMode, dataHandler:@escaping(InboundDataHandler), terminationHandler:@escaping(DataChannelTerminationHander)) throws {
+		print(Colors.Yellow("New inbound channel registered: \(fh)"))
 		let newChannel = IncomingDataChannel(fh:fh, triggerMode:mode, dataHandler:dataHandler, terminationHandler:terminationHandler, manager:self)
 		
 		var epollStructure = newChannel.epollStructure
@@ -495,6 +490,7 @@ internal class DataChannelMonitor {
 	creating a outbound data channel to help facilitate data capture
 	*/
 	func registerOutboundDataChannel(fh:Int32, initialData:Data? = nil, terminationHandler:@escaping(DataChannelTerminationHander)) throws {
+	print(Colors.Yellow("New outbound channel registered: \(fh)"))
 		let newChannel = OutgoingDataChannel(fh:fh, terminationHandler:terminationHandler, manager:self)		
 		if initialData != nil && initialData!.count > 0 {
 			newChannel.scheduleDataForWriting(initialData!)
@@ -558,7 +554,6 @@ internal class DataChannelMonitor {
 				print(Colors.Red("ERROR: UNABLE TO CALL EPOLL_CTL_DEL ON FILE HANDLE \(reader)"))
 				return
 			}
-
 			self.removeFromTerminationGroups(fh:reader)
 			file_handle_guard.async { [reader] in
 				_close(reader)
