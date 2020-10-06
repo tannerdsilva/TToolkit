@@ -104,11 +104,7 @@ internal class DataChannelMonitor {
 							}
 							return terminate
 						}
-						
-						if self.fh == 5 && terminate {
-							return
-						}
-						
+												
 						switch shouldParse {
 							case true:
 								//parse the data buffer
@@ -139,7 +135,11 @@ internal class DataChannelMonitor {
 							}
 						}
 				}
-				
+
+				if self.fh == 5 && terminate {
+					return
+				}
+
 				if terminate == true {
 					print(Colors.Yellow("<- [\(self.fh)]"))
 					self.flightGroup.enter()
