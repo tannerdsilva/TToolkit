@@ -601,6 +601,7 @@ extension Data {
 	}
 	
     func cutLines(flush:Bool) -> (lines:[Data]?, cut:Data.Index) {
+    	print("CL CALLED")
 		//itterate to find the line breaks
 		var lf = Set<Range<Self.Index>>()
 		var lfLast:Self.Index? = nil
