@@ -667,7 +667,7 @@ internal class DataChannelMonitor {
 			if (shouldClear) {
 				handleEvents.removeAll()			
 			}
-			
+
 			let pollResult = epoll_wait(epoll, readAllocation, allocationSize, -1)
 			if pollResult == -1 && errno == EINTR {
 				//there was an error...sleep and try again
@@ -687,7 +687,6 @@ internal class DataChannelMonitor {
 						//reading handle closed
 						handleEvents[currentEvent.data.fd] = .readingClosed
 					} else if (pollerr != 0) {
-						print("Writable channel has been detected as closed")
 						//writing handle closed
 						handleEvents[currentEvent.data.fd] = .writingClosed
 					} else if (pollin != 0) {
