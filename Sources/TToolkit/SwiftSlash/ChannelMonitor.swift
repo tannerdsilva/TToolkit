@@ -89,10 +89,6 @@ internal class DataChannelMonitor {
 				} catch let error {
 					print(Colors.Red("IO ERROR: \(error)"))
 				}
-
-				if self.fh == 5 && terminate {
-					return
-				}
 	
 				//parse the data based on the triggering mode
 				switch self.triggerMode {
@@ -107,6 +103,10 @@ internal class DataChannelMonitor {
 								i = i + 1;
 							}
 							return terminate
+						}
+						
+						if self.fh == 5 && terminate {
+							return
 						}
 						
 						switch shouldParse {
