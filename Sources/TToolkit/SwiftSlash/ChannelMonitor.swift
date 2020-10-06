@@ -537,10 +537,13 @@ internal class DataChannelMonitor {
 	queues a reading file handle to be removed from the channel monitor
 	*/
 	func handleEndedLifecycle(reader:Int32) {
+	
+		print("sched")
 		internalSync.async(flags:[.barrier]) { [weak self, reader] in
 			guard let self = self else {
 				return
 			}
+			print(Colors.dim("\(reader) has reached end of lifecycle"))
 			let itemCapture = self.readers.removeValue(forKey:reader)
 			guard itemCapture != nil else {
 				print(Colors.Red("ERROR: UNABLE TO REMOVE THE READER FROM THE DATA CHANNEL MONITOR: \(reader)"))
@@ -551,7 +554,7 @@ internal class DataChannelMonitor {
 				print(Colors.Red("ERROR: UNABLE TO CALL EPOLL_CTL_DEL ON FILE HANDLE \(reader)"))
 				return
 			}
-			print(Colors.dim("\(reader) has reached end of lifecycle"))
+
 			self.removeFromTerminationGroups(fh:reader)
 			file_handle_guard.async { [reader] in
 				_close(reader)
