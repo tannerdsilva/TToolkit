@@ -58,9 +58,6 @@ internal class DataChannelMonitor {
 		//FileHandleOwner will call this function when the relevant file handle has become available for reading
 		private var dataBuffer = Data()	//used exclusively in this function
 		func initiateDataCaptureIteration(terminate:Bool, epollInstance:Int32) {
-			if self.fh == 5 && terminate {
-				return
-			}
 			self.flightGroup.enter();
 			if (terminate) {
 				print(Colors.Yellow("T-> [\(self.fh)]"))
@@ -73,6 +70,9 @@ internal class DataChannelMonitor {
 				}
 				defer {
 					self.flightGroup.leave()
+				}
+				if self.fh == 5 && terminate {
+					return
 				}
 				//capture the data
 				do {
@@ -535,8 +535,6 @@ internal class DataChannelMonitor {
 	queues a reading file handle to be removed from the channel monitor
 	*/
 	func handleEndedLifecycle(reader:Int32) {
-	
-		print("sched")
 		internalSync.async(flags:[.barrier]) { [weak self, reader] in
 			guard let self = self else {
 				return
