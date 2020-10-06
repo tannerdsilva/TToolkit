@@ -71,9 +71,6 @@ internal class DataChannelMonitor {
 				defer {
 					self.flightGroup.leave()
 				}
-				if self.fh == 5 && terminate {
-					return
-				}
 				//capture the data
 				do {
 					while true {
@@ -92,7 +89,11 @@ internal class DataChannelMonitor {
 				} catch let error {
 					print(Colors.Red("IO ERROR: \(error)"))
 				}
-								
+
+				if self.fh == 5 && terminate {
+					return
+				}
+	
 				//parse the data based on the triggering mode
 				switch self.triggerMode {
 					case .lineBreaks:
