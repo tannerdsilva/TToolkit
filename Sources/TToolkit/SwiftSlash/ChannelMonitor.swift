@@ -157,6 +157,11 @@ internal class DataChannelMonitor {
 						self.manager?.handleEndedLifecycle(reader:self.fh)
 					}
 				}
+				if (terminate) {
+					print(Colors.Yellow("<- [\(self.fh)]"))
+				} else {
+					print(Colors.dim("<- [\(self.fh)]"))
+				}
 			}
 		}
 		
