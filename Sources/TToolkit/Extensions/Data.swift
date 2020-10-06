@@ -662,6 +662,7 @@ extension Data {
 		}
 	
 		func returnValueForLines(_ linesIn:[Range<Self.Index>]) -> (lines:[Data]?, cut:Self.Index) {
+			print("OK FUCKING COOL THE THING IS BEING CALLED")
 			if linesIn.count <= 1 && flush == false {
 				return (lines:nil, cut:startIndex)
 			} else if flush == false {
