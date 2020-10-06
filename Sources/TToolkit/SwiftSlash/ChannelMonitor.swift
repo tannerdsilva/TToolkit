@@ -76,16 +76,10 @@ internal class DataChannelMonitor {
 					while true {
 						let capturedData = try self.fh.readFileHandle()
 						self.dataBuffer.append(contentsOf:capturedData)
-						print("(C){\(self.fh)} [\(capturedData.count)]")
 					}
 				} catch FileHandleError.error_again {
-					print(Colors.dim("[\(self.fh)] ! DONE !"))
 				} catch FileHandleError.error_wouldblock {
-					print(Colors.dim("[\(self.fh)] ! DONE !"))
 				} catch FileHandleError.error_pipe {
-					if (terminate == false) {
-						print(Colors.Red("[\(self.fh)] ERROR PIPE (captured \(self.dataBuffer.count) bytes in this iteration)"))
-					}
 				} catch let error {
 					print(Colors.Red("IO ERROR: \(error)"))
 				}
@@ -137,7 +131,6 @@ internal class DataChannelMonitor {
 				}
 
 				if terminate == true {
-					print(Colors.Yellow("<- [\(self.fh)]"))
 					self.flightGroup.enter()
 					self.callbackQueue.async { [weak self] in
 						guard let self = self else {
@@ -152,10 +145,8 @@ internal class DataChannelMonitor {
 				} else {
 					var eps = self.epollStructure
 					guard epoll_ctl(epollInstance, EPOLL_CTL_MOD, self.fh, &eps) == 0 else {
-						print("UNABLE TO REARM \(self.fh)")
 						return
 					}
-					print(Colors.dim("<- [\(self.fh)]"))
 				}
 			}
 		}
@@ -404,6 +395,7 @@ internal class DataChannelMonitor {
 			if (fileHandles.count > 0) {
 				print(Colors.Red("WARNING: TERMINATION GORUP IS BEING DEALLOCATED BEFORE THE TERMINATION HANDLER IS BEING CALLED"))
 			}
+			print(Colors.dim("Termination group was deinitialized"))
 		}
 	}
 
@@ -425,7 +417,6 @@ internal class DataChannelMonitor {
 	var exitSync = DispatchQueue(label:"com.swiftslash.data-channel-monitor.exit.sync", target:process_master_queue)
 	var terminationGroups = [Int32:TerminationGroup]()
 	func registerTerminationGroup(fhs:Set<Int32>, handler:@escaping((pid_t) -> Void)) throws -> TerminationGroup {
-		print(Colors.Green("New Termination Group is being registered"), terminator:"")
 		for (_, curItem) in fhs.enumerated() {
 			print(Colors.green(" \(curItem)"), terminator:"")
 		}
@@ -458,7 +449,6 @@ internal class DataChannelMonitor {
 	creating an inbound data channel that is to have its data captured
 	*/
 	func registerInboundDataChannel(fh:Int32, mode:IncomingDataChannel.TriggerMode, dataHandler:@escaping(InboundDataHandler), terminationHandler:@escaping(DataChannelTerminationHander)) throws {
-		print(Colors.Yellow("New inbound channel registered: \(fh)"))
 		let newChannel = IncomingDataChannel(fh:fh, triggerMode:mode, dataHandler:dataHandler, terminationHandler:terminationHandler, manager:self)
 		
 		var epollStructure = newChannel.epollStructure
@@ -490,7 +480,6 @@ internal class DataChannelMonitor {
 	creating a outbound data channel to help facilitate data capture
 	*/
 	func registerOutboundDataChannel(fh:Int32, initialData:Data? = nil, terminationHandler:@escaping(DataChannelTerminationHander)) throws {
-	print(Colors.Yellow("New outbound channel registered: \(fh)"))
 		let newChannel = OutgoingDataChannel(fh:fh, terminationHandler:terminationHandler, manager:self)		
 		if initialData != nil && initialData!.count > 0 {
 			newChannel.scheduleDataForWriting(initialData!)
@@ -543,7 +532,6 @@ internal class DataChannelMonitor {
 			guard let self = self else {
 				return
 			}
-			print(Colors.dim("\(reader) has reached end of lifecycle"))
 			let itemCapture = self.readers.removeValue(forKey:reader)
 			guard itemCapture != nil else {
 				print(Colors.Red("ERROR: UNABLE TO REMOVE THE READER FROM THE DATA CHANNEL MONITOR: \(reader)"))
@@ -579,7 +567,6 @@ internal class DataChannelMonitor {
 				print(Colors.Red("ERROR: UNABLE TO CALL EPOLL-CTL-DEL ON FILE HANDLE \(writer)"))
 				return
 			}
-			print(Colors.dim("\(writer) has reached end of lifecycle"))
 			self.removeFromTerminationGroups(fh:writer)
 			file_handle_guard.async { [writer] in
 				_close(writer)
@@ -625,7 +612,6 @@ internal class DataChannelMonitor {
 							}
 							break;
 						case .writableEvent:
-							print(Colors.cyan("[\(curEvent.key)] IS WRITABLE YAY"))
 							if writers[curEvent.key] != nil {
 								writers[curEvent.key]!.handleIsAvailableForWriting()
 							} else {
@@ -633,7 +619,6 @@ internal class DataChannelMonitor {
 							}
 							break;
 						case .readingClosed:
-							print(Colors.red("[\(curEvent.key)] CLOSED AS READER"))
 							if readers[curEvent.key] != nil {
 								readers[curEvent.key]!.initiateDataCaptureIteration(terminate:true, epollInstance:self.epoll)
 							} else {
@@ -641,7 +626,6 @@ internal class DataChannelMonitor {
 							}
 							break;
 						case .writingClosed:
-							print(Colors.red("[\(curEvent.key)] CLOSED AS WRITER"))
 							if writers[curEvent.key] != nil {
 								writers[curEvent.key]!.prepareForTermination()
 							} else {
