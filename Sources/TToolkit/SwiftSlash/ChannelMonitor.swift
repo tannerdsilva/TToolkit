@@ -89,15 +89,7 @@ internal class DataChannelMonitor {
 				} catch let error {
 					print(Colors.Red("IO ERROR: \(error)"))
 				}
-				
-				if (terminate == false) {
-					var eps = self.epollStructure
-					guard epoll_ctl(epollInstance, EPOLL_CTL_MOD, self.fh, &eps) == 0 else {
-						print("UNABLE TO REARM \(self.fh)")
-						return
-					}
-				}
-				
+								
 				//parse the data based on the triggering mode
 				switch self.triggerMode {
 					case .lineBreaks:
@@ -145,6 +137,7 @@ internal class DataChannelMonitor {
 				}
 				
 				if terminate == true {
+					print(Colors.Yellow("<- [\(self.fh)]"))
 					self.flightGroup.enter()
 					self.callbackQueue.async { [weak self] in
 						guard let self = self else {
@@ -156,10 +149,12 @@ internal class DataChannelMonitor {
 						self.terminationHandler()
 						self.manager?.handleEndedLifecycle(reader:self.fh)
 					}
-				}
-				if (terminate) {
-					print(Colors.Yellow("<- [\(self.fh)]"))
 				} else {
+					var eps = self.epollStructure
+					guard epoll_ctl(epollInstance, EPOLL_CTL_MOD, self.fh, &eps) == 0 else {
+						print("UNABLE TO REARM \(self.fh)")
+						return
+					}
 					print(Colors.dim("<- [\(self.fh)]"))
 				}
 			}
