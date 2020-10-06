@@ -109,6 +109,9 @@ internal class DataChannelMonitor {
 							case true:
 								//parse the data buffer
 								let parsedLines = self.dataBuffer.cutLines(flush:terminate)
+								if (terminate) {
+									print(parsedLines)
+								}
 								if self.fh == 5 && terminate {
 									if let terminateString = String(data:self.dataBuffer, encoding:.utf8) {
 										print(Colors.magenta("the data buffer has \(self.dataBuffer.count) bytes waiting to be parsed '\(terminateString)'"))

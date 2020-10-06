@@ -637,11 +637,6 @@ extension Data {
 						suspectedLineCount += 1
 					}
 
-
-					if (flush) {
-						print(Colors.cyan("Creating range \(lb) ..< \(currentIndex)"))
-					}
-					
 					lf.update(with:lb..<currentIndex)
 					lfLast = currentIndex
 				case 13: //cr
@@ -659,10 +654,7 @@ extension Data {
 				break;
 			}
 		}
-		
-		if (flush) {
-			print("OK COOL WE FUCKING PARSED THINGS")
-		}
+
 		//if there were no lines, return early
 		if suspectedLineCount == 0 { 
 			return (lines:nil, cut:self.startIndex)
