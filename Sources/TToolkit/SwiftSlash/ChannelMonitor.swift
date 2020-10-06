@@ -89,7 +89,8 @@ internal class DataChannelMonitor {
 				} catch let error {
 					print(Colors.Red("IO ERROR: \(error)"))
 				}
-				guard epoll_ctl(epollInstance, EPOLL_CTL_MOD, self.fh, &epollStructure) == 0 else {
+				let eps = self.epollStructure
+				guard epoll_ctl(epollInstance, EPOLL_CTL_MOD, self.fh, &eps) == 0 else {
 					print("UNABLE TO REARM \(self.fh)")
 					return
 				}
@@ -610,7 +611,7 @@ internal class DataChannelMonitor {
 					switch curEvent.value {
 						case .readableEvent:
 							if readers[curEvent.key] != nil {
-								readers[curEvent.key]!.initiateDataCaptureIteration(terminate:false) 
+								readers[curEvent.key]!.initiateDataCaptureIteration(terminate:false, epollInstance:self.epoll) 
 							} else {
 								print(Colors.Red("`epoll_wait()` received an event for a file handle not stored in this instance."))
 							}
@@ -624,7 +625,7 @@ internal class DataChannelMonitor {
 							break;
 						case .readingClosed:
 							if readers[curEvent.key] != nil {
-								readers[curEvent.key]!.initiateDataCaptureIteration(terminate:true)
+								readers[curEvent.key]!.initiateDataCaptureIteration(terminate:true, epollInstance:self.epoll)
 							} else {
 								print(Colors.Red("`epoll_wait()` received an event for a file handle not stored in this instance."))
 							}
