@@ -3,7 +3,9 @@ import Cepoll
 
 let globalChannelMonitor = DataChannelMonitor()
 
-fileprivate struct BufferedLineParser {
+fileprivate class BufferedLineParser {
+	let internalSync = DispatchQueue(label:"com.tannersilva.bufferedLineParser.sync", target:process_master_queue)
+
 	let type:LinebreakType
 	
 	var currentLine = Data()
@@ -13,67 +15,73 @@ fileprivate struct BufferedLineParser {
 		self.type = mode
 	}
 	
-	mutating func intake(_ dataToIntake:Data) -> Bool {
-		return dataToIntake.withUnsafeBytes { unsafeBuffer -> Bool in
-			var i = 0
-			var didFind = false
-			var crLast = false
-			while (i < dataToIntake.count) {
-				let curByte = unsafeBuffer[i]
-				switch type {
-					case .cr:
-						if (curByte == 13) {
-							pendingLines.append(currentLine)
-							currentLine.removeAll(keepingCapacity:true)
-							didFind = true
-						} else {
-							currentLine.append(curByte)
-						}
-					case .lf:
-						if (curByte == 10) {
-							pendingLines.append(currentLine)
-							currentLine.removeAll(keepingCapacity:true)
-							didFind = true
-						} else {
-							currentLine.append(curByte)
-						}
-					case .crlf:
-						if (crLast == true && curByte == 10) {
-							crLast = false
-							pendingLines.append(currentLine)
-							currentLine.removeAll(keepingCapacity:true)
-							didFind = true
-						} else if (crLast == false && curByte == 13) {
-							crLast = true
-						} else {
-							if (crLast == true) {
-								currentLine.append(13)
+	func intake(_ dataToIntake:Data) -> Bool {
+		return internalSync.sync {
+			return dataToIntake.withUnsafeBytes { unsafeBuffer -> Bool in
+				var i = 0
+				var didFind = false
+				var crLast = false
+				while (i < dataToIntake.count) {
+					let curByte = unsafeBuffer[i]
+					switch type {
+						case .cr:
+							if (curByte == 13) {
+								pendingLines.append(currentLine)
+								currentLine.removeAll(keepingCapacity:true)
+								didFind = true
+							} else {
+								currentLine.append(curByte)
 							}
-							crLast = false
-							currentLine.append(curByte)
-						}
+						case .lf:
+							if (curByte == 10) {
+								pendingLines.append(currentLine)
+								currentLine.removeAll(keepingCapacity:true)
+								didFind = true
+							} else {
+								currentLine.append(curByte)
+							}
+						case .crlf:
+							if (crLast == true && curByte == 10) {
+								crLast = false
+								pendingLines.append(currentLine)
+								currentLine.removeAll(keepingCapacity:true)
+								didFind = true
+							} else if (crLast == false && curByte == 13) {
+								crLast = true
+							} else {
+								if (crLast == true) {
+									currentLine.append(13)
+								}
+								crLast = false
+								currentLine.append(curByte)
+							}
+					}
+					i = i + 1;
 				}
-				i = i + 1;
+				return didFind
 			}
-			return didFind
 		}
 	}
 	
-	mutating func flushLines() -> [Data] {
-		defer {
-			self.pendingLines.removeAll()
+	func flushLines() -> [Data] {
+		return self.internalSync.sync {
+			defer {
+				self.pendingLines.removeAll()
+			}
+			return self.pendingLines
 		}
-		return self.pendingLines
 	}
 	
-	mutating func flushFinal() -> [Data] {
-		defer {
-			self.pendingLines.removeAll()
-			self.currentLine.removeAll(keepingCapacity:false)
+	func flushFinal() -> [Data] {
+		return self.internalSync.sync {
+			defer {
+				self.pendingLines.removeAll()
+				self.currentLine.removeAll(keepingCapacity:false)
+			}
+			var returnLines = self.pendingLines
+			returnLines.append(self.currentLine)
+			return returnLines
 		}
-		var returnLines = self.pendingLines
-		returnLines.append(self.currentLine)
-		return returnLines
 	}
 }
 
