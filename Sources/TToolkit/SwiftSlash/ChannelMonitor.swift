@@ -221,7 +221,7 @@ internal class DataChannelMonitor {
 						let flushedData = self.lineParser.flushFinal()
 						if (flushedData.count > 0) {
 							self.callbackFires.append(contentsOf:flushedData)
-							if (self.asynccallbackScheduled == false) {
+							if (self.asyncCallbackScheduled == false) {
 								self.asyncCallbackScheduled = true
 								self.scheduleAsyncCallback()
 							}
