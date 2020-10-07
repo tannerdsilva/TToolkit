@@ -130,7 +130,7 @@ internal class DataChannelMonitor {
 		}
 		
 		//FileHandleOwner will call this function when the relevant file handle has become available for reading
-		private var lineParser = BufferedLineParser()	//used exclusively in this function
+		private var lineParser = BufferedLineParser(mode:.lf)	//used exclusively in this function
 		func initiateDataCaptureIteration(terminate:Bool, epollInstance:Int32) {
 			self.flightGroup.enter();
 //			if (terminate) {
