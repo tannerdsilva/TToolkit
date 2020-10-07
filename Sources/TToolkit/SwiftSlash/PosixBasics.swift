@@ -106,7 +106,7 @@ extension Int32 {
 		
 		let capturedMode = fhStats.st_mode & S_IFMT;
 		if (capturedMode == S_IFIFO) {
-			print("ITS A FIFO \(fhStats.st_size)")
+			print("ITS A FIFO \(fhStats.st_blksize)")
 		}
 		return nil
 	}
