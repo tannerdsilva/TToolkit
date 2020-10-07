@@ -17,13 +17,12 @@ fileprivate class BufferedLineParser {
 	
 	func intake(_ dataToIntake:Data) -> Bool {
 		return internalSync.sync {
-			return dataToIntake.withUnsafeBytes { unsafeBuffer -> Bool in
+			var didFind = false
+			var crLast = false
+			for(_, curByte) in dataToIntake.enumerated() {
 				var i = 0
-				var didFind = false
-				var crLast = false
 				while (i < dataToIntake.count) {
 					let curByte = unsafeBuffer[i]
-					switch type {
 						case .cr:
 							if (curByte == 13) {
 								pendingLines.append(currentLine)
@@ -58,8 +57,8 @@ fileprivate class BufferedLineParser {
 					}
 					i = i + 1;
 				}
-				return didFind
 			}
+			return didFind
 		}
 	}
 	
