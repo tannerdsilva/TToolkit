@@ -126,7 +126,6 @@ internal class DataChannelMonitor {
 						let capturedData = try self.fh.readFileHandle()
 						if (capturedData.count > 0) {
 							self.dataBuffer.append(contentsOf:capturedData)
-							processCapturedData()
 						}
 					}
 				} catch FileHandleError.error_again {
