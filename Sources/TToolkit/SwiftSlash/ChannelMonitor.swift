@@ -45,7 +45,7 @@ internal class DataChannelMonitor {
 			
 			var buildEpoll = epoll_event()
 			buildEpoll.data.fd = fh
-			buildEpoll.events = UInt32(EPOLLIN.rawValue) | UInt32(EPOLLERR.rawValue) | UInt32(EPOLLHUP.rawValue) | UInt32(EPOLLET.rawValue) | UInt32(EPOLLONESHOT.rawValue)
+			buildEpoll.events = UInt32(EPOLLIN.rawValue) | UInt32(EPOLLERR.rawValue) | UInt32(EPOLLHUP.rawValue) | UInt32(EPOLLET.rawValue) //| UInt32(EPOLLONESHOT.rawValue)
 			self.epollStructure = buildEpoll
 			
 			self.inboundHandler = dataHandler
@@ -123,7 +123,6 @@ internal class DataChannelMonitor {
 				//capture the data
 				do {
 					while true {
-						self.fh.getFileHandleStatistics()
 						let capturedData = try self.fh.readFileHandle()
 						if (capturedData.count > 0) {
 							self.dataBuffer.append(contentsOf:capturedData)
@@ -153,10 +152,10 @@ internal class DataChannelMonitor {
 						self.manager?.handleEndedLifecycle(reader:self.fh)
 					}
 				} else {
-					var eps = self.epollStructure
-					guard epoll_ctl(epollInstance, EPOLL_CTL_MOD, self.fh, &eps) == 0 else {
-						return
-					}
+					//var eps = self.epollStructure
+//					guard epoll_ctl(epollInstance, EPOLL_CTL_MOD, self.fh, &eps) == 0 else {
+//						return
+//					}
 				}
 			}
 		}
