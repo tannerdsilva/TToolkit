@@ -71,63 +71,69 @@ internal class DataChannelMonitor {
 				defer {
 					self.flightGroup.leave()
 				}
+				//this function is called after each 
+				func processCapturedData() {
+					switch self.triggerMode {
+						case .lineBreaks:
+							//scan the captured data buffer to determine if it should be parsed for new lines
+							var shouldParse = self.dataBuffer.withUnsafeBytes { unsafeBuffer -> Bool in
+								var i = 0
+								while (i < self.dataBuffer.count) { 
+									if (unsafeBuffer[i] == 10 || unsafeBuffer[i] == 13) {
+										return true
+									}
+									i = i + 1;
+								}
+								return terminate
+							}
+												
+							switch shouldParse {
+								case true:
+									//parse the data buffer
+									let parsedLines = self.dataBuffer.cutLines(flush:terminate)
+									if parsedLines.lines != nil && parsedLines.lines!.count != 0 {
+										//synchronize and determine if a callback has already been scheduled
+										self.internalSync.sync {
+											self.dataBuffer = self.dataBuffer.suffix(from:parsedLines.cut)
+											self.callbackFires.append(contentsOf:parsedLines.lines!) //the parsed lines need to be fired against the data handler
+											if self.asyncCallbackScheduled == false {
+												self.asyncCallbackScheduled = true
+												self.scheduleAsyncCallback()
+											}
+										}
+									}
+								case false:
+									//do nothing, since there are no lines detected in the data buffer at this time
+									break;
+							}
+						case .immediate:
+							//synchronize and determine if a callback has already been scheduled
+							self.internalSync.sync {
+								self.callbackFires.append(self.dataBuffer)
+								self.dataBuffer.removeAll(keepingCapacity:true)
+								if self.asyncCallbackScheduled == false {
+									self.asyncCallbackScheduled = true
+									self.scheduleAsyncCallback()
+								}
+							}
+					}
+				}
+				
 				//capture the data
 				do {
 					while true {
 						let capturedData = try self.fh.readFileHandle()
-						self.dataBuffer.append(contentsOf:capturedData)
+						if (capturedData.count > 0) {
+							self.dataBuffer.append(contentsOf:capturedData)
+							processCapturedData()
+						}
+						
 					}
 				} catch FileHandleError.error_again {
 				} catch FileHandleError.error_wouldblock {
 				} catch FileHandleError.error_pipe {
 				} catch let error {
 					print(Colors.Red("IO ERROR: \(error)"))
-				}
-	
-				//parse the data based on the triggering mode
-				switch self.triggerMode {
-					case .lineBreaks:
-						//scan the captured data buffer to determine if it should be parsed for new lines
-						var shouldParse = self.dataBuffer.withUnsafeBytes { unsafeBuffer -> Bool in
-							var i = 0
-							while (i < self.dataBuffer.count) { 
-								if (unsafeBuffer[i] == 10 || unsafeBuffer[i] == 13) {
-									return true
-								}
-								i = i + 1;
-							}
-							return terminate
-						}
-												
-						switch shouldParse {
-							case true:
-								//parse the data buffer
-								let parsedLines = self.dataBuffer.cutLines(flush:terminate)
-								if parsedLines.lines != nil && parsedLines.lines!.count != 0 {
-									//synchronize and determine if a callback has already been scheduled
-									self.internalSync.sync {
-										self.dataBuffer = self.dataBuffer.suffix(from:parsedLines.cut)
-										self.callbackFires.append(contentsOf:parsedLines.lines!) //the parsed lines need to be fired against the data handler
-										if self.asyncCallbackScheduled == false {
-											self.asyncCallbackScheduled = true
-											self.scheduleAsyncCallback()
-										}
-									}
-								}
-							case false:
-								//do nothing, since there are no lines detected in the data buffer at this time
-								break;
-						}
-					case .immediate:
-						//synchronize and determine if a callback has already been scheduled
-						self.internalSync.sync {
-							self.callbackFires.append(self.dataBuffer)
-							self.dataBuffer.removeAll(keepingCapacity:true)
-							if self.asyncCallbackScheduled == false {
-								self.asyncCallbackScheduled = true
-								self.scheduleAsyncCallback()
-							}
-						}
 				}
 
 				if terminate == true {
