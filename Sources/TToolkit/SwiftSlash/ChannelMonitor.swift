@@ -3,6 +3,80 @@ import Cepoll
 
 let globalChannelMonitor = DataChannelMonitor()
 
+fileprivate struct BufferedLineParser {
+	let type:LinebreakType
+	
+	var currentLine = Data()
+	var pendingLines = [Data]()
+	
+	init(mode:LinebreakType) {
+		self.type = mode
+	}
+	
+	mutating func intake(_ dataToIntake:Data) -> Bool {
+		return dataToIntake.withUnsafeBytes { unsafeBuffer -> Bool in
+			var i = 0
+			var didFind = false
+			var crLast = false
+			while (i < dataToIntake.count) {
+				let curByte = unsafeBuffer[i]
+				switch type {
+					case .cr:
+						if (curByte == 13) {
+							pendingLines.append(currentLine)
+							currentLine.removeAll(keepingCapacity:true)
+							didFind = true
+						} else {
+							currentLine.append(curByte)
+						}
+					case .lf:
+						if (curByte == 10) {
+							pendingLines.append(currentLine)
+							currentLine.removeAll(keepingCapacity:true)
+							didFind = true
+						} else {
+							currentLine.append(curByte)
+						}
+					case .crlf:
+						if (crLast == true && curByte == 10) {
+							crLast = false
+							pendingLines.append(currentLine)
+							currentLine.removeAll(keepingCapacity:true)
+							didFind = true
+						} else if (crLast == false && curByte == 13) {
+							crLast = true
+						} else {
+							if (crLast == true) {
+								currentLine.append(13)
+							}
+							crLast = false
+							currentLine.append(curByte)
+						}
+				}
+				i = i + 1;
+			}
+			return didFind
+		}
+	}
+	
+	mutating func flushLines() -> [Data] {
+		defer {
+			self.pendingLines.removeAll()
+		}
+		return self.pendingLines
+	}
+	
+	mutating func flushFinal() -> [Data] {
+		defer {
+			self.pendingLines.removeAll()
+			self.currentLine.removeAll(keepingCapacity:false)
+		}
+		var returnLines = self.pendingLines
+		returnLines.append(self.currentLine)
+		return returnLines
+	}
+}
+
 internal class DataChannelMonitor {
 	enum DataChannelMonitorError:Error {
 		case invalidFileHandle
@@ -56,7 +130,7 @@ internal class DataChannelMonitor {
 		}
 		
 		//FileHandleOwner will call this function when the relevant file handle has become available for reading
-		private var dataBuffer = Data()	//used exclusively in this function
+		private var lineParser = BufferedLineParser()	//used exclusively in this function
 		func initiateDataCaptureIteration(terminate:Bool, epollInstance:Int32) {
 			self.flightGroup.enter();
 //			if (terminate) {
@@ -73,59 +147,66 @@ internal class DataChannelMonitor {
 				}
 				//this function is called after data is captured
 				var didProcess = false
-				func processCapturedData() {
-					switch self.triggerMode {
-						case .lineBreaks:
-							//scan the captured data buffer to determine if it should be parsed for new lines
-							var shouldParse = self.dataBuffer.withUnsafeBytes { unsafeBuffer -> Bool in
-								var i = 0
-								while (i < self.dataBuffer.count) { 
-									if (unsafeBuffer[i] == 10 || unsafeBuffer[i] == 13) {
-										return true
-									}
-									i = i + 1;
-								}
-								return terminate
-							}
-												
-							switch shouldParse {
-								case true:
-									//parse the data buffer
-									let parsedLines = self.dataBuffer.cutLines(flush:terminate)
-									if parsedLines.lines != nil && parsedLines.lines!.count != 0 {
-										//synchronize and determine if a callback has already been scheduled
-										self.internalSync.sync {
-											self.dataBuffer = self.dataBuffer.suffix(from:parsedLines.cut)
-											self.callbackFires.append(contentsOf:parsedLines.lines!) //the parsed lines need to be fired against the data handler
-											if self.asyncCallbackScheduled == false {
-												self.asyncCallbackScheduled = true
-												self.scheduleAsyncCallback()
-											}
-										}
-									}
-								case false:
-									//do nothing, since there are no lines detected in the data buffer at this time
-									break;
-							}
-						case .immediate:
-							//synchronize and determine if a callback has already been scheduled
-							self.internalSync.sync {
-								self.callbackFires.append(self.dataBuffer)
-								self.dataBuffer.removeAll(keepingCapacity:true)
-								if self.asyncCallbackScheduled == false {
-									self.asyncCallbackScheduled = true
-									self.scheduleAsyncCallback()
-								}
-							}
-					}
-				}
+//				func processCapturedData() {
+//					switch self.triggerMode {
+//						case .lineBreaks:
+//							//scan the captured data buffer to determine if it should be parsed for new lines
+//							var shouldParse = self.dataBuffer.withUnsafeBytes { unsafeBuffer -> Bool in
+//								var i = 0
+//								while (i < self.dataBuffer.count) { 
+//									if (unsafeBuffer[i] == 10 || unsafeBuffer[i] == 13) {
+//										return true
+//									}
+//									i = i + 1;
+//								}
+//								return terminate
+//							}
+//												
+//							switch shouldParse {
+//								case true:
+//									//parse the data buffer
+//									let parsedLines = self.dataBuffer.cutLines(flush:terminate)
+//									if parsedLines.lines != nil && parsedLines.lines!.count != 0 {
+//										//synchronize and determine if a callback has already been scheduled
+//										self.internalSync.sync {
+//											self.dataBuffer = self.dataBuffer.suffix(from:parsedLines.cut)
+//											self.callbackFires.append(contentsOf:parsedLines.lines!) //the parsed lines need to be fired against the data handler
+//											if self.asyncCallbackScheduled == false {
+//												self.asyncCallbackScheduled = true
+//												self.scheduleAsyncCallback()
+//											}
+//										}
+//									}
+//								case false:
+//									//do nothing, since there are no lines detected in the data buffer at this time
+//									break;
+//							}
+//						case .immediate:
+//							//synchronize and determine if a callback has already been scheduled
+//							self.internalSync.sync {
+//								self.callbackFires.append(self.dataBuffer)
+//								self.dataBuffer.removeAll(keepingCapacity:true)
+//								if self.asyncCallbackScheduled == false {
+//									self.asyncCallbackScheduled = true
+//									self.scheduleAsyncCallback()
+//								}
+//							}
+//					}
+//				}
 				
 				//capture the data
 				do {
 					while true {
 						let capturedData = try self.fh.readFileHandle()
-						if (capturedData.count > 0) {
-							self.dataBuffer.append(contentsOf:capturedData)
+						let hasNewLines = self.lineParser.intake(capturedData)
+						if (hasNewLines == true) {
+							self.internalSync.sync {
+								self.callbackFires.append(contentsOf:self.lineParser.flushLines())
+								if (self.asyncCallbackScheduled == false) {
+									self.asyncCallbackScheduled = true
+									self.scheduleAsyncCallback()
+								}
+							}
 						}
 					}
 				} catch FileHandleError.error_again {
@@ -134,11 +215,18 @@ internal class DataChannelMonitor {
 				} catch let error {
 					print(Colors.Red("IO ERROR: \(error)"))
 				}
-				if (didProcess == false) {
-					processCapturedData()
-				}
 
 				if terminate == true {
+					self.internalSync.sync {
+						let flushedData = self.lineParser.flushFinal()
+						if (flushedData.count > 0) {
+							self.callbackFires.append(contentsOf:flushedData)
+							if (self.asynccallbackScheduled == false) {
+								self.asyncCallbackScheduled = true
+								self.scheduleAsyncCallback()
+							}
+						}
+					}
 					self.flightGroup.enter()
 					self.callbackQueue.async { [weak self] in
 						guard let self = self else {
@@ -150,11 +238,6 @@ internal class DataChannelMonitor {
 						self.terminationHandler()
 						self.manager?.handleEndedLifecycle(reader:self.fh)
 					}
-				} else {
-					//var eps = self.epollStructure
-//					guard epoll_ctl(epollInstance, EPOLL_CTL_MOD, self.fh, &eps) == 0 else {
-//						return
-//					}
 				}
 			}
 		}
