@@ -136,11 +136,6 @@ internal class DataChannelMonitor {
 		private var lineParser = BufferedLineParser(mode:.lf)	//used exclusively in this function
 		func initiateDataCaptureIteration(terminate:Bool, epollInstance:Int32) {
 			self.flightGroup.enter();
-//			if (terminate) {
-//				print(Colors.Yellow("T-> [\(self.fh)]"))
-//			} else {
-//				print(Colors.dim("C-> [\(self.fh)]"))
-//			}
 			captureQueue.async { [weak self] in
 				guard let self = self else {
 					return
@@ -148,66 +143,20 @@ internal class DataChannelMonitor {
 				defer {
 					self.flightGroup.leave()
 				}
-				//this function is called after data is captured
-				var didProcess = false
-//				func processCapturedData() {
-//					switch self.triggerMode {
-//						case .lineBreaks:
-//							//scan the captured data buffer to determine if it should be parsed for new lines
-//							var shouldParse = self.dataBuffer.withUnsafeBytes { unsafeBuffer -> Bool in
-//								var i = 0
-//								while (i < self.dataBuffer.count) { 
-//									if (unsafeBuffer[i] == 10 || unsafeBuffer[i] == 13) {
-//										return true
-//									}
-//									i = i + 1;
-//								}
-//								return terminate
-//							}
-//												
-//							switch shouldParse {
-//								case true:
-//									//parse the data buffer
-//									let parsedLines = self.dataBuffer.cutLines(flush:terminate)
-//									if parsedLines.lines != nil && parsedLines.lines!.count != 0 {
-//										//synchronize and determine if a callback has already been scheduled
-//										self.internalSync.sync {
-//											self.dataBuffer = self.dataBuffer.suffix(from:parsedLines.cut)
-//											self.callbackFires.append(contentsOf:parsedLines.lines!) //the parsed lines need to be fired against the data handler
-//											if self.asyncCallbackScheduled == false {
-//												self.asyncCallbackScheduled = true
-//												self.scheduleAsyncCallback()
-//											}
-//										}
-//									}
-//								case false:
-//									//do nothing, since there are no lines detected in the data buffer at this time
-//									break;
-//							}
-//						case .immediate:
-//							//synchronize and determine if a callback has already been scheduled
-//							self.internalSync.sync {
-//								self.callbackFires.append(self.dataBuffer)
-//								self.dataBuffer.removeAll(keepingCapacity:true)
-//								if self.asyncCallbackScheduled == false {
-//									self.asyncCallbackScheduled = true
-//									self.scheduleAsyncCallback()
-//								}
-//							}
-//					}
-//				}
-				
+								
 				//capture the data
 				do {
 					while true {
 						let capturedData = try self.fh.readFileHandle()
 						let hasNewLines = self.lineParser.intake(capturedData)
 						if (hasNewLines == true) {
-							self.internalSync.sync {
-								self.callbackFires.append(contentsOf:self.lineParser.flushLines())
-								if (self.asyncCallbackScheduled == false) {
-									self.asyncCallbackScheduled = true
-									self.scheduleAsyncCallback()
+							self.flightGroup.enter()
+							self.callbackQueue.async { [weak self, let capturedLines = self.lineParser.flushLines(), let handler = self.inboundHandler, let fg = self.flightGroup] in
+								defer {
+									fg.leave()
+								}
+								for (_, curItem) in capturedLines.enumerated() {
+									handler(curItem) 
 								}
 							}
 						}
@@ -223,10 +172,14 @@ internal class DataChannelMonitor {
 					self.internalSync.sync {
 						let flushedData = self.lineParser.flushFinal()
 						if (flushedData.count > 0) {
-							self.callbackFires.append(contentsOf:flushedData)
-							if (self.asyncCallbackScheduled == false) {
-								self.asyncCallbackScheduled = true
-								self.scheduleAsyncCallback()
+							self.flightGroup.enter()
+							self.callbackQueue.async { [weak self, let capturedLines = flushedData, let handler = self.inboundHandler, let fg = self.flightGroup] in
+								defer {
+									fg.leave()
+								}
+								for (_, curItem) in capturedLines.enumerated() {
+									handler(curItem) 
+								}
 							}
 						}
 					}
