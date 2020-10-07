@@ -120,7 +120,7 @@ internal struct tt_proc_signature:Hashable {
     }
 }
 
-let serialSEtup = DispatchQueue()
+let serialSEtup = DispatchQueue(label:"foo string")
 //this is the wrapping function for tt_spawn. this function can be used with swift objects rather than c pointers that are required for the base tt_spawn command
 //before calling the base `tt_spawn` command, this function will prepare the global pipe readers for any spawns that are configured for stdout and stderr capture
 internal typealias TTSpawnReadingHandler = DataChannelMonitor.InboundDataHandler?
