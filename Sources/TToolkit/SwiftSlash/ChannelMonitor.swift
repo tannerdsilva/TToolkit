@@ -20,42 +20,38 @@ fileprivate class BufferedLineParser {
 			var didFind = false
 			var crLast = false
 			for(_, curByte) in dataToIntake.enumerated() {
-				var i = 0
-				while (i < dataToIntake.count) {
-					let curByte = unsafeBuffer[i]
-						case .cr:
-							if (curByte == 13) {
-								pendingLines.append(currentLine)
-								currentLine.removeAll(keepingCapacity:true)
-								didFind = true
-							} else {
-								currentLine.append(curByte)
+				switch type {
+					case .cr:
+						if (curByte == 13) {
+							pendingLines.append(currentLine)
+							currentLine.removeAll(keepingCapacity:true)
+							didFind = true
+						} else {
+							currentLine.append(curByte)
+						}
+					case .lf:
+						if (curByte == 10) {
+							pendingLines.append(currentLine)
+							currentLine.removeAll(keepingCapacity:true)
+							didFind = true
+						} else {
+							currentLine.append(curByte)
+						}
+					case .crlf:
+						if (crLast == true && curByte == 10) {
+							crLast = false
+							pendingLines.append(currentLine)
+							currentLine.removeAll(keepingCapacity:true)
+							didFind = true
+						} else if (crLast == false && curByte == 13) {
+							crLast = true
+						} else {
+							if (crLast == true) {
+								currentLine.append(13)
 							}
-						case .lf:
-							if (curByte == 10) {
-								pendingLines.append(currentLine)
-								currentLine.removeAll(keepingCapacity:true)
-								didFind = true
-							} else {
-								currentLine.append(curByte)
-							}
-						case .crlf:
-							if (crLast == true && curByte == 10) {
-								crLast = false
-								pendingLines.append(currentLine)
-								currentLine.removeAll(keepingCapacity:true)
-								didFind = true
-							} else if (crLast == false && curByte == 13) {
-								crLast = true
-							} else {
-								if (crLast == true) {
-									currentLine.append(13)
-								}
-								crLast = false
-								currentLine.append(curByte)
-							}
-					}
-					i = i + 1;
+							crLast = false
+							currentLine.append(curByte)
+						}
 				}
 			}
 			return didFind
