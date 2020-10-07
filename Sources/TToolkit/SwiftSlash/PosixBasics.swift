@@ -98,6 +98,19 @@ internal struct PosixPipe:Hashable {
 }
 
 extension Int32 {
+	internal func getFileHandleStatistics() -> stat? {
+		var fhStats = stat()
+		if fstat(self, &fhStats) < 0 {
+			return nil
+		}
+		
+		let capturedMode = fhStats.st_mode & S_IFMT;
+		if (capturedMode == S_IFIFO) {
+			print("ITS A FIFO")
+		}
+		return nil
+	}
+	
 	internal func readFileHandle() throws -> Data {
 		guard let readAllocation = malloc(Int(PIPE_BUF) + 1) else {
 			throw FileHandleError.error_unknown
