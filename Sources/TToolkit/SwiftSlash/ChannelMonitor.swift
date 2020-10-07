@@ -616,28 +616,28 @@ internal class DataChannelMonitor {
 							if readers[curEvent.key] != nil {
 								readers[curEvent.key]!.initiateDataCaptureIteration(terminate:false, epollInstance:self.epoll) 
 							} else {
-								print(Colors.Red("`epoll_wait()` received an event for a file handle not stored in this instance."))
+								print(Colors.Red("`epoll_wait()` received an event for a file handle not stored in this instance. {readable event}"))
 							}
 							break;
 						case .writableEvent:
 							if writers[curEvent.key] != nil {
 								writers[curEvent.key]!.handleIsAvailableForWriting()
 							} else {
-								print(Colors.Red("`epoll_wait()` received an event for a file handle not stored in this instance."))
+								print(Colors.Red("`epoll_wait()` received an event for a file handle not stored in this instance. {writable event}"))
 							}
 							break;
 						case .readingClosed:
 							if readers[curEvent.key] != nil {
 								readers[curEvent.key]!.initiateDataCaptureIteration(terminate:true, epollInstance:self.epoll)
 							} else {
-								print(Colors.Red("`epoll_wait()` received an event for a file handle not stored in this instance."))
+								print(Colors.Red("`epoll_wait()` received an event for a file handle not stored in this instance. {reading closed}"))
 							}
 							break;
 						case .writingClosed:
 							if writers[curEvent.key] != nil {
 								writers[curEvent.key]!.prepareForTermination()
 							} else {
-								print(Colors.Red("`epoll_wait()` received an event for a file handle not stored in this instance."))
+								print(Colors.Red("`epoll_wait()` received an event for a file handle not stored in this instance. {writing closed}"))
 							}
 							break;
 							
