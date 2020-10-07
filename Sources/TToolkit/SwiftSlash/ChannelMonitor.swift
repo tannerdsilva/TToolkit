@@ -122,14 +122,13 @@ internal class DataChannelMonitor {
 				
 				//capture the data
 				do {
-					while true {
-						let capturedData = try self.fh.readFileHandle()
-						if (capturedData.count > 0) {
-							self.dataBuffer.append(contentsOf:capturedData)
-							processCapturedData()
-						}
-						
+//					while true {
+					let capturedData = try self.fh.readFileHandle()
+					if (capturedData.count > 0) {
+						self.dataBuffer.append(contentsOf:capturedData)
+						processCapturedData()
 					}
+//					}
 				} catch FileHandleError.error_again {
 				} catch FileHandleError.error_wouldblock {
 				} catch FileHandleError.error_pipe {
