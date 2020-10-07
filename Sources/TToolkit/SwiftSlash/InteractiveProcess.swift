@@ -257,6 +257,11 @@ public class InteractiveProcess:Hashable {
     
     public func waitForExitCode() -> Int32 {
 		self.runGroup.wait()
+#if DEBUG
+		defer {
+			pmon.processEnded(self, runtime:launchDate!.timeIntervalSinceNow)
+		}
+#endif
 		return self.internalSync.sync {
 			return self.exitCode
 		}
