@@ -71,7 +71,8 @@ internal class DataChannelMonitor {
 				defer {
 					self.flightGroup.leave()
 				}
-				//this function is called after each 
+				//this function is called after data is captured
+				var didProcess = false
 				func processCapturedData() {
 					switch self.triggerMode {
 						case .lineBreaks:
@@ -134,6 +135,9 @@ internal class DataChannelMonitor {
 				} catch FileHandleError.error_pipe {
 				} catch let error {
 					print(Colors.Red("IO ERROR: \(error)"))
+				}
+				if (didProcess == false) {
+					processCapturedData()
 				}
 
 				if terminate == true {
