@@ -151,7 +151,7 @@ internal class DataChannelMonitor {
 						let hasNewLines = self.lineParser.intake(capturedData)
 						if (hasNewLines == true) {
 							self.flightGroup.enter()
-							self.callbackQueue.async { [weak self, let capturedLines = self.lineParser.flushLines(), let handler = self.inboundHandler, let fg = self.flightGroup] in
+							self.callbackQueue.async { [weak self, capturedLines = self.lineParser.flushLines(), handler = self.inboundHandler, fg = self.flightGroup] in
 								defer {
 									fg.leave()
 								}
@@ -173,7 +173,7 @@ internal class DataChannelMonitor {
 						let flushedData = self.lineParser.flushFinal()
 						if (flushedData.count > 0) {
 							self.flightGroup.enter()
-							self.callbackQueue.async { [weak self, let capturedLines = flushedData, let handler = self.inboundHandler, let fg = self.flightGroup] in
+							self.callbackQueue.async { [weak self, capturedLines = flushedData, handler = self.inboundHandler, fg = self.flightGroup] in
 								defer {
 									fg.leave()
 								}
