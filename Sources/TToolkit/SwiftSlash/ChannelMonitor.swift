@@ -150,14 +150,8 @@ internal class DataChannelMonitor {
 						let capturedData = try self.fh.readFileHandle()
 						let hasNewLines = self.lineParser.intake(capturedData)
 						if (hasNewLines == true && terminate == false) {
-							self.flightGroup.enter()
-							self.callbackQueue.sync { [weak self, capturedLines = self.lineParser.flushLines(), handler = self.inboundHandler, fg = self.flightGroup] in
-								defer {
-									fg.leave()
-								}
-								for (_, curItem) in capturedLines.enumerated() {
-									handler(curItem) 
-								}
+							for (_, curItem) in self.lineParser.flushLines().enumerated() {
+								self.inboundHandler(curItem) 
 							}
 						}
 					}
@@ -169,21 +163,14 @@ internal class DataChannelMonitor {
 				}
 
 				if terminate == true {
-					let flushedData = self.lineParser.flushFinal()
-					self.flightGroup.enter()
-					self.callbackQueue.async { [weak self, man = self.manager, capturedLines = flushedData, fh = self.fh, handler = self.inboundHandler, fg = self.flightGroup, th = self.terminationHandler] in
-						defer {
-							fg.leave()
-						}
-						//fire the callback handlers
-						for (_, curItem) in capturedLines.enumerated() {
-							handler(curItem) 
-						}
-						//fire the termination handler
-						th()
-						//notify the manager that we're at the end of lifecycle
-						man?.handleEndedLifecycle(reader:fh)
+					//fire the callback handlers
+					for (_, curItem) in self.lineParser.flushFinal().enumerated() {
+						self.inboundHandler(curItem) 
 					}
+					//fire the termination handler
+					self.terminationHandler()
+					//notify the manager that we're at the end of lifecycle
+					self.manager.handleEndedLifecycle(reader:fh)
 				}
 			}
 		}
