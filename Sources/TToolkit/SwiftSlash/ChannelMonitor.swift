@@ -149,7 +149,7 @@ internal class DataChannelMonitor {
 					while true {
 						let capturedData = try self.fh.readFileHandle()
 						let hasNewLines = self.lineParser.intake(capturedData)
-						if (hasNewLines == true && terminate = false) {
+						if (hasNewLines == true && terminate == false) {
 							self.flightGroup.enter()
 							self.callbackQueue.sync { [weak self, capturedLines = self.lineParser.flushLines(), handler = self.inboundHandler, fg = self.flightGroup] in
 								defer {
