@@ -112,22 +112,6 @@ internal class DataChannelMonitor {
 		private var callbackFires = [Data]()
 		
 		//workload queues
-		var _callbackFired = false
-		var callbackFired {
-			get {
-				return internalSync.sync {
-					return _callbackFired
-				}
-			}
-			set {
-				internalSync.async { [weak self, newValue] in
-					guard let self = self else {
-						return
-					}
-					self._callbackFired = newValue
-				}
-			}
-		}
 		private let internalSync = DispatchQueue(label:"com.swiftslash.instance.incoming-data-channel.sync", target:dataCaptureQueue)
 		private let captureQueue = DispatchQueue(label:"com.swiftslash.instance.incoming-data-channel.capture", target:dataCaptureQueue)
 		private let callbackQueue = DispatchQueue(label:"com.swiftslash.instance.incoming-data-channel.callback", target:dataCaptureQueue)
