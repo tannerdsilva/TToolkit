@@ -3,9 +3,7 @@ import Cepoll
 
 let globalChannelMonitor = DataChannelMonitor()
 
-fileprivate class BufferedLineParser {
-	let internalSync = DispatchQueue(label:"com.tannersilva.bufferedLineParser.sync", target:process_master_queue)
-
+fileprivate struct BufferedLineParser {
 	let type:LinebreakType
 	
 	var currentLine = Data()
@@ -15,68 +13,62 @@ fileprivate class BufferedLineParser {
 		self.type = mode
 	}
 	
-	func intake(_ dataToIntake:Data) -> Bool {
-		return internalSync.sync {
-			var didFind = false
-			var crLast = false
-			for(_, curByte) in dataToIntake.enumerated() {
-				switch type {
-					case .cr:
-						if (curByte == 13) {
-							pendingLines.append(currentLine)
-							currentLine.removeAll(keepingCapacity:true)
-							didFind = true
-						} else {
-							currentLine.append(curByte)
+	mutating func intake(_ dataToIntake:Data) -> Bool {
+		var didFind = false
+		var crLast = false
+		for(_, curByte) in dataToIntake.enumerated() {
+			switch type {
+				case .cr:
+					if (curByte == 13) {
+						pendingLines.append(currentLine)
+						currentLine.removeAll(keepingCapacity:true)
+						didFind = true
+					} else {
+						currentLine.append(curByte)
+					}
+				case .lf:
+					if (curByte == 10) {
+						pendingLines.append(currentLine)
+						currentLine.removeAll(keepingCapacity:true)
+						didFind = true
+					} else {
+						currentLine.append(curByte)
+					}
+				case .crlf:
+					if (crLast == true && curByte == 10) {
+						crLast = false
+						pendingLines.append(currentLine)
+						currentLine.removeAll(keepingCapacity:true)
+						didFind = true
+					} else if (crLast == false && curByte == 13) {
+						crLast = true
+					} else {
+						if (crLast == true) {
+							currentLine.append(13)
 						}
-					case .lf:
-						if (curByte == 10) {
-							pendingLines.append(currentLine)
-							currentLine.removeAll(keepingCapacity:true)
-							didFind = true
-						} else {
-							currentLine.append(curByte)
-						}
-					case .crlf:
-						if (crLast == true && curByte == 10) {
-							crLast = false
-							pendingLines.append(currentLine)
-							currentLine.removeAll(keepingCapacity:true)
-							didFind = true
-						} else if (crLast == false && curByte == 13) {
-							crLast = true
-						} else {
-							if (crLast == true) {
-								currentLine.append(13)
-							}
-							crLast = false
-							currentLine.append(curByte)
-						}
-				}
+						crLast = false
+						currentLine.append(curByte)
+					}
 			}
-			return didFind
 		}
+		return didFind
 	}
 	
-	func flushLines() -> [Data] {
-		return self.internalSync.sync {
-			defer {
-				self.pendingLines.removeAll()
-			}
-			return self.pendingLines
-		}
+	mutating func flushLines() -> [Data] {
+		let pendingLinesCopy = self.pendingLines
+		self.pendingLines.removeAll()
+		return pendingLinesCopy
 	}
 	
-	func flushFinal() -> [Data] {
-		return self.internalSync.sync {
-			defer {
-				self.pendingLines.removeAll()
-				self.currentLine.removeAll(keepingCapacity:false)
-			}
-			var returnLines = self.pendingLines
+	mutating func flushFinal() -> [Data] {
+		let currentLineCopy = self.currentLine
+		self.currentLine.removeAll(keepingCapacity:false)
+		var returnLines = self.pendingLines
+		self.pendingLines.removeAll()
+		if (currentLineCopy.count > 0) {
 			returnLines.append(self.currentLine)
-			return returnLines
 		}
+		return returnLines
 	}
 }
 
@@ -169,66 +161,23 @@ internal class DataChannelMonitor {
 				}
 
 				if terminate == true {
-					self.internalSync.sync {
-						let flushedData = self.lineParser.flushFinal()
-						if (flushedData.count > 0) {
-							self.flightGroup.enter()
-							self.callbackQueue.async { [weak self, capturedLines = flushedData, handler = self.inboundHandler, fg = self.flightGroup] in
-								defer {
-									fg.leave()
-								}
-								for (_, curItem) in capturedLines.enumerated() {
-									handler(curItem) 
-								}
+					let flushedData = self.lineParser.flushFinal()
+					if (flushedData.count > 0) {
+						self.flightGroup.enter()
+						self.callbackQueue.async { [weak self, capturedLines = flushedData, handler = self.inboundHandler, fg = self.flightGroup] in
+							defer {
+								fg.leave()
 							}
+							//fire the callback handlers
+							for (_, curItem) in capturedLines.enumerated() {
+								handler(curItem) 
+							}
+							//fire the termination handler
+							self.terminationHandler()
+							//notify the manager that we're at the end of lifecycle
+							self.manager?.handleEndedLifecycle(reader:self.fh)
 						}
 					}
-					self.flightGroup.enter()
-					self.callbackQueue.async { [weak self] in
-						guard let self = self else {
-							return
-						}
-						defer {
-							self.flightGroup.leave()
-						}
-						self.terminationHandler()
-						self.manager?.handleEndedLifecycle(reader:self.fh)
-					}
-				}
-			}
-		}
-		
-		func scheduleAsyncCallback() {
-			self.flightGroup.enter()
-			self.callbackQueue.async { [weak self] in
-				guard let self = self else {
-					return
-				}
-				defer {
-					self.flightGroup.leave()
-				}
-				
-				//capture the data that needs to fire against the incoming data handler
-				var dataForCallback = self.internalSync.sync { () -> [Data] in
-					defer {
-						self.asyncCallbackScheduled = false
-						self.callbackFires.removeAll(keepingCapacity:true)
-					}
-					return self.callbackFires
-				}
-				
-				//if trigger mode is immediate (unparsed), collapse the callback fires into a single fire with all the data appended
-				if self.triggerMode == .immediate {
-					var singleData = Data()
-					for (_, curData) in dataForCallback.enumerated() {
-						singleData.append(curData)
-					}
-					dataForCallback = [singleData]
-				}
-				
-				//fire the intake handler
-				for (_, curCallbackChunk) in dataForCallback.enumerated() {
-					self.inboundHandler(curCallbackChunk)
 				}
 			}
 		}
