@@ -134,7 +134,7 @@ internal class DataChannelMonitor {
 		
 		//FileHandleOwner will call this function when the relevant file handle has become available for reading
 		private var lineParser = BufferedLineParser(mode:.lf)	//used exclusively in this function
-		func initiateDataCaptureIteration(terminate:Bool, epollInstance:Int32) {
+		func initiateDataCaptureIteration(terminate:Bool) {
 			self.flightGroup.enter();
 			captureQueue.async { [weak self] in
 				guard let self = self else {
@@ -437,17 +437,16 @@ internal class DataChannelMonitor {
 	/*
 	creating an inbound data channel that is to have its data captured
 	*/
-	func registerInboundDataChannel(fh:Int32, mode:IncomingDataChannel.TriggerMode, dataHandler:@escaping(InboundDataHandler), terminationHandler:@escaping(DataChannelTerminationHander)) throws {
+	func registerInboundDataChannel(fh:Int32, mode:IncomingDataChannel.TriggerMode, dataHandler:@escaping(InboundDataHandler), terminationHandler:@escaping(DataChannelTerminationHander)) {
 		let newChannel = IncomingDataChannel(fh:fh, triggerMode:mode, dataHandler:dataHandler, terminationHandler:terminationHandler, manager:self)
-		
-		var epollStructure = newChannel.epollStructure
-		guard epoll_ctl(epoll, EPOLL_CTL_ADD, fh, &epollStructure) == 0 else {
-			print("EPOLL ERROR")
-			throw DataChannelMonitorError.epollError
-		}
 
 		self.internalSync.async(flags:[.barrier]) { [weak self, fh, newChannel] in
 			guard let self = self else {
+				return
+			}
+			var epollStructure = newChannel.epollStructure
+			guard epoll_ctl(epoll, EPOLL_CTL_ADD, fh, &epollStructure) == 0 else {
+				print("EPOLL ERROR")
 				return
 			}
 			self.readers[fh] = newChannel
@@ -468,21 +467,19 @@ internal class DataChannelMonitor {
 	/*
 	creating a outbound data channel to help facilitate data capture
 	*/
-	func registerOutboundDataChannel(fh:Int32, initialData:Data? = nil, terminationHandler:@escaping(DataChannelTerminationHander)) throws {
+	func registerOutboundDataChannel(fh:Int32, initialData:Data? = nil, terminationHandler:@escaping(DataChannelTerminationHander)) {
 		let newChannel = OutgoingDataChannel(fh:fh, terminationHandler:terminationHandler, manager:self)		
-		if initialData != nil && initialData!.count > 0 {
-			newChannel.scheduleDataForWriting(initialData!)
-		}
-		
-		var epollStructure = newChannel.epollStructure
-		guard epoll_ctl(epoll, EPOLL_CTL_ADD, fh, &epollStructure) == 0 else {
-			print("EPOLL ERROR")
-			throw DataChannelMonitorError.epollError
-		}
-
 		internalSync.async(flags:[.barrier]) { [weak self, fh, newChannel] in
 			guard let self = self else {
 				return
+			}
+			var epollStructure = newChannel.epollStructure
+			guard epoll_ctl(epoll, EPOLL_CTL_ADD, fh, &epollStructure) == 0 else {
+				print("EPOLL ERROR")
+				return
+			}
+			if initialData != nil && initialData!.count > 0 {
+				newChannel.scheduleDataForWriting(initialData!)
 			}
 			self.writers[fh] = newChannel
 			self.adjustTargetAllocations()
@@ -595,7 +592,7 @@ internal class DataChannelMonitor {
 					switch curEvent.value {
 						case .readableEvent:
 							if readers[curEvent.key] != nil {
-								readers[curEvent.key]!.initiateDataCaptureIteration(terminate:false, epollInstance:self.epoll) 
+								readers[curEvent.key]!.initiateDataCaptureIteration(terminate:false) 
 							} else {
 								print(Colors.Red("`epoll_wait()` received an event for a file handle not stored in this instance. {readable event}"))
 							}
@@ -609,7 +606,7 @@ internal class DataChannelMonitor {
 							break;
 						case .readingClosed:
 							if readers[curEvent.key] != nil {
-								readers[curEvent.key]!.initiateDataCaptureIteration(terminate:true, epollInstance:self.epoll)
+								readers[curEvent.key]!.initiateDataCaptureIteration(terminate:true)
 							} else {
 								print(Colors.Red("`epoll_wait()` received an event for a file handle not stored in this instance. {reading closed}"))
 							}
