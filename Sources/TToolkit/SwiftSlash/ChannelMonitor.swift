@@ -445,7 +445,7 @@ internal class DataChannelMonitor {
 				return
 			}
 			var epollStructure = newChannel.epollStructure
-			guard epoll_ctl(epoll, EPOLL_CTL_ADD, fh, &epollStructure) == 0 else {
+			guard epoll_ctl(self.epoll, EPOLL_CTL_ADD, fh, &epollStructure) == 0 else {
 				print("EPOLL ERROR")
 				return
 			}
@@ -474,7 +474,7 @@ internal class DataChannelMonitor {
 				return
 			}
 			var epollStructure = newChannel.epollStructure
-			guard epoll_ctl(epoll, EPOLL_CTL_ADD, fh, &epollStructure) == 0 else {
+			guard epoll_ctl(self.epoll, EPOLL_CTL_ADD, fh, &epollStructure) == 0 else {
 				print("EPOLL ERROR")
 				return
 			}
