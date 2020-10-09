@@ -170,7 +170,7 @@ internal class DataChannelMonitor {
 					//fire the termination handler
 					self.terminationHandler()
 					//notify the manager that we're at the end of lifecycle
-					self.manager?.handleEndedLifecycle(reader:fh)
+					self.manager?.handleEndedLifecycle(reader:self.fh)
 				}
 			}
 		}
