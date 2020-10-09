@@ -162,21 +162,19 @@ internal class DataChannelMonitor {
 
 				if terminate == true {
 					let flushedData = self.lineParser.flushFinal()
-					if (flushedData.count > 0) {
-						self.flightGroup.enter()
-						self.callbackQueue.async { [weak self, man = self.manager, capturedLines = flushedData, fh = self.fh, handler = self.inboundHandler, fg = self.flightGroup, th = self.terminationHandler] in
-							defer {
-								fg.leave()
-							}
-							//fire the callback handlers
-							for (_, curItem) in capturedLines.enumerated() {
-								handler(curItem) 
-							}
-							//fire the termination handler
-							th()
-							//notify the manager that we're at the end of lifecycle
-							man?.handleEndedLifecycle(reader:fh)
+					self.flightGroup.enter()
+					self.callbackQueue.async { [weak self, man = self.manager, capturedLines = flushedData, fh = self.fh, handler = self.inboundHandler, fg = self.flightGroup, th = self.terminationHandler] in
+						defer {
+							fg.leave()
 						}
+						//fire the callback handlers
+						for (_, curItem) in capturedLines.enumerated() {
+							handler(curItem) 
+						}
+						//fire the termination handler
+						th()
+						//notify the manager that we're at the end of lifecycle
+						man?.handleEndedLifecycle(reader:fh)
 					}
 				}
 			}
