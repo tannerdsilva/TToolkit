@@ -16,39 +16,47 @@ fileprivate struct BufferedLineParser {
 	mutating func intake(_ dataToIntake:Data) -> Bool {
 		var didFind = false
 		var crLast = false
-		for(_, curByte) in dataToIntake.enumerated() {
-			switch type {
-				case .cr:
-					if (curByte == 13) {
-						pendingLines.append(currentLine)
-						currentLine.removeAll(keepingCapacity:true)
-						didFind = true
-					} else {
-						currentLine.append(curByte)
-					}
-				case .lf:
-					if (curByte == 10) {
-						pendingLines.append(currentLine)
-						currentLine.removeAll(keepingCapacity:true)
-						didFind = true
-					} else {
-						currentLine.append(curByte)
-					}
-				case .crlf:
-					if (crLast == true && curByte == 10) {
-						crLast = false
-						pendingLines.append(currentLine)
-						currentLine.removeAll(keepingCapacity:true)
-						didFind = true
-					} else if (crLast == false && curByte == 13) {
-						crLast = true
-					} else {
-						if (crLast == true) {
-							currentLine.append(13)
+		dataToIntake.withUnsafeBytes { unsafeBytes in
+			var i = 0
+			while (i < dataToIntake.count) {
+				defer {
+					i = i + 1
+				}
+				let curByte = unsafeBytes[i]
+//			for(_, curByte) in dataToIntake.enumerated() {
+				switch type {
+					case .cr:
+						if (curByte == 13) {
+							pendingLines.append(currentLine)
+							currentLine.removeAll(keepingCapacity:true)
+							didFind = true
+						} else {
+							currentLine.append(curByte)
 						}
-						crLast = false
-						currentLine.append(curByte)
-					}
+					case .lf:
+						if (curByte == 10) {
+							pendingLines.append(currentLine)
+							currentLine.removeAll(keepingCapacity:true)
+							didFind = true
+						} else {
+							currentLine.append(curByte)
+						}
+					case .crlf:
+						if (crLast == true && curByte == 10) {
+							crLast = false
+							pendingLines.append(currentLine)
+							currentLine.removeAll(keepingCapacity:true)
+							didFind = true
+						} else if (crLast == false && curByte == 13) {
+							crLast = true
+						} else {
+							if (crLast == true) {
+								currentLine.append(13)
+							}
+							crLast = false
+							currentLine.append(curByte)
+						}
+				}
 			}
 		}
 		return didFind
