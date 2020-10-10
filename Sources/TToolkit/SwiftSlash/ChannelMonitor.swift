@@ -109,12 +109,9 @@ internal class DataChannelMonitor {
 		weak var manager:DataChannelMonitor?
 
 		private var asyncCallbackScheduled = false
-		private var callbackFires = [Data]()
 		
 		//workload queues
-		private let internalSync = DispatchQueue(label:"com.swiftslash.instance.incoming-data-channel.sync", target:dataCaptureQueue)
 		private let captureQueue = DispatchQueue(label:"com.swiftslash.instance.incoming-data-channel.capture", target:dataCaptureQueue)
-		private let callbackQueue = DispatchQueue(label:"com.swiftslash.instance.incoming-data-channel.callback", target:dataCaptureQueue)
 		private let flightGroup = DispatchGroup();
 		
 		init(fh:Int32, triggerMode:TriggerMode, dataHandler:@escaping(InboundDataHandler), terminationHandler:@escaping(DataChannelTerminationHander), manager:DataChannelMonitor) {
@@ -122,7 +119,7 @@ internal class DataChannelMonitor {
 			
 			var buildEpoll = epoll_event()
 			buildEpoll.data.fd = fh
-			buildEpoll.events = UInt32(EPOLLIN.rawValue) | UInt32(EPOLLERR.rawValue) | UInt32(EPOLLHUP.rawValue) | UInt32(EPOLLET.rawValue) //| UInt32(EPOLLONESHOT.rawValue)
+			buildEpoll.events = UInt32(EPOLLIN.rawValue) | UInt32(EPOLLERR.rawValue) | UInt32(EPOLLHUP.rawValue) | UInt32(EPOLLET.rawValue)
 			self.epollStructure = buildEpoll
 			
 			self.inboundHandler = dataHandler
@@ -148,12 +145,18 @@ internal class DataChannelMonitor {
 				do {
 					while true {
 						let capturedData = try self.fh.readFileHandle()
-						let hasNewLines = self.lineParser.intake(capturedData)
-						if (hasNewLines == true && terminate == false) {
-							for (_, curItem) in self.lineParser.flushLines().enumerated() {
-								self.inboundHandler(curItem) 
-							}
+						switch self.triggerMode {
+							case .immediate:
+								self.inboundHandler(capturedData)
+							case .lineBreaks:
+								let hasNewLines = self.lineParser.intake(capturedData)
+								if (hasNewLines == true && terminate == false) {
+									for (_, curItem) in self.lineParser.flushLines().enumerated() {
+										self.inboundHandler(curItem) 
+									}
+								}
 						}
+						
 					}
 				} catch FileHandleError.error_again {
 				} catch FileHandleError.error_wouldblock {
@@ -164,8 +167,10 @@ internal class DataChannelMonitor {
 
 				if terminate == true {
 					//fire the callback handlers
-					for (_, curItem) in self.lineParser.flushFinal().enumerated() {
-						self.inboundHandler(curItem) 
+					if (self.triggerMode == .lineBreaks) {
+						for (_, curItem) in self.lineParser.flushFinal().enumerated() {
+							self.inboundHandler(curItem) 
+						}
 					}
 					//fire the termination handler
 					self.terminationHandler()
