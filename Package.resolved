@@ -29,12 +29,30 @@
         }
       },
       {
+        "package": "Cepoll",
+        "repositoryURL": "https://github.com/tannerdsilva/Cepoll.git",
+        "state": {
+          "branch": "master",
+          "revision": "8082c69e7ab97849a3f1f26f64d8bcfbcd5e750d",
+          "version": null
+        }
+      },
+      {
         "package": "LoggerAPI",
         "repositoryURL": "https://github.com/IBM-Swift/LoggerAPI.git",
         "state": {
           "branch": null,
           "revision": "3357dd9526cdf9436fa63bb792b669e6efdc43da",
           "version": "1.9.0"
+        }
+      },
+      {
+        "package": "OpenSSL",
+        "repositoryURL": "https://github.com/IBM-Swift/OpenSSL.git",
+        "state": {
+          "branch": null,
+          "revision": "6c7e2e3610037fbc05c0d846cec981518961d8bf",
+          "version": "2.2.2"
         }
       },
       {
