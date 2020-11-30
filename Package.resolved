@@ -32,9 +32,9 @@
         "package": "Cepoll",
         "repositoryURL": "https://github.com/tannerdsilva/Cepoll.git",
         "state": {
-          "branch": "master",
+          "branch": null,
           "revision": "8082c69e7ab97849a3f1f26f64d8bcfbcd5e750d",
-          "version": null
+          "version": "1.0.0"
         }
       },
       {
@@ -69,8 +69,8 @@
         "repositoryURL": "https://github.com/IBM-Swift/Swift-SMTP.git",
         "state": {
           "branch": null,
-          "revision": "75ba1b9c0f524f9f3a87f19d87c1a3f2dfb8710f",
-          "version": "5.1.2"
+          "revision": "23360cff5fcb92fb37041f5dd1ef16d7b8fe5ff0",
+          "version": "5.1.1"
         }
       }
     ]
