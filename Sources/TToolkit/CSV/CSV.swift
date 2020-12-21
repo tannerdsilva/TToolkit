@@ -93,6 +93,13 @@ extension Dictionary:CSVEncodable where Key == String, Value == String {
         return self[columnName]
     }
 }
+enum CSVReadingError: Error {
+	case unableToConvertToString
+	case noHeaderFound
+	case inconsistentData
+	case headerLineSkipped
+}
+
 
 extension Data {
 	public func parseCSV() throws -> [[String:String]] {
@@ -125,7 +132,34 @@ extension Data {
 			}
 		}
 		return parsedLines
-
+	}
+	
+	public func explodeCSV() throws -> [[String:String]] {
+		var inputLinesData = self.lineParse() ?? [Data]()
+		guard inputLinesData.count > 0 else {
+			return [[String:String]]()
+		}
+		guard let firstLineString = String(data:inputLinesData.remove(at:0), encoding:.utf8) else {
+			throw CSVReadingError.noHeaderFound
+		}
+		let headerLine = csvBreakdown(line:firstLineString)
+		let returnLines:[[String:String]] = inputLinesData.explode(using: { (_, curItem) -> [String:String]? in
+			let itemString = String(data:curItem, encoding:.utf8)
+			if (itemString != nil) {
+				let parsedLine = csvBreakdown(line:itemString!)
+				var thisLine = [String:String]()
+				for (n, curParsedItem) in parsedLine.enumerated() {
+					if (n < headerLine.count) {
+						thisLine[headerLine[n]] = curParsedItem
+					}
+				}
+				return thisLine
+			} else {
+				return nil
+			}
+		})
+		return returnLines
+		
 	}
 }
 
