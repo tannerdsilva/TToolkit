@@ -108,6 +108,44 @@ extension Collection {
 	
 		return buildData
 	}
+	
+	//explode a collection - returns a set of hashable objects
+	public func explode<T>(using thisFunction:@escaping (Int, Element) throws -> T?) -> Array<T> {
+		guard count > 0 else {
+			return Array<T>()
+		}
+	
+		//pre-processing access
+		let enumerateQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:explodeGlobal)
+		var iterator = self.makeIterator()
+		var i:CounterType = 0
+		func getNext() -> (CounterType, Self.Element?) {
+			return enumerateQueue.sync {
+				defer {
+					i += 1
+				}
+				return (i, iterator.next())
+			}
+		}
+	
+		//post-process merging
+		let buildQueue = DispatchQueue(label:"com.tannersilva.function.explode.enumerate", target:explodeGlobal)
+		var buildData = Array<T>()
+	
+		//process
+		DispatchQueue.concurrentPerform(iterations:count) { _ in
+			let iteratorFetch = getNext()
+			let n = iteratorFetch.0
+			if let thisItem = iteratorFetch.1, let returnedValue = try? thisFunction(n, thisItem) {
+				buildQueue.sync {
+					buildData.append(returnedValue)
+				}
+			}
+		}
+	
+		return buildData
+	}
+
 
 	//explode a collection - returns a dictionary
 	public func explode<T, U>(using thisFunction:@escaping (Int, Element) throws -> (key:T, value:U)) -> [T:U] where T:Hashable {
