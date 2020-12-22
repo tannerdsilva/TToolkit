@@ -197,7 +197,7 @@ extension Collection where Element: CSVEncodable {
         //build the heading row
         let allColumns = buildAllColumns.sorted(by:{ $0 > $1 })
         
-        let headerString = allColumns.map({ $0.csvEncodedString() }).joined(separator: ",") + "\n"
+        let headerString = allColumns.map({ $0.trimmingCharacters(in:CharacterSet.whitespacesAndNewlines).csvEncodedString() }).joined(separator: ",") + "\n"
         
         var dataLines = try headerString.safeData(using:.utf8)
 		self.explode(using:{ n, curRow in
