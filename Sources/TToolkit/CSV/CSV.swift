@@ -167,9 +167,21 @@ public func readCSV(_ inputFile:URL) throws -> [[String:String]] {
     return try Data(contentsOf:inputFile).parseCSV()
 }
 
+fileprivate let CarriageReturn:UnicodeScalar = "\r"
+fileprivate let LineFeed:UnicodeScalar = "\n"
+fileprivate let DoubleQuote:UnicodeScalar = "\""
+fileprivate let Nul:UnicodeScalar = UnicodeScalar(0)
+fileprivate let illecalCharacters = CharacterSet(charactersIn:"\(DoubleQuote),\(CarriageReturn)\(LineFeed)")
+
 extension String {
     fileprivate func csvEncodedString() -> String {
-        return "\"" + self.replacingOccurrences(of:"\"", with:"\"\"") + "\""
+        if self.rangeOfCharacter(from: illecalCharacters) != nil {
+			// A double quote must be preceded by another double quote
+			let value = self.replacingOccurrences(of: String(DoubleQuote), with: "\"\"")
+			// Quote fields containing illegal characters
+			return "\"\(value)\""
+		}
+		return self
     }
 }
 
