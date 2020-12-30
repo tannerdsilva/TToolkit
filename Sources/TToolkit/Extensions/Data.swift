@@ -646,8 +646,12 @@ extension Data {
 		}
 		
 		//if there were no lines, return early
-		if suspectedLineCount == 0 { 
-			return (lines:nil, cut:self.startIndex)
+		if suspectedLineCount == 0 {
+			if (flush) {
+				return (lines:[self], cut:self.endIndex)
+			} else {
+				return (lines:nil, cut:self.startIndex)
+			}
 		}
 		
 		let crlfTotal = crlf.count
