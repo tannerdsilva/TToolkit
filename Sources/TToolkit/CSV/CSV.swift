@@ -8,7 +8,6 @@ fileprivate func csvBreakdown(line:String) -> [String] {
     var possibleQuoteEscape = false
     var buffer = ""
     var elements = [String]()
-    var visibleBegan = false
     
     //terminate a column
     func terminate() {
@@ -199,7 +198,7 @@ extension Collection where Element: CSVEncodable {
         
         let headerString = allColumns.map({ $0.trimmingCharacters(in:CharacterSet.whitespacesAndNewlines).csvEncodedString() }).joined(separator: ",") + "\n"
         
-        var dataLines = try headerString.safeData(using:.utf8)
+        var dataLines = headerString.data(using:.utf8)!
 		self.explode(using:{ n, curRow in
 			var thisLine = Array<String>(repeating:"", count:allColumns.count)
 			for(_, kv) in allColumns.enumerated() {
@@ -208,8 +207,8 @@ extension Collection where Element: CSVEncodable {
 				}
 			}
 			let lineString = thisLine.joined(separator:",") + "\n"
-			let didConvertToData = try? lineString.safeData(using:.utf8) ?? Data() 
-			return didConvertToData
+			let dataConvert = lineString.data(using:.utf8)!
+			return dataConvert
 		}, merge: { n, curItem in
 			dataLines.append(curItem)
 		})

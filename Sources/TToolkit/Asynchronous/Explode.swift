@@ -101,7 +101,7 @@ extension Collection {
 			let n = iteratorFetch.0
 			if let thisItem = iteratorFetch.1, let returnedValue = try? thisFunction(n, thisItem) {
 				buildQueue.sync {
-					buildData.update(with:returnedValue)
+					_ = buildData.update(with:returnedValue)
 				}
 			}
 		}
@@ -174,7 +174,7 @@ extension Collection {
 		DispatchQueue.concurrentPerform(iterations:count) { _ in
 			let iteratorFetch = getNext()
 			let n = iteratorFetch.0
-			if let thisItem = iteratorFetch.1, let returnedValue = try? thisFunction(n, thisItem), returnedValue.value != nil {
+			if let thisItem = iteratorFetch.1, let returnedValue = try? thisFunction(n, thisItem) {
 				buildQueue.sync {
 					buildData[returnedValue.key] = returnedValue.value
 				}

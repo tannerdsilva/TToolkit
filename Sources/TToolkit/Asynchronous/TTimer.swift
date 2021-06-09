@@ -178,7 +178,7 @@ public class TTimer {
 		This function must be called in a synchronized dispatch queue
 	*/
 	private func _scheduleTimerIfPossible(keepAnchor:Bool) {
-		_unscheduleTimer()
+		_ = _unscheduleTimer()
 		
 		guard _handler != nil, _duration != nil else {
 			return
@@ -260,13 +260,13 @@ public class TTimer {
 	*/
 	public func cancel() {
 		_internalSync.sync {
-			_unscheduleTimer()
+			_ = _unscheduleTimer()
 		}
 	}
 	
 	deinit {
 		if state != .canceled {
-			_unscheduleTimer()
+			_ = _unscheduleTimer()
 		}
 	}
 }

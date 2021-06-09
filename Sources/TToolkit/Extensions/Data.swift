@@ -423,7 +423,6 @@ extension Data {
                         }
                         return false
                 }
-                return false
             }
 			
 			//main parsing loop
