@@ -340,8 +340,8 @@ public enum LinebreakType:UInt8 {
 }
 
 extension Data {
-	public func write(to thisPath:URL, permissions:PosixPermissions) throws {
-		let newFileHandle = try openFileHandle(path:thisPath.path, flags:[.create, .writeOnly], permissions:permissions)
+	public func write(to thisPath:URL, permissions:POSIXPermissions) throws {
+		let newFileHandle = try POSIX.openFileHandle(path:thisPath.path, flags:[.create, .writeOnly], permissions:permissions)
 		try newFileHandle.writeFileHandle(self)
 		newFileHandle.closeFileHandle()
 	}

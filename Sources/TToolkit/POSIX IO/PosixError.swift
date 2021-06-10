@@ -1,4 +1,4 @@
-public enum FileHandleError:Error {	
+public enum POSIXError:Error {	
 	case error_unknown;		//catchall
 	
 	case error_access;		//EACCES
@@ -21,6 +21,7 @@ public enum FileHandleError:Error {
 	case error_overflow		//EOVERFLOW
 	case error_permission	//EPERM
 	case error_readOnly		//EROFS
+	case error_linkMax		//EMLINK
 	
 	case error_again; 		//EAGAIN
 	case error_wouldBlock;	//EWOULDBLOCK
