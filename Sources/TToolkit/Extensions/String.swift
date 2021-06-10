@@ -2,7 +2,7 @@ import Foundation
 
 extension String {
 	//static function that creates a string of random length
-	static func random(length:Int = 32) -> String {
+	public static func random(length:Int = 32) -> String {
 		let base = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 		let baseLength = base.count
 		var randomString = ""
