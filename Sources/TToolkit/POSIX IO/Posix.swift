@@ -67,7 +67,7 @@ public class POSIX {
 		return newFileHandle
 	}
 	
-	public static func makeDirectory(at thisPath:String, permissions:POSIXPermissions = [.userAll, .groupAll, .otherRead, .otherExecute]) throws {
+	public static func createDirectory(at thisPath:String, permissions:POSIXPermissions = [.userAll, .groupAll, .otherRead, .otherExecute]) throws {
 		let makeDirResult = mkdir(thisPath, permissions.rawValue)
 		guard makeDirResult > -1 else {
 			switch errno {
