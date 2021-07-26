@@ -116,11 +116,7 @@ public class TTimer {
 		}
 		let timeDelta = hasAnchor.timeIntervalSinceNow
 		let intervalRemainder = timeDelta.truncatingRemainder(dividingBy:hasDuration)
-		if intervalRemainder > 0 {
-			return nowTime + (hasDuration - intervalRemainder)
-		} else {
-			return nowTime + hasDuration + intervalRemainder
-		}
+		return (nowTime - intervalRemainder) + hasDuration
 	}
 
 	/*
