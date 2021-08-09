@@ -115,8 +115,9 @@ public class TTimer {
 			return nowTime
 		}
 		let timeDelta = hasAnchor.timeIntervalSinceNow
-		let intervalRemainder = timeDelta.truncatingRemainder(dividingBy:hasDuration)
-		return (nowTime - intervalRemainder) + hasDuration
+		let intervalRemainder = abs(timeDelta.truncatingRemainder(dividingBy:hasDuration))
+		let returnValue = (nowTime - intervalRemainder) + hasDuration
+		return returnValue
 	}
 
 	/*
